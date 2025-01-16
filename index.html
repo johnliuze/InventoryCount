@@ -746,14 +746,24 @@
                         <span class="lang-zh">箱数：</span>
                         <span class="lang-en">Box Count:</span>
                     </label>
-                    <input type="number" id="boxCount" required>
+                    <input type="number" 
+                           id="boxCount" 
+                           required 
+                           min="1" 
+                           step="1" 
+                           oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
                 </div>
                 <div>
                     <label>
                         <span class="lang-zh">每箱数量：</span>
                         <span class="lang-en">Pieces per Box:</span>
                     </label>
-                    <input type="number" id="piecesPerBox" required>
+                    <input type="number" 
+                           id="piecesPerBox" 
+                           required 
+                           min="1" 
+                           step="1" 
+                           oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
                 </div>
                 <button type="submit">
                     <span class="lang-zh">提交</span>
@@ -766,7 +776,7 @@
                     <span class="lang-zh">最近录入记录</span>
                     <span class="lang-en">Recent Input History</span>
                 </h3>
-                <div id="inputHistoryList" class="history-list"></div>
+                <div id="recent-history-list" class="history-list"></div>
             </div>
         </div>
 

@@ -1,15 +1,21 @@
 // 模拟数据库连接
-//const API_URL = 'http://localhost:5001/api';
-const API_URL = 'https://inventory-count.vercel.app/api';
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? 'http://localhost:5001'
+    : 'https://inventory-count.vercel.app';  // 替换为你的 Vercel 应用 URL
+
 // 设置自动更新间隔（毫秒）
 const UPDATE_INTERVAL = 5000;
 
 // 上次更新时间
 let lastUpdateTime = null;
 
+// 定义更新间隔变量
+let recentHistoryUpdateInterval = null;
+let fullHistoryUpdateInterval = null;
+
 // 更新历史记录显示
 function updateHistoryDisplay() {
-    $.get(`${API_URL}/logs`, function(logs) {
+    $.get(`${API_URL}/api/logs`, function(logs) {
         const lang = document.body.className.includes('lang-en') ? 'en' : 'zh';
         
         // 检查是否有新记录
@@ -22,9 +28,20 @@ function updateHistoryDisplay() {
         
         lastUpdateTime = logs[0] ? logs[0].timestamp : null;
         
-        const html = logs.map(record => `
+        const html = logs.map(record => {
+            const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(/\//g, '-');
+            
+            return `
             <div class="history-item">
-                <span class="time">${record.timestamp}</span>
+                <div class="time">${timestamp}</div>
                 <div class="details">
                     <span class="lang-zh">
                         库位 <span class="bin-code">${record.bin_code}</span>: 
@@ -41,9 +58,13 @@ function updateHistoryDisplay() {
                         <span class="quantity">${record.total_pieces}</span> pcs
                     </span>
                 </div>
-            </div>
-        `).join('');
-        $("#inputHistoryList").html(html);
+            </div>`;
+        }).join('');
+        
+        const recentHistoryList = document.getElementById('recent-history-list');
+        if (recentHistoryList) {
+            recentHistoryList.innerHTML = html;
+        }
     });
 }
 
@@ -54,7 +75,7 @@ $(document).ready(function() {
     $("#itemInput, #itemSearch, #itemLocationSearch").autocomplete({
         source: function(request, response) {
             console.log("搜索商品:", request.term);
-            $.get(`${API_URL}/items`, { search: request.term })
+            $.get(`${API_URL}/api/items`, { search: request.term })
                 .done(items => {
                     console.log('Items response:', items);
                     response(items.map(item => item.item_code));
@@ -72,7 +93,7 @@ $(document).ready(function() {
     // 库位输入自动完成
     $("#binInput, #binSearch").autocomplete({
         source: function(request, response) {
-            $.get(`${API_URL}/bins`, { search: request.term })
+            $.get(`${API_URL}/api/bins`, { search: request.term })
                 .done(bins => {
                     console.log('Bins response:', bins);
                     response(bins.map(bin => bin.bin_code));
@@ -95,14 +116,18 @@ $(document).ready(function() {
 
     // 初始化历史记录更新
     updateRecentHistory();
+    if (recentHistoryUpdateInterval) {
+        clearInterval(recentHistoryUpdateInterval);
+    }
     recentHistoryUpdateInterval = setInterval(updateRecentHistory, 5000);
 
     // 当切换到历史记录标签页时开始更新
     $('.tab-button[data-tab="history"]').on('click', function() {
         updateFullHistory();
-        if (!fullHistoryUpdateInterval) {
-            fullHistoryUpdateInterval = setInterval(updateFullHistory, 5000);
+        if (fullHistoryUpdateInterval) {
+            clearInterval(fullHistoryUpdateInterval);
         }
+        fullHistoryUpdateInterval = setInterval(updateFullHistory, 5000);
     });
 
     // 当切换离开历史记录标签页时停止更新
@@ -120,10 +145,22 @@ $(document).ready(function() {
 $("#inventoryForm").submit(function(e) {
     e.preventDefault();
     
+    // 移除之前可能存在的事件处理器
+    $("#confirm-yes").off('click');
+    $("#confirm-no").off('click');
+    
     const binCode = $("#binInput").val();
     const itemCode = $("#itemInput").val();
     const boxCount = parseInt($("#boxCount").val());
     const piecesPerBox = parseInt($("#piecesPerBox").val());
+    
+    // 验证数值
+    if (boxCount <= 0 || piecesPerBox <= 0) {
+        alert(document.body.className.includes('lang-en') 
+            ? "Box count and pieces per box must be greater than 0"
+            : "箱数和每箱数量必须大于0");
+        return;
+    }
     
     // 填充确认对话框
     $("#confirm-bin").text(binCode);
@@ -135,45 +172,46 @@ $("#inventoryForm").submit(function(e) {
     $("#confirm-dialog").fadeIn(200);
 
     // 确认按钮事件
-    $("#confirm-yes").one('click', function() {
+    $("#confirm-yes").on('click', function() {
+        // 立即移除事件处理器，防止重复提交
+        $("#confirm-yes").off('click');
+        $("#confirm-no").off('click');
         $("#confirm-dialog").fadeOut(200);
-        addInventoryRecord(binCode, itemCode, boxCount, piecesPerBox);
-        $("#inventoryForm")[0].reset();
+        
+        // 在确认后再添加记录
+        $.ajax({
+            url: `${API_URL}/api/inventory`,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                bin_code: binCode,
+                item_code: itemCode,
+                box_count: boxCount,
+                pieces_per_box: piecesPerBox
+            }),
+            success: function(response) {
+                // 成功后再更新显示并重置表单
+                setTimeout(updateHistoryDisplay, 100);
+                $("#inventoryForm")[0].reset();
+            },
+            error: function(xhr, status, error) {
+                let errorMsg = "添加失败，请检查输入！";
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                alert(errorMsg);
+            }
+        });
     });
 
     // 取消按钮事件
-    $("#confirm-no").one('click', function() {
+    $("#confirm-no").on('click', function() {
+        // 移除事件处理器
+        $("#confirm-yes").off('click');
+        $("#confirm-no").off('click');
         $("#confirm-dialog").fadeOut(200);
     });
 });
-
-// 添加库存记录
-function addInventoryRecord(binCode, itemCode, boxCount, piecesPerBox) {
-    $.ajax({
-        url: `${API_URL}/inventory`,
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            bin_code: binCode,
-            item_code: itemCode,
-            box_count: boxCount,
-            pieces_per_box: piecesPerBox
-        }),
-        success: function(response) {
-            console.log("添加成功:", response);
-            // 立即更新历史记录显示
-            updateHistoryDisplay();
-        },
-        error: function(xhr, status, error) {
-            let errorMsg = "添加失败，请检查输入！";
-            if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMsg = xhr.responseJSON.error;
-            }
-            alert(errorMsg);
-            console.error("添加失败:", error, xhr.responseText);
-        }
-    });
-}
 
 // 查询商品总数量
 function searchItemTotal() {
@@ -186,19 +224,30 @@ function searchItemTotal() {
         return;
     }
     
-    // 替换斜杠为特殊编码
     const encodedItemCode = itemCode.trim()
         .replace(/\//g, '___SLASH___')
         .replace(/\s/g, '___SPACE___');
-    const url = `${API_URL}/inventory/item/${encodedItemCode}`;
-    console.log("发送请求到:", url);
-    console.log("查询的商品编号:", itemCode);
+    const url = `${API_URL}/api/inventory/item/${encodedItemCode}`;
     
     $.ajax({
         url: url,
         type: 'GET',
         success: function(data) {
-            console.log("查询商品总数量结果:", data);
+            // 如果总数为0，显示无库存信息
+            if (data.total === 0) {
+                $("#itemTotalResult").html(`
+                    <div class="result-item">
+                        <span class="lang-zh">
+                            商品 <span class="item-code">${itemCode}</span> 当前无库存
+                        </span>
+                        <span class="lang-en">
+                            Item <span class="item-code">${itemCode}</span> currently has no inventory
+                        </span>
+                    </div>
+                `);
+                return;
+            }
+            
             $("#itemTotalResult").html(`
                 <div class="result-item">
                     <span class="lang-zh">
@@ -244,8 +293,13 @@ function searchBinContents() {
         return;
     }
     
+    const encodedBinCode = binCode.trim()
+        .replace(/\//g, '___SLASH___')
+        .replace(/\s/g, '___SPACE___');
+    const url = `${API_URL}/api/inventory/bin/${encodedBinCode}`;
+    
     $.ajax({
-        url: `${API_URL}/inventory/bin/${encodeURIComponent(binCode)}`,
+        url: url,
         type: 'GET',
         success: function(contents) {
             if (!contents || contents.length === 0) {
@@ -305,13 +359,12 @@ function searchItemLocations() {
         return;
     }
     
-    // 替换斜杠为特殊编码
     const encodedItemCode = itemCode.trim()
         .replace(/\//g, '___SLASH___')
         .replace(/\s/g, '___SPACE___');
     
     $.ajax({
-        url: `${API_URL}/inventory/locations/${encodedItemCode}`,
+        url: `${API_URL}/api/inventory/locations/${encodedItemCode}`,
         type: 'GET',
         success: function(locations) {
             if (!locations || locations.length === 0) {
@@ -362,12 +415,12 @@ function searchItemLocations() {
 
 // 导出商品库存
 function exportItems() {
-    window.location.href = `${API_URL}/export/items`;
+    window.location.href = `${API_URL}/api/export/items`;
 }
 
 // 导出库位库存
 function exportBins() {
-    window.location.href = `${API_URL}/export/bins`;
+    window.location.href = `${API_URL}/api/export/bins`;
 }
 
 // 语言切换时更新历史记录显示
@@ -391,61 +444,87 @@ function switchQueryTab(tabId) {
 
 // 更新最近5条历史记录
 function updateRecentHistory() {
-    fetch('/api/logs')
-        .then(response => response.json())
-        .then(logs => {
-            const recentLogs = logs.slice(0, 5);  // 只取最近5条
-            const historyHtml = recentLogs.map(formatHistoryItem).join('');
-            document.getElementById('recent-history-list').innerHTML = historyHtml;
-        });
+    $.get(`${API_URL}/api/logs`, function(logs) {
+        const recentLogs = logs.slice(0, 5);  // 只取最近5条
+        const html = recentLogs.map(record => {
+            const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(/\//g, '-');
+            
+            return `
+            <div class="history-item">
+                <div class="time">${timestamp}</div>
+                <div class="details">
+                    <span class="lang-zh">
+                        库位 <span class="bin-code">${record.bin_code}</span>: 
+                        商品 <span class="item-code">${record.item_code}</span>
+                         <span class="quantity">${record.box_count}</span> 箱 × 
+                         <span class="quantity">${record.pieces_per_box}</span> 件/箱 = 
+                         <span class="quantity">${record.total_pieces}</span> 件
+                    </span>
+                    <span class="lang-en">
+                        Bin <span class="bin-code">${record.bin_code}</span>: 
+                        Item <span class="item-code">${record.item_code}</span>
+                        <span class="quantity">${record.box_count}</span> boxes × 
+                        <span class="quantity">${record.pieces_per_box}</span> pcs/box = 
+                        <span class="quantity">${record.total_pieces}</span> pcs
+                    </span>
+                </div>
+            </div>`;
+        }).join('');
+        
+        const recentHistoryList = document.getElementById('recent-history-list');
+        if (recentHistoryList) {
+            recentHistoryList.innerHTML = html;
+        }
+    });
 }
 
 // 更新完整历史记录
 function updateFullHistory() {
-    fetch('/api/logs')
-        .then(response => response.json())
-        .then(logs => {
-            const historyHtml = logs.map(formatHistoryItem).join('');
-            document.getElementById('full-history-list').innerHTML = historyHtml;
-        });
-}
-
-// 格式化单条历史记录
-function formatHistoryItem(log) {
-    const timestamp = new Date(log.timestamp).toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    }).replace(/\//g, '-');
-
-    const isEnglish = document.body.className.includes('lang-en');
-    const content = isEnglish
-        ? `Bin ${log.bin_code}: Item ${log.item_code} ${log.box_count} boxes × ${log.pieces_per_box} pcs/box = ${log.total_pieces} pcs`
-        : `库位 ${log.bin_code}: 商品 ${log.item_code} ${log.box_count} 箱 × ${log.pieces_per_box} 件/箱 = ${log.total_pieces} 件`;
-
-    return `
-        <div class="history-item">
-            <div class="details">
-                <span class="lang-zh">
-                    库位 <span class="bin-code">${log.bin_code}</span>: 
-                    商品 <span class="item-code">${log.item_code}</span> 
-                     <span class="quantity">${log.box_count}</span> 箱 × 
-                     <span class="quantity">${log.pieces_per_box}</span> 件/箱 = 
-                     <span class="quantity">${log.total_pieces}</span> 件
-                </span>
-                <span class="lang-en">
-                    Bin <span class="bin-code">${log.bin_code}</span>: 
-                    Item <span class="item-code">${log.item_code}</span> 
-                    <span class="quantity">${log.box_count}</span> boxes × 
-                    <span class="quantity">${log.pieces_per_box}</span> pcs/box = 
-                    <span class="quantity">${log.total_pieces}</span> pcs
-                </span>
-            </div>
-            <div class="time">${timestamp}</div>
-        </div>
-    `;
+    $.get(`${API_URL}/api/logs`, function(logs) {
+        const html = logs.map(record => {
+            const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(/\//g, '-');
+            
+            return `
+            <div class="history-item">
+                <div class="time">${timestamp}</div>
+                <div class="details">
+                    <span class="lang-zh">
+                        库位 <span class="bin-code">${record.bin_code}</span>: 
+                        商品 <span class="item-code">${record.item_code}</span>
+                         <span class="quantity">${record.box_count}</span> 箱 × 
+                         <span class="quantity">${record.pieces_per_box}</span> 件/箱 = 
+                         <span class="quantity">${record.total_pieces}</span> 件
+                    </span>
+                    <span class="lang-en">
+                        Bin <span class="bin-code">${record.bin_code}</span>: 
+                        Item <span class="item-code">${record.item_code}</span>
+                        <span class="quantity">${record.box_count}</span> boxes × 
+                        <span class="quantity">${record.pieces_per_box}</span> pcs/box = 
+                        <span class="quantity">${record.total_pieces}</span> pcs
+                    </span>
+                </div>
+            </div>`;
+        }).join('');
+        
+        const fullHistoryList = document.getElementById('full-history-list');
+        if (fullHistoryList) {
+            fullHistoryList.innerHTML = html;
+        }
+    });
 } 

@@ -354,6 +354,15 @@ def get_item_inventory(item_id):
     
     item_id = item_id.replace('___SLASH___', '/').replace('___SPACE___', ' ')
     
+    # 先检查商品是否存在
+    cursor.execute('SELECT item_id FROM items WHERE item_code = ?', (item_id,))
+    item_result = cursor.fetchone()
+    if not item_result:
+        return jsonify({
+            'error': '商品不存在',
+            'error_en': 'Item does not exist'
+        }), 404
+    
     cursor.execute('''
         SELECT 
             i.item_code,
@@ -367,8 +376,13 @@ def get_item_inventory(item_id):
     ''', (item_id,))
     
     result = cursor.fetchone()
-    if not result:
-        return jsonify({'error': '商品不存在或无库存', 'error_en': 'Item not found or no inventory'}), 404
+    if not result or result['total_pieces'] is None:
+        return jsonify({
+            'item_code': item_id,
+            'total': 0,
+            'total_boxes': 0,
+            'box_details': []
+        })
     
     return jsonify({
         'item_code': result['item_code'],
