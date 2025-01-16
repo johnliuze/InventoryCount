@@ -1,6 +1,6 @@
 // 模拟数据库连接
-const API_URL = 'http://localhost:5001/api';
-
+//const API_URL = 'http://localhost:5001/api';
+const API_URL = 'https://inventory-count.vercel.app/api';
 // 设置自动更新间隔（毫秒）
 const UPDATE_INTERVAL = 5000;
 
