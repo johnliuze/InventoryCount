@@ -24,6 +24,18 @@
         "dest": "server.py"
       },
       {
+        "src": "/api/logs",
+        "dest": "server.py"
+      },
+      {
+        "src": "/api/items",
+        "dest": "server.py"
+      },
+      {
+        "src": "/api/bins",
+        "dest": "server.py"
+      },
+      {
         "src": "/",
         "dest": "index.html"
       },
