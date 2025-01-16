@@ -8,19 +8,22 @@ import pandas as pd
 from io import BytesIO
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app)
 
 # 错误处理
-@app.errorhandler(Exception)
-def handle_error(e):
-    print("Error occurred:", str(e))
-    print(traceback.format_exc())
-    return jsonify(error=str(e)), 500
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify(error="Not found", error_en="Resource not found"), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    return jsonify(error="Server error", error_en="Internal server error"), 500
 
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
 # 添加路由来提供前端文件
