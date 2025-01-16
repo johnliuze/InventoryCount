@@ -20,10 +20,6 @@
     ],
     "routes": [
       {
-        "src": "/api/(.*)",
-        "dest": "server.py"
-      },
-      {
         "src": "/api/logs",
         "dest": "server.py"
       },
@@ -33,6 +29,14 @@
       },
       {
         "src": "/api/bins",
+        "dest": "server.py"
+      },
+      {
+        "src": "/api/inventory/(.*)",
+        "dest": "server.py"
+      },
+      {
+        "src": "/api/export/(.*)",
         "dest": "server.py"
       },
       {

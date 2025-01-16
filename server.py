@@ -6,12 +6,19 @@ import os
 import traceback
 import pandas as pd
 from io import BytesIO
+import tempfile
 
 app = Flask(__name__)
 CORS(app)
 
 # 获取项目根目录
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# 在 Vercel 环境中使用临时文件夹
+def get_db_path():
+    if 'VERCEL' in os.environ:
+        return os.path.join(tempfile.gettempdir(), 'inventory.db')
+    return os.path.join(BASE_DIR, 'inventory.db')
 
 # 错误处理
 @app.errorhandler(404)
@@ -49,13 +56,14 @@ def inventory_js():
 
 # 数据库连接
 def get_db():
-    db_path = os.path.join(BASE_DIR, 'inventory.db')
+    db_path = get_db_path()
     db = sqlite3.connect(db_path)
     db.row_factory = sqlite3.Row
     return db
 
 # 初始化数据库
 def init_db():
+    print("Initializing database...")
     db = get_db()
     cursor = db.cursor()
     
@@ -82,39 +90,56 @@ def init_db():
             FOREIGN KEY (bin_id) REFERENCES bins (bin_id),
             FOREIGN KEY (item_id) REFERENCES items (item_id)
         );
+        
+        CREATE TABLE IF NOT EXISTS input_history (
+            history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bin_code TEXT NOT NULL,
+            item_code TEXT NOT NULL,
+            box_count INTEGER NOT NULL,
+            pieces_per_box INTEGER NOT NULL,
+            total_pieces INTEGER NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     ''')
     
-    # 检查是否需要导入初始数据
-    cursor.execute('SELECT COUNT(*) FROM bins')
-    if cursor.fetchone()[0] == 0:
-        bin_path = os.path.join(BASE_DIR, 'BIN.csv')
-        print(f"Importing bins from {bin_path}")
-        try:
-            with open(bin_path, 'r', encoding='utf-8') as f:
-                csv_reader = csv.reader(f)
-                next(csv_reader)  # 跳过标题行
-                bins_data = [(row[0],) for row in csv_reader]
-                print(f"Found {len(bins_data)} bins")
-                cursor.executemany('INSERT OR IGNORE INTO bins (bin_code) VALUES (?)', bins_data)
-        except Exception as e:
-            print(f"Error importing bins: {str(e)}")
-    
-    cursor.execute('SELECT COUNT(*) FROM items')
-    if cursor.fetchone()[0] == 0:
-        item_path = os.path.join(BASE_DIR, 'Item.CSV')
-        print(f"Importing items from {item_path}")
-        try:
-            with open(item_path, 'r', encoding='utf-8') as f:
-                csv_reader = csv.reader(f)
-                next(csv_reader)  # 跳过标题行
-                items_data = [(row[0],) for row in csv_reader]
-                print(f"Found {len(items_data)} items")
-                cursor.executemany('INSERT OR IGNORE INTO items (item_code) VALUES (?)', items_data)
-        except Exception as e:
-            print(f"Error importing items: {str(e)}")
-    
-    db.commit()
-    db.close()
+    try:
+        # 检查是否需要导入初始数据
+        cursor.execute('SELECT COUNT(*) FROM bins')
+        if cursor.fetchone()[0] == 0:
+            bin_path = os.path.join(BASE_DIR, 'BIN.csv')
+            print(f"Importing bins from {bin_path}")
+            try:
+                with open(bin_path, 'r', encoding='utf-8-sig') as f:
+                    csv_reader = csv.reader(f)
+                    next(csv_reader)  # 跳过标题行
+                    bins_data = [(row[0],) for row in csv_reader if row]
+                    if bins_data:
+                        cursor.executemany('INSERT OR IGNORE INTO bins (bin_code) VALUES (?)', bins_data)
+                        print(f"Imported {len(bins_data)} bins")
+            except Exception as e:
+                print(f"Error importing bins: {str(e)}")
+        
+        cursor.execute('SELECT COUNT(*) FROM items')
+        if cursor.fetchone()[0] == 0:
+            item_path = os.path.join(BASE_DIR, 'Item.CSV')
+            print(f"Importing items from {item_path}")
+            try:
+                with open(item_path, 'r', encoding='utf-8-sig') as f:
+                    csv_reader = csv.reader(f)
+                    next(csv_reader)  # 跳过标题行
+                    items_data = [(row[0],) for row in csv_reader if row]
+                    if items_data:
+                        cursor.executemany('INSERT OR IGNORE INTO items (item_code) VALUES (?)', items_data)
+                        print(f"Imported {len(items_data)} items")
+            except Exception as e:
+                print(f"Error importing items: {str(e)}")
+        
+        db.commit()
+    except Exception as e:
+        print(f"Database initialization error: {str(e)}")
+        print(traceback.format_exc())
+    finally:
+        db.close()
 
 # 导入CSV数据
 def import_data():
@@ -669,30 +694,28 @@ def get_logs():
     db = get_db()
     cursor = db.cursor()
     
-    # 获取所有记录
     cursor.execute('''
         SELECT 
-            bin_code,
-            item_code,
-            box_count,
-            pieces_per_box,
-            total_pieces,
-            input_time
-        FROM input_history
-        ORDER BY input_time DESC
+            ih.bin_code,
+            ih.item_code,
+            ih.box_count,
+            ih.pieces_per_box,
+            ih.total_pieces,
+            ih.timestamp
+        FROM input_history ih
+        ORDER BY ih.timestamp DESC
     ''')
     
     logs = []
     for row in cursor.fetchall():
-        log_entry = {
+        logs.append({
             'bin_code': row['bin_code'],
             'item_code': row['item_code'],
             'box_count': row['box_count'],
             'pieces_per_box': row['pieces_per_box'],
             'total_pieces': row['total_pieces'],
-            'timestamp': row['input_time']
-        }
-        logs.append(log_entry)
+            'timestamp': row['timestamp']
+        })
     
     return jsonify(logs)
 
