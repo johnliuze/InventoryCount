@@ -202,10 +202,14 @@ function searchItemTotal() {
             $("#itemTotalResult").html(`
                 <div class="result-item">
                     <span class="lang-zh">
-                        商品 <span class="item-code">${itemCode}</span> 总数量：<span class="quantity">${data.total}</span> 件
+                        商品 <span class="item-code">${itemCode}</span> 
+                        总数量：<span class="quantity">${data.total}</span> 件
+                        （<span class="quantity">${data.total_boxes}</span> 箱）
                     </span>
                     <span class="lang-en">
-                        Item <span class="item-code">${itemCode}</span> total quantity: <span class="quantity">${data.total}</span> pcs
+                        Item <span class="item-code">${itemCode}</span> 
+                        total quantity: <span class="quantity">${data.total}</span> pcs
+                        (<span class="quantity">${data.total_boxes}</span> boxes)
                     </span>
                 </div>
             `);

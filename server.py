@@ -352,33 +352,30 @@ def get_item_inventory(item_id):
     db = get_db()
     cursor = db.cursor()
     
-    # 还原编码的特殊字符
     item_id = item_id.replace('___SLASH___', '/').replace('___SPACE___', ' ')
-    print(f"查询商品总数量，商品编号: {item_id}")
-    
-    # 检查所有商品编号
-    cursor.execute('SELECT item_code FROM items')
-    all_items = cursor.fetchall()
-    print("数据库中的所有商品:", [row['item_code'] for row in all_items])
-    
-    # 先通过商品编号获取商品ID
-    cursor.execute('SELECT item_id FROM items WHERE item_code = ?', (item_id,))
-    item_result = cursor.fetchone()
-    
-    print(f"查询到的商品ID结果: {item_result}")
-    if not item_result:
-        print(f"未找到商品: {item_id}")
-        return jsonify({'error': '商品不存在', 'total': 0}), 404
     
     cursor.execute('''
-        SELECT SUM(total_pieces) as total
-        FROM inventory
-        WHERE item_id = ?
-    ''', (item_result['item_id'],))
+        SELECT 
+            i.item_code,
+            SUM(inv.total_pieces) as total_pieces,
+            SUM(inv.box_count) as total_boxes,
+            GROUP_CONCAT(inv.box_count || 'x' || inv.pieces_per_box) as box_details
+        FROM inventory inv
+        JOIN items i ON inv.item_id = i.item_id
+        WHERE i.item_code = ?
+        GROUP BY i.item_code
+    ''', (item_id,))
     
     result = cursor.fetchone()
-    print(f"查询到的总数量结果: {result}")
-    return jsonify({'total': result['total'] or 0})
+    if not result:
+        return jsonify({'error': '商品不存在或无库存', 'error_en': 'Item not found or no inventory'}), 404
+    
+    return jsonify({
+        'item_code': result['item_code'],
+        'total': result['total_pieces'],
+        'total_boxes': result['total_boxes'],
+        'box_details': result['box_details'].split(',') if result['box_details'] else []
+    })
 
 @app.route('/api/inventory/bin/<bin_id>', methods=['GET'])
 def get_bin_inventory(bin_id):
@@ -513,13 +510,13 @@ def export_items():
     db = get_db()
     cursor = db.cursor()
     
-    # 查询所有有库存的商品及其库存信息
     cursor.execute('''
         WITH merged_locations AS (
             SELECT 
                 i.item_code,
                 b.bin_code,
-                SUM(inv.total_pieces) as bin_total
+                SUM(inv.total_pieces) as bin_total,
+                SUM(inv.box_count) as bin_boxes
             FROM inventory inv
             JOIN items i ON inv.item_id = i.item_id
             JOIN bins b ON inv.bin_id = b.bin_id
@@ -528,6 +525,7 @@ def export_items():
         SELECT 
             item_code,
             SUM(bin_total) as total_quantity,
+            SUM(bin_boxes) as total_boxes,
             GROUP_CONCAT(DISTINCT bin_code) as bin_locations
         FROM merged_locations
         GROUP BY item_code
@@ -536,8 +534,8 @@ def export_items():
     
     items_data = cursor.fetchall()
     
-    # 创建DataFrame
-    df = pd.DataFrame(items_data, columns=['Item Code', 'Total Quantity', 'Bin Locations'])
+    # 创建DataFrame，添加总箱数列
+    df = pd.DataFrame(items_data, columns=['Item Code', 'Total Quantity', 'Total Boxes', 'Bin Locations'])
     
     # 创建Excel文件
     output = BytesIO()
@@ -550,7 +548,8 @@ def export_items():
         # 设置列宽
         worksheet.set_column('A:A', 20)  # Item Code
         worksheet.set_column('B:B', 15)  # Total Quantity
-        worksheet.set_column('C:C', 40)  # Bin Locations
+        worksheet.set_column('C:C', 12)  # Total Boxes
+        worksheet.set_column('D:D', 40)  # Bin Locations
         
         # 定义格式
         item_format = workbook.add_format({
@@ -574,7 +573,8 @@ def export_items():
         # 应用格式到整列
         worksheet.set_column('A:A', 20, item_format)   # Item Code
         worksheet.set_column('B:B', 15, number_format) # Total Quantity
-        worksheet.set_column('C:C', 40, bin_format)    # Bin Locations
+        worksheet.set_column('C:C', 12, number_format) # Total Boxes
+        worksheet.set_column('D:D', 40, bin_format)    # Bin Locations
         
         # 设置标题行格式
         header_format = workbook.add_format({
