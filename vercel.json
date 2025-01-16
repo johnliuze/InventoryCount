@@ -1,0 +1,39 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "server.py",
+        "use": "@vercel/python"
+      },
+      {
+        "src": "*.html",
+        "use": "@vercel/static"
+      },
+      {
+        "src": "*.js",
+        "use": "@vercel/static"
+      },
+      {
+        "src": "*.csv",
+        "use": "@vercel/static"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/api/(.*)",
+        "dest": "server.py"
+      },
+      {
+        "src": "/",
+        "dest": "index.html"
+      },
+      {
+        "src": "/inventory.js",
+        "dest": "inventory.js"
+      },
+      {
+        "src": "/(.*)",
+        "dest": "server.py"
+      }
+    ]
+}
