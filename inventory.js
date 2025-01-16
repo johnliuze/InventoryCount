@@ -1,7 +1,7 @@
 // 模拟数据库连接
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? 'http://localhost:5001'
-    : '';  // 在生产环境中使用相对路径
+    : 'https://inventory-count.vercel.app';  // 替换为你的 Vercel 应用 URL
 
 // 设置自动更新间隔（毫秒）
 const UPDATE_INTERVAL = 5000;

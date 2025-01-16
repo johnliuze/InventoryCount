@@ -6,19 +6,9 @@ import os
 import traceback
 import pandas as pd
 from io import BytesIO
-import tempfile
 
 app = Flask(__name__)
 CORS(app)
-
-# 获取项目根目录
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# 在 Vercel 环境中使用临时文件夹
-def get_db_path():
-    if 'VERCEL' in os.environ:
-        return os.path.join(tempfile.gettempdir(), 'inventory.db')
-    return os.path.join(BASE_DIR, 'inventory.db')
 
 # 错误处理
 @app.errorhandler(404)
@@ -56,90 +46,118 @@ def inventory_js():
 
 # 数据库连接
 def get_db():
-    db_path = get_db_path()
-    db = sqlite3.connect(db_path)
+    db = sqlite3.connect('inventory.db')
     db.row_factory = sqlite3.Row
     return db
 
 # 初始化数据库
 def init_db():
-    print("Initializing database...")
     db = get_db()
     cursor = db.cursor()
     
-    # 创建缺失的表
-    cursor.executescript('''
-        CREATE TABLE IF NOT EXISTS bins (
-            bin_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            bin_code TEXT UNIQUE NOT NULL
-        );
-        
-        CREATE TABLE IF NOT EXISTS items (
-            item_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            item_code TEXT UNIQUE NOT NULL
-        );
-        
-        CREATE TABLE IF NOT EXISTS inventory (
-            inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            bin_id INTEGER NOT NULL,
-            item_id INTEGER NOT NULL,
-            box_count INTEGER NOT NULL,
-            pieces_per_box INTEGER NOT NULL,
-            total_pieces INTEGER NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (bin_id) REFERENCES bins (bin_id),
-            FOREIGN KEY (item_id) REFERENCES items (item_id)
-        );
-        
-        CREATE TABLE IF NOT EXISTS input_history (
-            history_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            bin_code TEXT NOT NULL,
-            item_code TEXT NOT NULL,
-            box_count INTEGER NOT NULL,
-            pieces_per_box INTEGER NOT NULL,
-            total_pieces INTEGER NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-    ''')
+    # 检查数据库是否已经初始化
+    cursor.execute(''' SELECT name FROM sqlite_master 
+                      WHERE type='table' AND name IN ('bins', 'items', 'inventory', 'input_history') ''')
+    existing_tables = cursor.fetchall()
+    existing_table_names = [row[0] for row in existing_tables]
     
-    try:
-        # 检查是否需要导入初始数据
-        cursor.execute('SELECT COUNT(*) FROM bins')
-        if cursor.fetchone()[0] == 0:
-            bin_path = os.path.join(BASE_DIR, 'BIN.csv')
-            print(f"Importing bins from {bin_path}")
-            try:
-                with open(bin_path, 'r', encoding='utf-8-sig') as f:
-                    csv_reader = csv.reader(f)
-                    next(csv_reader)  # 跳过标题行
-                    bins_data = [(row[0],) for row in csv_reader if row]
-                    if bins_data:
-                        cursor.executemany('INSERT OR IGNORE INTO bins (bin_code) VALUES (?)', bins_data)
-                        print(f"Imported {len(bins_data)} bins")
-            except Exception as e:
-                print(f"Error importing bins: {str(e)}")
-        
-        cursor.execute('SELECT COUNT(*) FROM items')
-        if cursor.fetchone()[0] == 0:
-            item_path = os.path.join(BASE_DIR, 'Item.CSV')
-            print(f"Importing items from {item_path}")
-            try:
-                with open(item_path, 'r', encoding='utf-8-sig') as f:
-                    csv_reader = csv.reader(f)
-                    next(csv_reader)  # 跳过标题行
-                    items_data = [(row[0],) for row in csv_reader if row]
-                    if items_data:
-                        cursor.executemany('INSERT OR IGNORE INTO items (item_code) VALUES (?)', items_data)
-                        print(f"Imported {len(items_data)} items")
-            except Exception as e:
-                print(f"Error importing items: {str(e)}")
-        
-        db.commit()
-    except Exception as e:
-        print(f"Database initialization error: {str(e)}")
-        print(traceback.format_exc())
-    finally:
-        db.close()
+    if len(existing_tables) == 4:
+        print("数据库已存在且包含所有必要的表，跳过初始化")
+        return
+    
+    print("开始初始化数据库...")
+    
+    # 创建缺失的表
+    if 'bins' not in existing_table_names:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS bins (
+                bin_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bin_code TEXT UNIQUE NOT NULL
+            )
+        ''')
+    
+    if 'items' not in existing_table_names:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS items (
+                item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                item_code TEXT UNIQUE NOT NULL
+            )
+        ''')
+    
+    if 'inventory' not in existing_table_names:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS inventory (
+                inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bin_id INTEGER NOT NULL,
+                item_id INTEGER NOT NULL,
+                box_count INTEGER NOT NULL,
+                pieces_per_box INTEGER NOT NULL,
+                total_pieces INTEGER NOT NULL,
+                FOREIGN KEY (bin_id) REFERENCES bins (bin_id),
+                FOREIGN KEY (item_id) REFERENCES items (item_id)
+            )
+        ''')
+    
+    if 'input_history' not in existing_table_names:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS input_history (
+                history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bin_code TEXT NOT NULL,
+                item_code TEXT NOT NULL,
+                box_count INTEGER NOT NULL,
+                pieces_per_box INTEGER NOT NULL,
+                total_pieces INTEGER NOT NULL,
+                input_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+    
+    # 只有在相应的表不存在时才导入初始数据
+    if 'bins' not in existing_table_names:
+        print("导入库位数据...")
+        with open('BIN.csv', 'r', encoding='utf-8') as f:
+            csv_reader = csv.reader(f)
+            next(csv_reader)  # 跳过标题行
+            bin_data = [(row[0],) for row in csv_reader]
+            print(f"从CSV读取到 {len(bin_data)} 个库位")
+            cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', bin_data)
+    
+    if 'items' not in existing_table_names:
+        print("导入商品数据...")
+        try:
+            encodings = ['utf-8', 'gbk', 'latin-1', 'iso-8859-1', 'cp1252']
+            content = None
+            
+            for encoding in encodings:
+                try:
+                    with open('Item.CSV', 'r', encoding=encoding) as f:
+                        content = f.read()
+                        break
+                except UnicodeDecodeError:
+                    continue
+            
+            if content is None:
+                raise Exception("无法读取Item.CSV文件，请检查文件编码")
+            
+            # 手动处理CSV内容
+            lines = content.split('\n')
+            items = set()  # 使用集合去重
+            for line in lines[1:]:  # 跳过标题行
+                if ',' in line:
+                    item_code = line.split(',')[0].strip().strip('"')  # 移除引号
+                    if item_code and not item_code.startswith('"Item No"'):
+                        items.add(item_code)
+            
+            # 插入数据
+            items = [(item,) for item in items]  # 转换回元组列表
+            print(f"从CSV读取到 {len(items)} 个商品")
+            cursor.executemany('INSERT INTO items (item_code) VALUES (?)', items)
+            
+        except Exception as e:
+            print(f"导入商品数据时出错: {e}")
+            raise
+    
+    db.commit()
+    print("数据库初始化完成")
 
 # 导入CSV数据
 def import_data():
@@ -694,28 +712,30 @@ def get_logs():
     db = get_db()
     cursor = db.cursor()
     
+    # 获取所有记录
     cursor.execute('''
         SELECT 
-            ih.bin_code,
-            ih.item_code,
-            ih.box_count,
-            ih.pieces_per_box,
-            ih.total_pieces,
-            ih.timestamp
-        FROM input_history ih
-        ORDER BY ih.timestamp DESC
+            bin_code,
+            item_code,
+            box_count,
+            pieces_per_box,
+            total_pieces,
+            input_time
+        FROM input_history
+        ORDER BY input_time DESC
     ''')
     
     logs = []
     for row in cursor.fetchall():
-        logs.append({
+        log_entry = {
             'bin_code': row['bin_code'],
             'item_code': row['item_code'],
             'box_count': row['box_count'],
             'pieces_per_box': row['pieces_per_box'],
             'total_pieces': row['total_pieces'],
-            'timestamp': row['timestamp']
-        })
+            'timestamp': row['input_time']
+        }
+        logs.append(log_entry)
     
     return jsonify(logs)
 
@@ -762,9 +782,6 @@ def input_inventory():
         print(f"Error in input_inventory: {str(e)}")
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
-
-# 在应用启动时初始化数据库
-init_db()
 
 if __name__ == '__main__':
     print("Starting server...")
