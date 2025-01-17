@@ -693,6 +693,47 @@
         .modal-button:hover {
             opacity: 0.9;
         }
+
+        /* 导出标签页样式 */
+        .export-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .export-button {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px;
+            font-size: 1.1em;
+        }
+        
+        .export-descriptions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .export-description {
+            padding: 15px;
+            background-color: white;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .export-description h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .export-description p {
+            color: #666;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
@@ -717,6 +758,10 @@
             <button class="tab-button" onclick="switchTab('history')" data-tab="history">
                 <span class="lang-zh">历史记录</span>
                 <span class="lang-en">History</span>
+            </button>
+            <button class="tab-button" onclick="switchTab('export')" data-tab="export">
+                <span class="lang-zh">导出</span>
+                <span class="lang-en">Export</span>
             </button>
         </div>
         
@@ -791,14 +836,13 @@
             </div>
         </div>
 
-        <!-- 查询部分 -->
-        <div id="query-tab" class="tab-content">
+        <!-- 导出部分 -->
+        <div id="export-tab" class="tab-content">
             <h2>
-                <span class="lang-zh">库存查询</span>
-                <span class="lang-en">Inventory Query</span>
+                <span class="lang-zh">数据导出</span>
+                <span class="lang-en">Data Export</span>
             </h2>
             
-            <!-- 导出按钮组 -->
             <div class="export-buttons">
                 <button onclick="exportItems()" class="export-button">
                     <span class="lang-zh">导出商品库存</span>
@@ -808,7 +852,66 @@
                     <span class="lang-zh">导出库位库存</span>
                     <span class="lang-en">Export Bins Inventory</span>
                 </button>
+                <button onclick="exportItemDetails()" class="export-button">
+                    <span class="lang-zh">导出商品明细</span>
+                    <span class="lang-en">Export Item Details</span>
+                </button>
+                <button onclick="exportDatabase()" class="export-button">
+                    <span class="lang-zh">导出数据库</span>
+                    <span class="lang-en">Export Database</span>
+                </button>
             </div>
+            
+            <div class="export-descriptions">
+                <div class="export-description">
+                    <h3>
+                        <span class="lang-zh">商品库存</span>
+                        <span class="lang-en">Items Inventory</span>
+                    </h3>
+                    <p>
+                        <span class="lang-zh">导出所有商品的总库存数量和所在库位信息。</span>
+                        <span class="lang-en">Export total inventory quantities and locations for all items.</span>
+                    </p>
+                </div>
+                <div class="export-description">
+                    <h3>
+                        <span class="lang-zh">库位库存</span>
+                        <span class="lang-en">Bins Inventory</span>
+                    </h3>
+                    <p>
+                        <span class="lang-zh">导出所有库位中的商品明细。</span>
+                        <span class="lang-en">Export detailed inventory for all bin locations.</span>
+                    </p>
+                </div>
+                <div class="export-description">
+                    <h3>
+                        <span class="lang-zh">商品明细</span>
+                        <span class="lang-en">Item Details</span>
+                    </h3>
+                    <p>
+                        <span class="lang-zh">导出所有商品在各库位的详细箱规信息。</span>
+                        <span class="lang-en">Export detailed box specifications for all items in each location.</span>
+                    </p>
+                </div>
+                <div class="export-description">
+                    <h3>
+                        <span class="lang-zh">数据库</span>
+                        <span class="lang-en">Database</span>
+                    </h3>
+                    <p>
+                        <span class="lang-zh">导出完整的数据库文件，用于备份或数据迁移。</span>
+                        <span class="lang-en">Export complete database file for backup or data migration.</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 查询部分 -->
+        <div id="query-tab" class="tab-content">
+            <h2>
+                <span class="lang-zh">库存查询</span>
+                <span class="lang-en">Inventory Query</span>
+            </h2>
             
             <!-- 查询类型标签页 -->
             <div class="query-tab-buttons">

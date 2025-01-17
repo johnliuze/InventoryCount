@@ -6,9 +6,19 @@ import os
 import traceback
 import pandas as pd
 from io import BytesIO
+import shutil
+from datetime import datetime
+import tempfile
 
 app = Flask(__name__)
 CORS(app)
+
+# 获取环境变量
+is_production = os.getenv('RAILWAY_ENVIRONMENT') == 'production'
+port = int(os.getenv('PORT', '5001'))  # 本地开发使用5001，生产环境使用环境变量
+host = '0.0.0.0' if is_production else 'localhost'
+
+# gunicorn 配置会从环境变量获取
 
 # 错误处理
 @app.errorhandler(404)
@@ -46,118 +56,139 @@ def inventory_js():
 
 # 数据库连接
 def get_db():
-    db = sqlite3.connect('inventory.db')
+    db_path = os.path.join(os.path.dirname(__file__), 'inventory.db')
+    db = sqlite3.connect(db_path)
     db.row_factory = sqlite3.Row
     return db
 
+# 确保数据库目录存在
+def ensure_db_directory():
+    db_dir = os.path.dirname(os.path.join(os.path.dirname(__file__), 'inventory.db'))
+    if not os.path.exists(db_dir):
+        os.makedirs(db_dir)
+
 # 初始化数据库
 def init_db():
+    ensure_db_directory()
     db = get_db()
     cursor = db.cursor()
     
-    # 检查数据库是否已经初始化
-    cursor.execute(''' SELECT name FROM sqlite_master 
-                      WHERE type='table' AND name IN ('bins', 'items', 'inventory', 'input_history') ''')
-    existing_tables = cursor.fetchall()
-    existing_table_names = [row[0] for row in existing_tables]
-    
-    if len(existing_tables) == 4:
-        print("数据库已存在且包含所有必要的表，跳过初始化")
-        return
-    
-    print("开始初始化数据库...")
-    
-    # 创建缺失的表
-    if 'bins' not in existing_table_names:
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS bins (
-                bin_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                bin_code TEXT UNIQUE NOT NULL
-            )
-        ''')
-    
-    if 'items' not in existing_table_names:
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS items (
-                item_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                item_code TEXT UNIQUE NOT NULL
-            )
-        ''')
-    
-    if 'inventory' not in existing_table_names:
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS inventory (
-                inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                bin_id INTEGER NOT NULL,
-                item_id INTEGER NOT NULL,
-                box_count INTEGER NOT NULL,
-                pieces_per_box INTEGER NOT NULL,
-                total_pieces INTEGER NOT NULL,
-                FOREIGN KEY (bin_id) REFERENCES bins (bin_id),
-                FOREIGN KEY (item_id) REFERENCES items (item_id)
-            )
-        ''')
-    
-    if 'input_history' not in existing_table_names:
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS input_history (
-                history_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                bin_code TEXT NOT NULL,
-                item_code TEXT NOT NULL,
-                box_count INTEGER NOT NULL,
-                pieces_per_box INTEGER NOT NULL,
-                total_pieces INTEGER NOT NULL,
-                input_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-    
-    # 只有在相应的表不存在时才导入初始数据
-    if 'bins' not in existing_table_names:
-        print("导入库位数据...")
-        with open('BIN.csv', 'r', encoding='utf-8') as f:
-            csv_reader = csv.reader(f)
-            next(csv_reader)  # 跳过标题行
-            bin_data = [(row[0],) for row in csv_reader]
-            print(f"从CSV读取到 {len(bin_data)} 个库位")
-            cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', bin_data)
-    
-    if 'items' not in existing_table_names:
-        print("导入商品数据...")
-        try:
-            encodings = ['utf-8', 'gbk', 'latin-1', 'iso-8859-1', 'cp1252']
-            content = None
-            
-            for encoding in encodings:
-                try:
-                    with open('Item.CSV', 'r', encoding=encoding) as f:
-                        content = f.read()
-                        break
-                except UnicodeDecodeError:
-                    continue
-            
-            if content is None:
-                raise Exception("无法读取Item.CSV文件，请检查文件编码")
-            
-            # 手动处理CSV内容
-            lines = content.split('\n')
-            items = set()  # 使用集合去重
-            for line in lines[1:]:  # 跳过标题行
-                if ',' in line:
-                    item_code = line.split(',')[0].strip().strip('"')  # 移除引号
-                    if item_code and not item_code.startswith('"Item No"'):
-                        items.add(item_code)
-            
-            # 插入数据
-            items = [(item,) for item in items]  # 转换回元组列表
-            print(f"从CSV读取到 {len(items)} 个商品")
-            cursor.executemany('INSERT INTO items (item_code) VALUES (?)', items)
-            
-        except Exception as e:
-            print(f"导入商品数据时出错: {e}")
-            raise
-    
-    db.commit()
-    print("数据库初始化完成")
+    try:
+        # 检查数据库是否已经初始化
+        cursor.execute(''' SELECT name FROM sqlite_master 
+                        WHERE type='table' AND name IN ('bins', 'items', 'inventory', 'input_history') ''')
+        existing_tables = cursor.fetchall()
+        if len(existing_tables) == 4:
+            print("数据库已存在且包含所有必要的表")
+            return
+        
+        print("开始初始化数据库...")
+        
+        # 创建缺失的表
+        if 'bins' not in [row[0] for row in existing_tables]:
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS bins (
+                    bin_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    bin_code TEXT UNIQUE NOT NULL
+                )
+            ''')
+        
+        if 'items' not in [row[0] for row in existing_tables]:
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS items (
+                    item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    item_code TEXT UNIQUE NOT NULL
+                )
+            ''')
+        
+        if 'inventory' not in [row[0] for row in existing_tables]:
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS inventory (
+                    inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    bin_id INTEGER NOT NULL,
+                    item_id INTEGER NOT NULL,
+                    box_count INTEGER NOT NULL,
+                    pieces_per_box INTEGER NOT NULL,
+                    total_pieces INTEGER NOT NULL,
+                    FOREIGN KEY (bin_id) REFERENCES bins (bin_id),
+                    FOREIGN KEY (item_id) REFERENCES items (item_id)
+                )
+            ''')
+        
+        if 'input_history' not in [row[0] for row in existing_tables]:
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS input_history (
+                    history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    bin_code TEXT NOT NULL,
+                    item_code TEXT NOT NULL,
+                    box_count INTEGER NOT NULL,
+                    pieces_per_box INTEGER NOT NULL,
+                    total_pieces INTEGER NOT NULL,
+                    input_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+        
+        # 只有在相应的表不存在时才导入初始数据
+        if 'bins' not in [row[0] for row in existing_tables]:
+            print("导入库位数据...")
+            with open('BIN.csv', 'r', encoding='utf-8') as f:
+                csv_reader = csv.reader(f)
+                next(csv_reader)  # 跳过标题行
+                bin_data = [(row[0],) for row in csv_reader]
+                print(f"从CSV读取到 {len(bin_data)} 个库位")
+                cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', bin_data)
+        
+        if 'items' not in [row[0] for row in existing_tables]:
+            print("导入商品数据...")
+            try:
+                encodings = ['utf-8', 'gbk', 'latin-1', 'iso-8859-1', 'cp1252']
+                content = None
+                
+                for encoding in encodings:
+                    try:
+                        with open('Item.CSV', 'r', encoding=encoding) as f:
+                            content = f.read()
+                            break
+                    except UnicodeDecodeError:
+                        continue
+                
+                if content is None:
+                    raise Exception("无法读取Item.CSV文件，请检查文件编码")
+                
+                # 手动处理CSV内容
+                lines = content.split('\n')
+                items = set()  # 使用集合去重
+                for line in lines[1:]:  # 跳过标题行
+                    if ',' in line:
+                        item_code = line.split(',')[0].strip().strip('"')  # 移除引号
+                        if item_code and not item_code.startswith('"Item No"'):
+                            items.add(item_code)
+                
+                # 插入数据
+                items = [(item,) for item in items]  # 转换回元组列表
+                print(f"从CSV读取到 {len(items)} 个商品")
+                cursor.executemany('INSERT INTO items (item_code) VALUES (?)', items)
+                
+            except Exception as e:
+                print(f"导入商品数据时出错: {e}")
+                raise
+        
+        db.commit()
+        print("数据库初始化完成")
+        
+    except Exception as e:
+        print(f"初始化数据库时出错: {str(e)}")
+        print(traceback.format_exc())
+        raise
+    finally:
+        db.close()
+
+# 在应用启动时初始化数据库
+with app.app_context():
+    try:
+        init_db()
+    except Exception as e:
+        print(f"启动时初始化数据库失败: {str(e)}")
 
 # 导入CSV数据
 def import_data():
@@ -527,6 +558,7 @@ def export_items():
     db = get_db()
     cursor = db.cursor()
     
+    # 使用迭代器而不是一次性获取所有数据
     cursor.execute('''
         WITH merged_locations AS (
             SELECT 
@@ -549,10 +581,17 @@ def export_items():
         ORDER BY item_code
     ''')
     
-    items_data = cursor.fetchall()
+    # 使用生成器创建数据
+    def generate_rows():
+        while True:
+            rows = cursor.fetchmany(1000)  # 每次获取1000行
+            if not rows:
+                break
+            for row in rows:
+                yield row
     
-    # 创建DataFrame，添加总箱数列
-    df = pd.DataFrame(items_data, columns=['Item Code', 'Total Quantity', 'Total Boxes', 'Bin Locations'])
+    # 创建DataFrame，使用迭代器
+    df = pd.DataFrame(generate_rows(), columns=['Item Code', 'Total Quantity', 'Total Boxes', 'Bin Locations'])
     
     # 创建Excel文件
     output = BytesIO()
@@ -761,12 +800,30 @@ def input_inventory():
         # 计算总件数
         total_pieces = data['box_count'] * data['pieces_per_box']
         
-        # 插入库存记录
+        # 检查是否已存在相同商品、库位和箱规的记录
         cursor.execute('''
-            INSERT INTO inventory (bin_id, item_id, box_count, pieces_per_box, total_pieces)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (bin_result['bin_id'], item_result['item_id'], 
-              data['box_count'], data['pieces_per_box'], total_pieces))
+            SELECT inventory_id, total_pieces 
+            FROM inventory 
+            WHERE bin_id = ? AND item_id = ? AND pieces_per_box = ?
+        ''', (bin_result['bin_id'], item_result['item_id'], data['pieces_per_box']))
+        
+        existing_record = cursor.fetchone()
+        
+        if existing_record:
+            # 更新现有记录
+            cursor.execute('''
+                UPDATE inventory 
+                SET box_count = box_count + ?,
+                    total_pieces = total_pieces + ?
+                WHERE inventory_id = ?
+            ''', (data['box_count'], total_pieces, existing_record['inventory_id']))
+        else:
+            # 插入新记录
+            cursor.execute('''
+                INSERT INTO inventory (bin_id, item_id, box_count, pieces_per_box, total_pieces)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (bin_result['bin_id'], item_result['item_id'], 
+                  data['box_count'], data['pieces_per_box'], total_pieces))
         
         # 记录输入历史
         cursor.execute('''
@@ -783,6 +840,201 @@ def input_inventory():
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/export/item-details', methods=['GET'])
+def export_item_details():
+    db = get_db()
+    cursor = db.cursor()
+    
+    # 查询所有有库存的商品在各库位的详细信息
+    cursor.execute('''
+        WITH item_location_details AS (
+            SELECT 
+                i.item_code,
+                b.bin_code,
+                inv.pieces_per_box,
+                inv.box_count,
+                inv.total_pieces as box_total,
+                FIRST_VALUE(inv.total_pieces) OVER (
+                    PARTITION BY i.item_code, b.bin_code
+                    ORDER BY inv.pieces_per_box DESC, inv.box_count DESC
+                ) as box_total_first,
+                SUM(inv.total_pieces) OVER (
+                    PARTITION BY i.item_code, b.bin_code
+                ) as total_pieces_in_bin,
+                SUM(inv.total_pieces) OVER (
+                    PARTITION BY i.item_code
+                ) as total_pieces_all_bins
+            FROM inventory inv
+            JOIN items i ON inv.item_id = i.item_id
+            JOIN bins b ON inv.bin_id = b.bin_id
+            WHERE inv.box_count > 0
+        )
+        SELECT DISTINCT
+            ild.item_code,
+            ild.bin_code,
+            ild.pieces_per_box,
+            ild.box_count,
+            ild.box_total,
+            ild.total_pieces_in_bin as bin_total,
+            ild.total_pieces_all_bins as item_total
+        FROM item_location_details ild
+        ORDER BY item_code, bin_code, pieces_per_box DESC, box_count DESC
+    ''')
+    
+    # 使用生成器创建数据
+    def generate_rows():
+        current_item = None
+        current_bin = None
+        rows = []
+        
+        while True:
+            row = cursor.fetchone()
+            if not row:
+                if rows:
+                    yield rows
+                break
+            
+            if current_item != row['item_code']:
+                if rows:
+                    yield rows
+                current_item = row['item_code']
+                current_bin = None
+                rows = []
+            
+            rows.append(row)
+    
+    # 创建Excel文件
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        workbook = writer.book
+        worksheet = workbook.add_worksheet('Item Details')
+        
+        # 设置标题格式
+        header_format = workbook.add_format({
+            'bold': True,
+            'align': 'center',
+            'valign': 'vcenter',
+            'bg_color': '#f8f9fa'
+        })
+        
+        # 设置单元格格式
+        item_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#2962ff'
+        })
+        bin_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#e67e22'
+        })
+        number_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#27ae60'
+        })
+        
+        # 写入标题
+        headers = ['Item Code', 'Bin Location', 'Box Count', 'Pieces/Box', 
+                  'Total in Box', 'Bin Total', 'Item Total']
+        for col, header in enumerate(headers):
+            worksheet.write(0, col, header, header_format)
+        
+        # 设置列宽
+        worksheet.set_column('A:A', 20)  # Item Code
+        worksheet.set_column('B:B', 15)  # Bin Location
+        worksheet.set_column('C:G', 12)  # Numeric columns
+        
+        # 写入数据
+        row_num = 1
+        for group in generate_rows():
+            start_row = row_num
+            current_bin = None
+            bin_start = start_row
+            current_bin_total = None
+            
+            for data in group:
+                worksheet.write(row_num, 0, data['item_code'], item_format)
+                worksheet.write(row_num, 1, data['bin_code'], bin_format)
+                worksheet.write(row_num, 2, data['box_count'], number_format)
+                worksheet.write(row_num, 3, data['pieces_per_box'], number_format)
+                worksheet.write(row_num, 4, data['box_total'], number_format)
+                
+                # 处理bin_total和bin_code的写入和合并
+                if current_bin != data['bin_code']:
+                    if current_bin is not None and row_num - bin_start > 1:
+                        # 合并前一个bin的单元格
+                        worksheet.merge_range(f'F{bin_start+1}:F{row_num}', 
+                                              current_bin_total, number_format)
+                        worksheet.merge_range(f'B{bin_start+1}:B{row_num}',
+                                              current_bin, bin_format)
+                    current_bin = data['bin_code']
+                    current_bin_total = data['bin_total']
+                    bin_start = row_num
+                    worksheet.write(row_num, 5, current_bin_total, number_format)
+                    worksheet.write(row_num, 1, data['bin_code'], bin_format)
+                else:
+                    # 对于同一个bin的后续行，使用相同的bin_total
+                    worksheet.write(row_num, 5, current_bin_total, number_format)
+                
+                row_num += 1
+            
+            # 处理最后一个bin的合并
+            if row_num - bin_start > 1:
+                worksheet.merge_range(f'F{bin_start+1}:F{row_num}', 
+                                      current_bin_total, number_format)
+                worksheet.merge_range(f'B{bin_start+1}:B{row_num}',
+                                      data['bin_code'], bin_format)
+            elif row_num == bin_start + 1:
+                # 如果只有一行，直接写入而不合并
+                worksheet.write(bin_start, 1, data['bin_code'], bin_format)
+                worksheet.write(bin_start, 5, current_bin_total, number_format)
+            
+            # 合并item_total
+            worksheet.merge_range(f'G{start_row+1}:G{row_num}', 
+                                  data['item_total'], number_format)
+            
+            # 合并item_code
+            if row_num - start_row > 1:
+                worksheet.merge_range(f'A{start_row+1}:A{row_num}', 
+                                      data['item_code'], item_format)
+    
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='item_details.xlsx'
+    )
+
+@app.route('/api/export/database', methods=['GET'])
+def export_database():
+    try:
+        db = get_db()
+        db.close()  # 关闭数据库连接以确保所有数据都已写入
+        
+        # 获取数据库文件路径
+        db_path = os.path.join(os.path.dirname(__file__), 'inventory.db')
+        
+        # 创建内存中的临时文件
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        temp_buffer = BytesIO()
+        with open(db_path, 'rb') as f:
+            temp_buffer.write(f.read())
+        
+        temp_buffer.seek(0)
+        
+        return send_file(
+            temp_buffer,
+            mimetype='application/x-sqlite3',
+            as_attachment=True,
+            download_name=f'inventory_{timestamp}.db'
+        )
+        
+    except Exception as e:
+        print(f"Error exporting database: {e}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     print("Starting server...")
     print("Current working directory:", os.getcwd())
@@ -796,7 +1048,7 @@ if __name__ == '__main__':
     try:
         init_db()
         print("Database initialized successfully")
-        app.run(debug=True, port=5001)
+        app.run(host=host, port=port, debug=not is_production)
     except Exception as e:
         print("Error starting server:", str(e))
         print(traceback.format_exc()) 

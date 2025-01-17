@@ -1,7 +1,16 @@
 // 模拟数据库连接
-const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? 'http://localhost:5001'
-    : 'https://inventory-count.vercel.app';  // 替换为你的 Vercel 应用 URL
+function getApiUrl() {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:5001';
+    } else if (hostname.includes('railway.app')) {
+        return 'https://inventorycount-production.up.railway.app';
+    } else {
+        return 'https://inventorycount-production.up.railway.app';
+    }
+}
+
+const API_URL = getApiUrl();
 
 // 设置自动更新间隔（毫秒）
 const UPDATE_INTERVAL = 5000;
@@ -421,6 +430,16 @@ function exportItems() {
 // 导出库位库存
 function exportBins() {
     window.location.href = `${API_URL}/api/export/bins`;
+}
+
+// 导出商品明细
+function exportItemDetails() {
+    window.location.href = `${API_URL}/api/export/item-details`;
+}
+
+// 导出数据库
+function exportDatabase() {
+    window.location.href = `${API_URL}/api/export/database`;
 }
 
 // 语言切换时更新历史记录显示
