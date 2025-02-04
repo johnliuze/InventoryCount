@@ -171,12 +171,42 @@ $("#inventoryForm").submit(function(e) {
         return;
     }
     
+    // 重置确认对话框标题
+    $("#confirm-dialog h3 .lang-zh").text('请确认输入信息');
+    $("#confirm-dialog h3 .lang-en").text('Please Confirm Input');
+    
     // 填充确认对话框
-    $("#confirm-bin").text(binCode);
-    $("#confirm-item").text(itemCode);
-    $("#confirm-box-count").text(boxCount);
-    $("#confirm-pieces").text(piecesPerBox);
-
+    $(".confirm-details").html(`
+        <div class="confirm-row">
+            <span class="label">
+                <span class="lang-zh">库位：</span>
+                <span class="lang-en">Bin:</span>
+            </span>
+            <span id="confirm-bin" class="bin-code">${binCode}</span>
+        </div>
+        <div class="confirm-row">
+            <span class="label">
+                <span class="lang-zh">商品：</span>
+                <span class="lang-en">Item:</span>
+            </span>
+            <span id="confirm-item" class="item-code">${itemCode}</span>
+        </div>
+        <div class="confirm-row">
+            <span class="label">
+                <span class="lang-zh">箱数：</span>
+                <span class="lang-en">Box Count:</span>
+            </span>
+            <span id="confirm-box-count" class="quantity">${boxCount}</span>
+        </div>
+        <div class="confirm-row">
+            <span class="label">
+                <span class="lang-zh">每箱数量：</span>
+                <span class="lang-en">Pieces per Box:</span>
+            </span>
+            <span id="confirm-pieces" class="quantity">${piecesPerBox}</span>
+        </div>
+    `);
+    
     // 显示确认对话框
     $("#confirm-dialog").fadeIn(200);
 
@@ -311,14 +341,30 @@ function searchBinContents() {
         url: url,
         type: 'GET',
         success: function(contents) {
+            // 添加清除按钮
+            let html = `
+                <div class="bin-header">
+                    <h3>
+                        <span class="lang-zh">库位: <span class="bin-code">${binCode}</span></span>
+                        <span class="lang-en">Bin: <span class="bin-code">${binCode}</span></span>
+                    </h3>
+                    <button class="clear-bin-button" onclick="clearBinInventory('${binCode}')">
+                        <span class="lang-zh">清空库位</span>
+                        <span class="lang-en">Clear Bin</span>
+                    </button>
+                </div>
+            `;
+            
             if (!contents || contents.length === 0) {
-                $("#binContentsResult").html(`
+                html += `
                     <span class="lang-zh">该库位暂无库存</span>
                     <span class="lang-en">No inventory in this location</span>
-                `);
+                `;
+                $("#binContentsResult").html(html);
                 return;
             }
-            const html = contents.map(inv => `
+            
+            html += contents.map(inv => `
                 <div class="item-card">
                     <div class="item-header">
                         <span class="lang-zh">
@@ -344,6 +390,7 @@ function searchBinContents() {
                     </div>
                 </div>
             `).join("");
+            
             $("#binContentsResult").html(html);
         },
         error: function(xhr, status, error) {
@@ -546,4 +593,186 @@ function updateFullHistory() {
             fullHistoryList.innerHTML = html;
         }
     });
-} 
+}
+
+// 清除库位库存
+function clearBinInventory(binCode) {
+    // 移除之前可能存在的事件处理器
+    $("#confirm-yes").off('click');
+    $("#confirm-no").off('click');
+    
+    // 先获取库位中的商品信息
+    const encodedBinCode = binCode.trim()
+        .replace(/\//g, '___SLASH___')
+        .replace(/\s/g, '___SPACE___');
+    
+    $.ajax({
+        url: `${API_URL}/api/inventory/bin/${encodedBinCode}`,
+        type: 'GET',
+        success: function(contents) {
+            // 修改确认对话框标题和内容
+            $("#confirm-dialog h3 .lang-zh").text('确认清空库位');
+            $("#confirm-dialog h3 .lang-en").text('Confirm Clear Bin');
+            
+            // 填充确认对话框
+            $("#confirm-bin").text(binCode);
+            
+            // 创建商品详情HTML
+            let detailsHtml = '';
+            if (contents && contents.length > 0) {
+                contents.forEach(inv => {
+                    detailsHtml += `
+                        <div class="confirm-item">
+                            <div class="item-header">
+                                <span class="lang-zh">
+                                    商品 <span class="item-code">${inv.item_code}</span>: 
+                                    <span class="quantity">${inv.total_pieces}</span> 件
+                                </span>
+                                <span class="lang-en">
+                                    Item <span class="item-code">${inv.item_code}</span>: 
+                                    <span class="quantity">${inv.total_pieces}</span> pcs
+                                </span>
+                            </div>
+                            <div class="box-details">
+                                ${inv.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box)
+                                    .map(detail => `
+                                    <div class="box-detail-line">
+                                        <span class="lang-zh">
+                                            <span class="quantity">${detail.box_count}</span> 箱 × 
+                                            <span class="quantity">${detail.pieces_per_box}</span> 件/箱
+                                        </span>
+                                        <span class="lang-en">
+                                            <span class="quantity">${detail.box_count}</span> boxes × 
+                                            <span class="quantity">${detail.pieces_per_box}</span> pcs/box
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                detailsHtml = `
+                    <div class="empty-message">
+                        <span class="lang-zh">该库位暂无库存</span>
+                        <span class="lang-en">No inventory in this location</span>
+                    </div>
+                `;
+            }
+            
+            // 更新确认对话框内容
+            $(".confirm-details").html(`
+                <div class="confirm-row">
+                    <span class="label">
+                        <span class="lang-zh">库位：</span>
+                        <span class="lang-en">Bin:</span>
+                    </span>
+                    <span class="bin-code">${binCode}</span>
+                </div>
+                <div class="inventory-details">
+                    ${detailsHtml}
+                </div>
+            `);
+            
+            // 显示确认对话框
+            $("#confirm-dialog").fadeIn(200);
+            
+            // 确认按钮事件
+            $("#confirm-yes").on('click', function() {
+                // 立即移除事件处理器
+                $("#confirm-yes").off('click');
+                $("#confirm-no").off('click');
+                $("#confirm-dialog").fadeOut(200);
+                
+                const encodedBinCode = binCode.trim()
+                    .replace(/\//g, '___SLASH___')
+                    .replace(/\s/g, '___SPACE___');
+                
+                $.ajax({
+                    url: `${API_URL}/api/inventory/bin/${encodedBinCode}/clear`,
+                    type: 'DELETE',
+                    success: function(response) {
+                        searchBinContents();  // 刷新查询结果
+                        updateRecentHistory();  // 更新最近历史记录
+                        updateFullHistory();    // 更新完整历史记录
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("Error clearing bin:", error);
+                        searchBinContents();  // 刷新显示以反映当前状态
+                        updateRecentHistory();  // 更新最近历史记录
+                        updateFullHistory();    // 更新完整历史记录
+                    }
+                });
+            });
+            
+            // 取消按钮事件
+            $("#confirm-no").on('click', function() {
+                // 移除事件处理器
+                $("#confirm-yes").off('click');
+                $("#confirm-no").off('click');
+                $("#confirm-dialog").fadeOut(200);
+            });
+        },
+        error: function(xhr, status, error) {
+            let errorMsg = document.body.className.includes('lang-en')
+                ? "Failed to get bin contents!"
+                : "获取库位内容失败！";
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            }
+            alert(errorMsg);
+        }
+    });
+}
+
+// 处理商品上传
+$("#uploadItemsForm").submit(function(e) {
+    e.preventDefault();
+    
+    const file = $("#itemsFile")[0].files[0];
+    if (!file) {
+        alert(document.body.className.includes('lang-en')
+            ? "Please select a file"
+            : "请选择文件");
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    $.ajax({
+        url: `${API_URL}/api/items/add`,
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            let resultHtml = document.body.className.includes('lang-en')
+                ? `<p>Total items: ${response.total_items}</p>
+                   <p>New items added: ${response.new_items}</p>`
+                : `<p>商品总数：${response.total_items}</p>
+                   <p>新增商品数：${response.new_items}</p>`;
+            
+            if (response.new_items > 0) {
+                resultHtml += document.body.className.includes('lang-en')
+                    ? '<p>New items:</p>'
+                    : '<p>新增商品：</p>';
+                resultHtml += '<ul>' + response.new_item_codes.map(
+                    item => `<li>${item}</li>`
+                ).join('') + '</ul>';
+            }
+            
+            $("#uploadResult").html(resultHtml);
+            $("#itemsFile").val('');  // 清空文件选择
+        },
+        error: function(xhr, status, error) {
+            let errorMsg = document.body.className.includes('lang-en')
+                ? "Failed to upload items!"
+                : "上传商品失败！";
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            }
+            alert(errorMsg);
+        }
+    });
+}); 

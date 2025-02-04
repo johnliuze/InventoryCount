@@ -142,31 +142,94 @@ def init_db():
             print("导入商品数据...")
             try:
                 encodings = ['utf-8', 'gbk', 'latin-1', 'iso-8859-1', 'cp1252']
-                content = None
+                items = set()  # 使用集合去重
+                duplicates = {}  # 记录重复的商品及其行号
+                invalid_items = []  # 记录不合格的商品及原因
+                empty_lines = []  # 记录空行的行号
+                total_lines = 0  # 总行数
+                processed_codes = {}  # 用于检测重复，存储商品编码及其首次出现的行号
+                successful_encoding = None
                 
                 for encoding in encodings:
                     try:
                         with open('Item.CSV', 'r', encoding=encoding) as f:
                             content = f.read()
+                            successful_encoding = encoding
                             break
                     except UnicodeDecodeError:
                         continue
                 
-                if content is None:
-                    raise Exception("无法读取Item.CSV文件，请检查文件编码")
+                if not successful_encoding:
+                    raise Exception("无法读取Item.CSV文件，请检查文件编码和格式")
                 
-                # 手动处理CSV内容
-                lines = content.split('\n')
-                items = set()  # 使用集合去重
-                for line in lines[1:]:  # 跳过标题行
-                    if ',' in line:
-                        item_code = line.split(',')[0].strip().strip('"')  # 移除引号
-                        if item_code and not item_code.startswith('"Item No"'):
-                            items.add(item_code)
+                # 直接使用已读取的内容
+                csv_reader = csv.reader(content.splitlines(), 
+                    quoting=csv.QUOTE_ALL,
+                    skipinitialspace=True,
+                    strict=True
+                )
+                
+                # 跳过标题行
+                next(csv_reader)
+                
+                # 读取每一行
+                for row in csv_reader:
+                    total_lines += 1
+                    try:
+                        # 检查空行
+                        if not row or len(row) == 0:
+                            empty_lines.append(total_lines)
+                            continue
+                        
+                        # 检查第一列是否为空
+                        if len(row[0].strip()) == 0:
+                            invalid_items.append((total_lines, "", "空商品编码"))
+                            continue
+                        
+                        if row and len(row) > 0:
+                            item_code = row[0].strip()
+                            normalized_code = item_code.upper().strip()
+                            
+                            # 检查是否以 "Item" 开头
+                            if item_code.lower().startswith('item'):
+                                invalid_items.append((total_lines, item_code, "以'Item'开头"))
+                                continue
+                            
+                            # 检查重复
+                            if normalized_code in processed_codes:
+                                if normalized_code not in duplicates:
+                                    duplicates[normalized_code] = [processed_codes[normalized_code]]
+                                duplicates[normalized_code].append(total_lines)
+                            else:
+                                processed_codes[normalized_code] = total_lines
+                                items.add(normalized_code)
+                    except Exception as e:
+                        invalid_items.append((total_lines, str(row), f"处理错误: {str(e)}"))
+                
+                print(f"从CSV读取到 {len(items)} 个商品")
+                print(f"\n处理统计:")
+                print(f"总行数: {total_lines}")
+                print(f"有效商品数: {len(items)}")
+                print(f"重复商品数: {len(duplicates)} (共 {sum(len(lines) for lines in duplicates.values())} 行)")
+                print(f"不合格商品数: {len(invalid_items)}")
+                print(f"空行数: {len(empty_lines)}")
+                
+                if duplicates:
+                    print("\n重复的商品编码:")
+                    for code in sorted(duplicates.keys()):
+                        print(f"- {code} (出现在第 {', '.join(map(str, duplicates[code]))} 行)")
+                
+                if invalid_items:
+                    print("\n不合格的商品:")
+                    for line, code, reason in sorted(invalid_items):
+                        print(f"第 {line} 行: {code} - {reason}")
+                
+                if empty_lines:
+                    print("\n空行:")
+                    print(f"第 {', '.join(map(str, empty_lines))} 行")
                 
                 # 插入数据
-                items = [(item,) for item in items]  # 转换回元组列表
-                print(f"从CSV读取到 {len(items)} 个商品")
+                items = [(item,) for item in items]
                 cursor.executemany('INSERT INTO items (item_code) VALUES (?)', items)
                 
             except Exception as e:
@@ -1034,6 +1097,131 @@ def export_database():
     except Exception as e:
         print(f"Error exporting database: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/inventory/bin/<bin_code>/clear', methods=['DELETE'])
+def clear_bin_inventory(bin_code):
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        
+        # 先检查库位是否存在
+        cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (bin_code,))
+        bin_result = cursor.fetchone()
+        if not bin_result:
+            return jsonify({'error': '库位不存在'}), 404
+        
+        # 删除该库位的所有库存记录
+        cursor.execute('DELETE FROM inventory WHERE bin_id = ?', (bin_result['bin_id'],))
+        
+        # 记录清除操作到历史记录
+        cursor.execute('''
+            INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces)
+            VALUES (?, '清空库位', 0, 0, 0)
+        ''', (bin_code,))
+        
+        db.commit()
+        return jsonify({'success': True, 'message': f'已清空库位 {bin_code} 的所有库存'})
+        
+    except Exception as e:
+        print(f"Error clearing bin inventory: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/items/add', methods=['POST'])
+def add_items():
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        
+        # 获取上传的CSV文件
+        if 'file' not in request.files:
+            return jsonify({'error': '没有上传文件'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': '没有选择文件'}), 400
+
+        # 初始化集合
+        items = set()  # 用于存储所有商品编码
+        new_items = set()  # 用于存储新增的商品编码
+        
+        # 获取现有商品列表
+        cursor.execute('SELECT item_code FROM items')
+        existing_items = {row['item_code'].upper().strip() for row in cursor.fetchall()}
+        
+        # 保存文件内容到临时变量
+        file_content = file.read()
+        
+        # 尝试不同的编码
+        encodings = ['utf-8', 'gbk', 'latin-1', 'iso-8859-1', 'cp1252']
+        content = None
+        
+        for encoding in encodings:
+            try:
+                content = file_content.decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        
+        if content is None:
+            return jsonify({'error': '无法解析文件编码，请确保文件编码正确'}), 400
+        
+        # 读取并解析CSV文件
+        csv_reader = csv.reader(content.splitlines(), 
+            quoting=csv.QUOTE_ALL,
+            skipinitialspace=True,
+            strict=True
+        )
+        
+        # 跳过标题行
+        next(csv_reader)
+        
+        # 记录处理统计
+        line_count = 0
+        skipped_lines = []
+        
+        # 处理每一行
+        for row in csv_reader:
+            line_count += 1
+            if row and len(row) > 0:
+                item_code = row[0].strip()
+                if item_code and not item_code.lower().startswith('item') and len(item_code) > 0:
+                    normalized_code = item_code.upper().strip()
+                    items.add(normalized_code)
+                    if normalized_code not in existing_items:
+                        new_items.add(normalized_code)
+                else:
+                    skipped_lines.append((line_count, row, "无效的商品编码"))
+            else:
+                skipped_lines.append((line_count, row, "空行"))
+        
+        print(f"从CSV读取到 {len(items)} 个商品")
+        
+        # 插入新商品
+        if new_items:
+            cursor.executemany(
+                'INSERT OR IGNORE INTO items (item_code) VALUES (?)',
+                [(item,) for item in new_items]
+            )
+            db.commit()
+        
+        return jsonify({
+            'success': True,
+            'total_items': len(items),
+            'new_items': len(new_items),
+            'new_item_codes': sorted(list(new_items)),
+            'total_lines': line_count,
+            'skipped_lines': len(skipped_lines),
+            'skipped_details': [
+                {'line': line, 'content': content, 'reason': reason}
+                for line, content, reason in skipped_lines
+            ]
+        })
+        
+    except Exception as e:
+        print(f"Error adding items: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
 
 if __name__ == '__main__':
     print("Starting server...")

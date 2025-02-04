@@ -734,6 +734,113 @@
             color: #666;
             line-height: 1.5;
         }
+
+        /* 库位清除按钮样式 */
+        .bin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .clear-bin-button {
+            background-color: #dc3545;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .clear-bin-button:hover {
+            background-color: #c82333;
+        }
+
+        /* 确认对话框中的库存详情样式 */
+        .inventory-details {
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .confirm-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .confirm-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .confirm-item .item-header {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .confirm-item .box-details {
+            margin-left: 15px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .confirm-item .box-detail-line {
+            margin: 4px 0;
+        }
+        
+        .empty-message {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+
+        /* 上传部分样式 */
+        .upload-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .upload-section h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        
+        #uploadItemsForm {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .upload-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        #uploadResult {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+        }
+        
+        #uploadResult ul {
+            margin-top: 10px;
+            padding-left: 20px;
+        }
     </style>
 </head>
 <body>
@@ -758,6 +865,10 @@
             <button class="tab-button" onclick="switchTab('history')" data-tab="history">
                 <span class="lang-zh">历史记录</span>
                 <span class="lang-en">History</span>
+            </button>
+            <button class="tab-button" onclick="switchTab('import')" data-tab="import">
+                <span class="lang-zh">导入</span>
+                <span class="lang-en">Import</span>
             </button>
             <button class="tab-button" onclick="switchTab('export')" data-tab="export">
                 <span class="lang-zh">导出</span>
@@ -833,6 +944,30 @@
             </h2>
             <div class="full-history-list" id="full-history-list">
                 <!-- 所有历史记录将在这里动态显示 -->
+            </div>
+        </div>
+
+        <!-- 导入标签页 -->
+        <div id="import-tab" class="tab-content">
+            <h2>
+                <span class="lang-zh">数据导入</span>
+                <span class="lang-en">Data Import</span>
+            </h2>
+            
+            <!-- 商品导入部分 -->
+            <div class="upload-section">
+                <h3>
+                    <span class="lang-zh">导入商品</span>
+                    <span class="lang-en">Import Items</span>
+                </h3>
+                <form id="uploadItemsForm" enctype="multipart/form-data">
+                    <input type="file" id="itemsFile" accept=".csv" required>
+                    <button type="submit" class="upload-button">
+                        <span class="lang-zh">上传商品</span>
+                        <span class="lang-en">Upload Items</span>
+                    </button>
+                </form>
+                <div id="uploadResult"></div>
             </div>
         </div>
 
