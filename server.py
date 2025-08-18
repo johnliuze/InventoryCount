@@ -56,32 +56,39 @@ def inventory_js():
 
 # 数据库连接
 def get_db():
-    # 检查是否有PostgreSQL环境变量
-    database_url = os.getenv('DATABASE_URL')
-    
-    if database_url:
-        # 使用PostgreSQL
+    # 检查是否在Railway环境（使用PostgreSQL）
+    if os.getenv('DATABASE_URL'):
         import psycopg2
         from psycopg2.extras import RealDictCursor
         
         # 解析DATABASE_URL
-        if database_url.startswith('postgres://'):
-            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        db_url = os.getenv('DATABASE_URL')
+        if db_url.startswith('postgres://'):
+            db_url = db_url.replace('postgres://', 'postgresql://', 1)
         
-        db = psycopg2.connect(database_url)
+        db = psycopg2.connect(db_url)
         return db
     else:
-        # 使用SQLite（本地开发）
+        # 本地开发环境使用SQLite
         db_path = os.path.join(os.path.dirname(__file__), 'inventory.db')
         db = sqlite3.connect(db_path)
         db.row_factory = sqlite3.Row
         return db
 
-# 确保数据库目录存在
+# 获取数据库类型
+def is_postgres():
+    return os.getenv('DATABASE_URL') is not None
+
+# 获取参数占位符
+def get_param_placeholder():
+    return '%s' if is_postgres() else '?'
+
+# 确保数据库目录存在（仅SQLite需要）
 def ensure_db_directory():
-    db_dir = os.path.dirname(os.path.join(os.path.dirname(__file__), 'inventory.db'))
-    if not os.path.exists(db_dir):
-        os.makedirs(db_dir)
+    if not os.getenv('DATABASE_URL'):  # 只在SQLite模式下创建目录
+        db_dir = os.path.dirname(os.path.join(os.path.dirname(__file__), 'inventory.db'))
+        if not os.path.exists(db_dir):
+            os.makedirs(db_dir)
 
 # 初始化数据库
 def init_db():
@@ -90,12 +97,11 @@ def init_db():
     cursor = db.cursor()
     
     try:
-        # 检查数据库类型
-        database_url = os.getenv('DATABASE_URL')
-        is_postgres = bool(database_url)
+        # 检查是否使用PostgreSQL
+        is_postgres = os.getenv('DATABASE_URL') is not None
         
         if is_postgres:
-            # PostgreSQL表检查
+            # PostgreSQL: 检查表是否存在
             cursor.execute('''
                 SELECT table_name FROM information_schema.tables 
                 WHERE table_schema = 'public' 
@@ -103,7 +109,7 @@ def init_db():
             ''')
             existing_tables = [row[0] for row in cursor.fetchall()]
         else:
-            # SQLite表检查
+            # SQLite: 检查表是否存在
             cursor.execute(''' SELECT name FROM sqlite_master 
                             WHERE type='table' AND name IN ('bins', 'items', 'inventory', 'input_history') ''')
             existing_tables = [row[0] for row in cursor.fetchall()]
@@ -120,7 +126,7 @@ def init_db():
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS bins (
                         bin_id SERIAL PRIMARY KEY,
-                        bin_code VARCHAR(255) UNIQUE NOT NULL
+                        bin_code TEXT UNIQUE NOT NULL
                     )
                 ''')
             else:
@@ -136,7 +142,7 @@ def init_db():
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS items (
                         item_id SERIAL PRIMARY KEY,
-                        item_code VARCHAR(255) UNIQUE NOT NULL
+                        item_code TEXT UNIQUE NOT NULL
                     )
                 ''')
             else:
@@ -180,8 +186,8 @@ def init_db():
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS input_history (
                         history_id SERIAL PRIMARY KEY,
-                        bin_code VARCHAR(255) NOT NULL,
-                        item_code VARCHAR(255) NOT NULL,
+                        bin_code TEXT NOT NULL,
+                        item_code TEXT NOT NULL,
                         box_count INTEGER NOT NULL,
                         pieces_per_box INTEGER NOT NULL,
                         total_pieces INTEGER NOT NULL,
@@ -205,8 +211,8 @@ def init_db():
         if 'bins' not in existing_tables:
             print("导入库位数据...")
             try:
-                with open('BIN.csv', 'r', encoding='utf-8') as csvfile:
-                    csv_reader = csv.reader(csvfile)
+                with open('BIN.csv', 'r', encoding='utf-8') as f:
+                    csv_reader = csv.reader(f)
                     next(csv_reader)  # 跳过标题行
                     bin_data = [(row[0],) for row in csv_reader]
                     print(f"从CSV读取到 {len(bin_data)} 个库位")
@@ -216,15 +222,12 @@ def init_db():
                         cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', bin_data)
             except FileNotFoundError:
                 print("BIN.csv文件不存在，跳过库位数据导入")
-        
-        # 提交更改
-        db.commit()
-        print("数据库初始化完成")
-        
-    except Exception as e:
-        print(f"数据库初始化错误: {str(e)}")
-        db.rollback()
-        raise
+            except Exception as e:
+                print(f"导入库位数据时出错: {str(e)}")
+        '''
+        #No need since no need to check item anymore
+        if 'items' not in [row[0] for row in existing_tables]:
+            print("导入商品数据...")
             try:
                 encodings = ['utf-8', 'gbk', 'latin-1', 'iso-8859-1', 'cp1252']
                 items = set()  # 使用集合去重
@@ -1204,18 +1207,19 @@ def clear_bin_inventory(bin_code):
         cursor = db.cursor()
         
         # 先检查库位是否存在
-        cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (bin_code,))
+        placeholder = get_param_placeholder()
+        cursor.execute(f'SELECT bin_id FROM bins WHERE bin_code = {placeholder}', (bin_code,))
         bin_result = cursor.fetchone()
         if not bin_result:
             return jsonify({'error': '库位不存在'}), 404
         
         # 删除该库位的所有库存记录
-        cursor.execute('DELETE FROM inventory WHERE bin_id = ?', (bin_result['bin_id'],))
+        cursor.execute(f'DELETE FROM inventory WHERE bin_id = {placeholder}', (bin_result['bin_id'],))
         
         # 记录清除操作到历史记录
-        cursor.execute('''
+        cursor.execute(f'''
             INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces)
-            VALUES (?, '清空库位', 0, 0, 0)
+            VALUES ({placeholder}, '清空库位', 0, 0, 0)
         ''', (bin_code,))
         
         db.commit()
@@ -1244,4 +1248,20 @@ if __name__ == '__main__':
         app.run(host=host, port=port, debug=not is_production)
     except Exception as e:
         print("Error starting server:", str(e))
-        print(traceback.format_exc()) 
+        print(traceback.format_exc())
+
+# 数据库辅助函数
+def is_postgres():
+    """检查是否使用PostgreSQL数据库"""
+    return os.getenv('DATABASE_URL') is not None
+
+def get_param_placeholder():
+    """获取参数占位符 - PostgreSQL使用%s，SQLite使用?"""
+    return '%s' if is_postgres() else '?'
+
+def execute_query(cursor, query, params=None):
+    """执行数据库查询，自动处理参数占位符"""
+    if params is None:
+        return cursor.execute(query)
+    else:
+        return cursor.execute(query, params) 
