@@ -56,10 +56,26 @@ def inventory_js():
 
 # 数据库连接
 def get_db():
-    db_path = os.path.join(os.path.dirname(__file__), 'inventory.db')
-    db = sqlite3.connect(db_path)
-    db.row_factory = sqlite3.Row
-    return db
+    # 检查是否有PostgreSQL环境变量
+    database_url = os.getenv('DATABASE_URL')
+    
+    if database_url:
+        # 使用PostgreSQL
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        # 解析DATABASE_URL
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        
+        db = psycopg2.connect(database_url)
+        return db
+    else:
+        # 使用SQLite（本地开发）
+        db_path = os.path.join(os.path.dirname(__file__), 'inventory.db')
+        db = sqlite3.connect(db_path)
+        db.row_factory = sqlite3.Row
+        return db
 
 # 确保数据库目录存在
 def ensure_db_directory():
@@ -74,10 +90,24 @@ def init_db():
     cursor = db.cursor()
     
     try:
-        # 检查数据库是否已经初始化
-        cursor.execute(''' SELECT name FROM sqlite_master 
-                        WHERE type='table' AND name IN ('bins', 'items', 'inventory', 'input_history') ''')
-        existing_tables = cursor.fetchall()
+        # 检查数据库类型
+        database_url = os.getenv('DATABASE_URL')
+        is_postgres = bool(database_url)
+        
+        if is_postgres:
+            # PostgreSQL表检查
+            cursor.execute('''
+                SELECT table_name FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name IN ('bins', 'items', 'inventory', 'input_history')
+            ''')
+            existing_tables = [row[0] for row in cursor.fetchall()]
+        else:
+            # SQLite表检查
+            cursor.execute(''' SELECT name FROM sqlite_master 
+                            WHERE type='table' AND name IN ('bins', 'items', 'inventory', 'input_history') ''')
+            existing_tables = [row[0] for row in cursor.fetchall()]
+        
         if len(existing_tables) == 4:
             print("数据库已存在且包含所有必要的表")
             return
@@ -85,62 +115,116 @@ def init_db():
         print("开始初始化数据库...")
         
         # 创建缺失的表
-        if 'bins' not in [row[0] for row in existing_tables]:
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS bins (
-                    bin_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    bin_code TEXT UNIQUE NOT NULL
-                )
-            ''')
+        if 'bins' not in existing_tables:
+            if is_postgres:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS bins (
+                        bin_id SERIAL PRIMARY KEY,
+                        bin_code VARCHAR(255) UNIQUE NOT NULL
+                    )
+                ''')
+            else:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS bins (
+                        bin_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        bin_code TEXT UNIQUE NOT NULL
+                    )
+                ''')
         
-        if 'items' not in [row[0] for row in existing_tables]:
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS items (
-                    item_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    item_code TEXT UNIQUE NOT NULL
-                )
-            ''')
+        if 'items' not in existing_tables:
+            if is_postgres:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS items (
+                        item_id SERIAL PRIMARY KEY,
+                        item_code VARCHAR(255) UNIQUE NOT NULL
+                    )
+                ''')
+            else:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS items (
+                        item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        item_code TEXT UNIQUE NOT NULL
+                    )
+                ''')
         
-        if 'inventory' not in [row[0] for row in existing_tables]:
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS inventory (
-                    inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    bin_id INTEGER NOT NULL,
-                    item_id INTEGER NOT NULL,
-                    box_count INTEGER NOT NULL,
-                    pieces_per_box INTEGER NOT NULL,
-                    total_pieces INTEGER NOT NULL,
-                    FOREIGN KEY (bin_id) REFERENCES bins (bin_id),
-                    FOREIGN KEY (item_id) REFERENCES items (item_id)
-                )
-            ''')
+        if 'inventory' not in existing_tables:
+            if is_postgres:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS inventory (
+                        inventory_id SERIAL PRIMARY KEY,
+                        bin_id INTEGER NOT NULL,
+                        item_id INTEGER NOT NULL,
+                        box_count INTEGER NOT NULL,
+                        pieces_per_box INTEGER NOT NULL,
+                        total_pieces INTEGER NOT NULL,
+                        FOREIGN KEY (bin_id) REFERENCES bins (bin_id),
+                        FOREIGN KEY (item_id) REFERENCES items (item_id)
+                    )
+                ''')
+            else:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS inventory (
+                        inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        bin_id INTEGER NOT NULL,
+                        item_id INTEGER NOT NULL,
+                        box_count INTEGER NOT NULL,
+                        pieces_per_box INTEGER NOT NULL,
+                        total_pieces INTEGER NOT NULL,
+                        FOREIGN KEY (bin_id) REFERENCES bins (bin_id),
+                        FOREIGN KEY (item_id) REFERENCES items (item_id)
+                    )
+                ''')
         
-        if 'input_history' not in [row[0] for row in existing_tables]:
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS input_history (
-                    history_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    bin_code TEXT NOT NULL,
-                    item_code TEXT NOT NULL,
-                    box_count INTEGER NOT NULL,
-                    pieces_per_box INTEGER NOT NULL,
-                    total_pieces INTEGER NOT NULL,
-                    input_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+        if 'input_history' not in existing_tables:
+            if is_postgres:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS input_history (
+                        history_id SERIAL PRIMARY KEY,
+                        bin_code VARCHAR(255) NOT NULL,
+                        item_code VARCHAR(255) NOT NULL,
+                        box_count INTEGER NOT NULL,
+                        pieces_per_box INTEGER NOT NULL,
+                        total_pieces INTEGER NOT NULL,
+                        input_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+            else:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS input_history (
+                        history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        bin_code TEXT NOT NULL,
+                        item_code TEXT NOT NULL,
+                        box_count INTEGER NOT NULL,
+                        pieces_per_box INTEGER NOT NULL,
+                        total_pieces INTEGER NOT NULL,
+                        input_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
         
         # 只有在相应的表不存在时才导入初始数据
-        if 'bins' not in [row[0] for row in existing_tables]:
+        if 'bins' not in existing_tables:
             print("导入库位数据...")
-            with open('BIN.csv', 'r', encoding='utf-8') as f:
-                csv_reader = csv.reader(f)
-                next(csv_reader)  # 跳过标题行
-                bin_data = [(row[0],) for row in csv_reader]
-                print(f"从CSV读取到 {len(bin_data)} 个库位")
-                cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', bin_data)
-        '''
-        #No need since no need to check item anymore
-        if 'items' not in [row[0] for row in existing_tables]:
-            print("导入商品数据...")
+            try:
+                with open('BIN.csv', 'r', encoding='utf-8') as csvfile:
+                    csv_reader = csv.reader(csvfile)
+                    next(csv_reader)  # 跳过标题行
+                    bin_data = [(row[0],) for row in csv_reader]
+                    print(f"从CSV读取到 {len(bin_data)} 个库位")
+                    if is_postgres:
+                        cursor.executemany('INSERT INTO bins (bin_code) VALUES (%s)', bin_data)
+                    else:
+                        cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', bin_data)
+            except FileNotFoundError:
+                print("BIN.csv文件不存在，跳过库位数据导入")
+        
+        # 提交更改
+        db.commit()
+        print("数据库初始化完成")
+        
+    except Exception as e:
+        print(f"数据库初始化错误: {str(e)}")
+        db.rollback()
+        raise
             try:
                 encodings = ['utf-8', 'gbk', 'latin-1', 'iso-8859-1', 'cp1252']
                 items = set()  # 使用集合去重
