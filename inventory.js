@@ -18,13 +18,104 @@ const UPDATE_INTERVAL = 5000;
 // 上次更新时间
 let lastUpdateTime = null;
 
+// 缓存最近一次获取的日志，语言切换时直接使用本地渲染以避免重复网络请求
+let cachedLogs = [];
+
 // 定义更新间隔变量
 let recentHistoryUpdateInterval = null;
 let fullHistoryUpdateInterval = null;
 
+// 合并“清空并添加”的历史记录（将紧邻的 清空库位 + 添加 组合为一条）
+function mergeClearAndAddLogs(logs) {
+    if (!Array.isArray(logs) || logs.length === 0) return [];
+    const result = [];
+    const usedIndexSet = new Set();
+    const isClear = (code) => code === '清空库位' || code === 'Clear Bin';
+    const withinMs = 5000; // 允许合并的最大时间差（毫秒）
+
+    for (let i = 0; i < logs.length; i++) {
+        if (usedIndexSet.has(i)) continue;
+        const current = logs[i];
+
+        // 优先尝试与下一条合并，避免重复扫描
+        const j = i + 1;
+        if (j < logs.length && !usedIndexSet.has(j)) {
+            const next = logs[j];
+            const sameBin = current.bin_code === next.bin_code;
+            const timeA = new Date(current.timestamp).getTime();
+            const timeB = new Date(next.timestamp).getTime();
+            const closeInTime = Math.abs(timeA - timeB) <= withinMs;
+
+            // 情况1：按时间倒序常见，先看到添加，后一条是清空
+            if (!isClear(current.item_code) && isClear(next.item_code) && sameBin && closeInTime) {
+                result.push({
+                    __merged: true,
+                    bin_code: current.bin_code,
+                    item_code: current.item_code,
+                    box_count: current.box_count,
+                    pieces_per_box: current.pieces_per_box,
+                    total_pieces: current.total_pieces,
+                    timestamp: current.timestamp
+                });
+                usedIndexSet.add(i);
+                usedIndexSet.add(j);
+                continue;
+            }
+
+            // 情况2：先看到清空，后一条是添加（边界情况）
+            if (isClear(current.item_code) && !isClear(next.item_code) && sameBin && closeInTime) {
+                result.push({
+                    __merged: true,
+                    bin_code: next.bin_code,
+                    item_code: next.item_code,
+                    box_count: next.box_count,
+                    pieces_per_box: next.pieces_per_box,
+                    total_pieces: next.total_pieces,
+                    timestamp: timeA >= timeB ? current.timestamp : next.timestamp
+                });
+                usedIndexSet.add(i);
+                usedIndexSet.add(j);
+                continue;
+            }
+        }
+
+        // 无法合并则原样放入
+        result.push(current);
+        usedIndexSet.add(i);
+    }
+
+    return result;
+}
+
+// 格式化历史记录显示
+function formatHistoryRecord(record, timestamp, lang) {
+    const isZh = lang === 'zh';
+    const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span> <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
+    const mergedEn = `🗑️ Cleared then added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span> <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
+    const clearZh = `🗑️ 清空库位 <span class="bin-code">${record.bin_code}</span>`;
+    const clearEn = `🗑️ Cleared bin <span class="bin-code">${record.bin_code}</span>`;
+    const normalZh = `库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span> <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
+    const normalEn = `Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span> <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
+
+    let lineHtml;
+    if (record.__merged) {
+        lineHtml = isZh ? mergedZh : mergedEn;
+    } else if (record.item_code === '清空库位' || record.item_code === 'Clear Bin') {
+        lineHtml = isZh ? clearZh : clearEn;
+    } else {
+        lineHtml = isZh ? normalZh : normalEn;
+    }
+
+    return `
+    <div class="history-item">
+        <div class="time">${timestamp}</div>
+        <div class="details">${lineHtml}</div>
+    </div>`;
+}
+
 // 更新历史记录显示
-function updateHistoryDisplay() {
-    $.get(`${API_URL}/api/logs`, function(logs) {
+function updateHistoryDisplay(logsFromCache) {
+    const render = (logs) => {
         const lang = document.body.className.includes('lang-en') ? 'en' : 'zh';
         
         // 检查是否有新记录
@@ -37,7 +128,8 @@ function updateHistoryDisplay() {
         
         lastUpdateTime = logs[0] ? logs[0].timestamp : null;
         
-        const html = logs.map(record => {
+        const mergedLogs = mergeClearAndAddLogs(logs);
+        const html = mergedLogs.map(record => {
             const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',
@@ -47,33 +139,23 @@ function updateHistoryDisplay() {
                 second: '2-digit',
                 hour12: false
             }).replace(/\//g, '-');
-            
-            return `
-            <div class="history-item">
-                <div class="time">${timestamp}</div>
-                <div class="details">
-                    <span class="lang-zh">
-                        库位 <span class="bin-code">${record.bin_code}</span>: 
-                        商品 <span class="item-code">${record.item_code}</span>
-                         <span class="quantity">${record.box_count}</span> 箱 × 
-                         <span class="quantity">${record.pieces_per_box}</span> 件/箱 = 
-                         <span class="quantity">${record.total_pieces}</span> 件
-                    </span>
-                    <span class="lang-en">
-                        Bin <span class="bin-code">${record.bin_code}</span>: 
-                        Item <span class="item-code">${record.item_code}</span>
-                        <span class="quantity">${record.box_count}</span> boxes × 
-                        <span class="quantity">${record.pieces_per_box}</span> pcs/box = 
-                        <span class="quantity">${record.total_pieces}</span> pcs
-                    </span>
-                </div>
-            </div>`;
+            return formatHistoryRecord(record, timestamp, lang);
         }).join('');
         
         const recentHistoryList = document.getElementById('recent-history-list');
         if (recentHistoryList) {
             recentHistoryList.innerHTML = html;
         }
+    };
+
+    if (logsFromCache && logsFromCache.length) {
+        render(logsFromCache);
+        return;
+    }
+
+    $.get(`${API_URL}/api/logs`, function(logs) {
+        cachedLogs = logs;
+        render(logs);
     });
 }
 
@@ -171,6 +253,166 @@ $("#inventoryForm").submit(function(e) {
         return;
     }
     
+    // 先检查库位状态
+    checkBinStatus(binCode, itemCode, boxCount, piecesPerBox);
+});
+
+// 检查库位状态并显示相应的确认对话框
+function checkBinStatus(binCode, itemCode, boxCount, piecesPerBox) {
+    const encodedBinCode = binCode.trim()
+        .replace(/\//g, '___SLASH___')
+        .replace(/\s/g, '___SPACE___');
+    
+    $.ajax({
+        url: `${API_URL}/api/inventory/bin/${encodedBinCode}`,
+        type: 'GET',
+        success: function(contents) {
+            if (contents && contents.length > 0) {
+                // 库位有库存，显示选择对话框
+                showBinChoiceDialog(binCode, itemCode, boxCount, piecesPerBox, contents);
+            } else {
+                // 库位为空，直接显示确认对话框
+                showConfirmDialog(binCode, itemCode, boxCount, piecesPerBox);
+            }
+        },
+        error: function(xhr, status, error) {
+            // 如果查询失败，直接显示确认对话框
+            showConfirmDialog(binCode, itemCode, boxCount, piecesPerBox);
+        }
+    });
+}
+
+// 显示库位选择对话框
+function showBinChoiceDialog(binCode, itemCode, boxCount, piecesPerBox, existingContents) {
+    // 移除之前可能存在的事件处理器
+    $("#confirm-yes").off('click');
+    $("#confirm-no").off('click');
+    
+    // 修改确认对话框标题
+    $("#confirm-dialog h3 .lang-zh").text('库位已有库存，请选择操作方式');
+    $("#confirm-dialog h3 .lang-en").text('Bin has existing inventory, please choose action');
+    
+    // 创建现有库存详情HTML
+    let existingHtml = '';
+    existingContents.forEach(inv => {
+        existingHtml += `
+            <div class="confirm-item">
+                <div class="item-header">
+                    <span class="lang-zh">
+                        商品 <span class="item-code">${inv.item_code}</span>: 
+                        <span class="quantity">${inv.total_pieces}</span> 件
+                    </span>
+                    <span class="lang-en">
+                        Item <span class="item-code">${inv.item_code}</span>: 
+                        <span class="quantity">${inv.total_pieces}</span> pcs
+                    </span>
+                </div>
+                <div class="box-details">
+                    ${inv.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box)
+                        .map(detail => `
+                        <div class="box-detail-line">
+                            <span class="lang-zh">
+                                <span class="quantity">${detail.box_count}</span> 箱 × 
+                                <span class="quantity">${detail.pieces_per_box}</span> 件/箱
+                            </span>
+                            <span class="lang-en">
+                                <span class="quantity">${detail.box_count}</span> boxes × 
+                                <span class="quantity">${detail.pieces_per_box}</span> pcs/box
+                            </span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    });
+    
+    // 填充确认对话框
+    $(".confirm-details").html(`
+        <div class="confirm-row">
+            <span class="label">
+                <span class="lang-zh">库位：</span>
+                <span class="lang-en">Bin:</span>
+            </span>
+            <span class="bin-code">${binCode}</span>
+        </div>
+        <div class="confirm-row">
+            <span class="label">
+                <span class="lang-zh">新商品：</span>
+                <span class="lang-en">New Item:</span>
+            </span>
+            <span class="item-code">${itemCode}</span>
+        </div>
+        <div class="confirm-row">
+            <span class="label">
+                <span class="lang-zh">新库存：</span>
+                <span class="lang-en">New Inventory:</span>
+            </span>
+            <span class="quantity">${boxCount} 箱 × ${piecesPerBox} 件/箱 = ${boxCount * piecesPerBox} 件</span>
+        </div>
+        <div class="inventory-details">
+            <div class="confirm-item">
+                <div class="item-header">
+                    <span class="lang-zh">现有库存：</span>
+                    <span class="lang-en">Existing Inventory:</span>
+                </div>
+                ${existingHtml}
+            </div>
+        </div>
+    `);
+    
+    // 修改按钮显示和样式
+    $("#confirm-yes").removeClass('confirm').addClass('success');
+    $("#confirm-yes .lang-zh").text('直接添加');
+    $("#confirm-yes .lang-en").text('Add Directly');
+    
+    $("#confirm-middle").show();
+    $("#confirm-middle .lang-zh").text('清空库位后添加');
+    $("#confirm-middle .lang-en").text('Clear and Add');
+    
+    $("#confirm-no").removeClass('cancel').addClass('cancel');
+    $("#confirm-no .lang-zh").text('取消');
+    $("#confirm-no .lang-en").text('Cancel');
+    
+    // 显示确认对话框
+    $("#confirm-dialog").fadeIn(200);
+    
+    // 确认按钮事件 - 直接添加
+    $("#confirm-yes").on('click', function() {
+        $("#confirm-yes").off('click');
+        $("#confirm-middle").off('click');
+        $("#confirm-no").off('click');
+        $("#confirm-dialog").fadeOut(200);
+        
+        // 直接添加新库存
+        addInventory(binCode, itemCode, boxCount, piecesPerBox);
+    });
+    
+    // 中间按钮事件 - 清空库位后添加
+    $("#confirm-middle").on('click', function() {
+        $("#confirm-yes").off('click');
+        $("#confirm-middle").off('click');
+        $("#confirm-no").off('click');
+        $("#confirm-dialog").fadeOut(200);
+        
+        // 先清空库位，然后添加新库存
+        clearBinAndAdd(binCode, itemCode, boxCount, piecesPerBox);
+    });
+    
+    // 取消按钮事件
+    $("#confirm-no").on('click', function() {
+        $("#confirm-yes").off('click');
+        $("#confirm-middle").off('click');
+        $("#confirm-no").off('click');
+        $("#confirm-dialog").fadeOut(200);
+    });
+}
+
+// 显示普通确认对话框
+function showConfirmDialog(binCode, itemCode, boxCount, piecesPerBox) {
+    // 移除之前可能存在的事件处理器
+    $("#confirm-yes").off('click');
+    $("#confirm-no").off('click');
+    
     // 重置确认对话框标题
     $("#confirm-dialog h3 .lang-zh").text('请确认输入信息');
     $("#confirm-dialog h3 .lang-en").text('Please Confirm Input');
@@ -207,50 +449,87 @@ $("#inventoryForm").submit(function(e) {
         </div>
     `);
     
+    // 重置按钮显示和样式
+    $("#confirm-yes").removeClass('success').addClass('confirm');
+    $("#confirm-yes .lang-zh").text('确认');
+    $("#confirm-yes .lang-en").text('Confirm');
+    
+    $("#confirm-middle").hide();
+    
+    $("#confirm-no").removeClass('cancel').addClass('cancel');
+    $("#confirm-no .lang-zh").text('取消');
+    $("#confirm-no .lang-en").text('Cancel');
+    
     // 显示确认对话框
     $("#confirm-dialog").fadeIn(200);
-
+    
     // 确认按钮事件
     $("#confirm-yes").on('click', function() {
-        // 立即移除事件处理器，防止重复提交
         $("#confirm-yes").off('click');
+        $("#confirm-middle").off('click');
         $("#confirm-no").off('click');
         $("#confirm-dialog").fadeOut(200);
         
-        // 在确认后再添加记录
-        $.ajax({
-            url: `${API_URL}/api/inventory`,
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                bin_code: binCode,
-                item_code: itemCode,
-                box_count: boxCount,
-                pieces_per_box: piecesPerBox
-            }),
-            success: function(response) {
-                // 成功后再更新显示并重置表单
-                setTimeout(updateHistoryDisplay, 100);
-                $("#inventoryForm")[0].reset();
-            },
-            error: function(xhr, status, error) {
-                let errorMsg = "添加失败，请检查输入！";
-                if (xhr.responseJSON && xhr.responseJSON.error) {
-                    errorMsg = xhr.responseJSON.error;
-                }
-                alert(errorMsg);
-            }
-        });
+        // 添加库存
+        addInventory(binCode, itemCode, boxCount, piecesPerBox);
     });
-
+    
     // 取消按钮事件
     $("#confirm-no").on('click', function() {
-        // 移除事件处理器
         $("#confirm-yes").off('click');
+        $("#confirm-middle").off('click');
         $("#confirm-no").off('click');
         $("#confirm-dialog").fadeOut(200);
     });
-});
+}
+
+// 清空库位后添加新库存
+function clearBinAndAdd(binCode, itemCode, boxCount, piecesPerBox) {
+    const encodedBinCode = binCode.trim()
+        .replace(/\//g, '___SLASH___')
+        .replace(/\s/g, '___SPACE___');
+    
+    $.ajax({
+        url: `${API_URL}/api/inventory/bin/${encodedBinCode}/clear`,
+        type: 'DELETE',
+        success: function(response) {
+            // 清空成功后添加新库存
+            addInventory(binCode, itemCode, boxCount, piecesPerBox);
+        },
+        error: function(xhr, status, error) {
+            alert(document.body.className.includes('lang-en')
+                ? "Failed to clear bin, please try again"
+                : "清空库位失败，请重试");
+        }
+    });
+}
+
+// 添加库存
+function addInventory(binCode, itemCode, boxCount, piecesPerBox) {
+    $.ajax({
+        url: `${API_URL}/api/inventory`,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            bin_code: binCode,
+            item_code: itemCode,
+            box_count: boxCount,
+            pieces_per_box: piecesPerBox
+        }),
+        success: function(response) {
+            // 成功后再更新显示并重置表单
+            setTimeout(updateHistoryDisplay, 100);
+            $("#inventoryForm")[0].reset();
+        },
+        error: function(xhr, status, error) {
+            let errorMsg = "添加失败，请检查输入！";
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            }
+            alert(errorMsg);
+        }
+    });
+}
 
 // 查询商品总数量
 function searchItemTotal() {
@@ -496,8 +775,10 @@ function switchLanguage(lang) {
     // 更新按钮状态
     $('.language-switch button').removeClass('active');
     $(`.language-switch button[onclick="switchLanguage('${lang}')"]`).addClass('active');
-    // 更新历史记录显示
-    updateHistoryDisplay();
+    // 使用缓存立即重渲染，避免重复请求
+    updateHistoryDisplay(cachedLogs);
+    updateRecentHistory(cachedLogs);
+    updateFullHistory(cachedLogs);
 }
 
 // 查询标签页切换
@@ -509,9 +790,10 @@ function switchQueryTab(tabId) {
 }
 
 // 更新最近5条历史记录
-function updateRecentHistory() {
-    $.get(`${API_URL}/api/logs`, function(logs) {
-        const recentLogs = logs.slice(0, 5);  // 只取最近5条
+function updateRecentHistory(logsFromCache) {
+    const render = (logs) => {
+        const mergedLogs = mergeClearAndAddLogs(logs);
+        const recentLogs = mergedLogs.slice(0, 5);  // 只取最近5条
         const html = recentLogs.map(record => {
             const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
                 year: 'numeric',
@@ -522,40 +804,31 @@ function updateRecentHistory() {
                 second: '2-digit',
                 hour12: false
             }).replace(/\//g, '-');
-            
-            return `
-            <div class="history-item">
-                <div class="time">${timestamp}</div>
-                <div class="details">
-                    <span class="lang-zh">
-                        库位 <span class="bin-code">${record.bin_code}</span>: 
-                        商品 <span class="item-code">${record.item_code}</span>
-                         <span class="quantity">${record.box_count}</span> 箱 × 
-                         <span class="quantity">${record.pieces_per_box}</span> 件/箱 = 
-                         <span class="quantity">${record.total_pieces}</span> 件
-                    </span>
-                    <span class="lang-en">
-                        Bin <span class="bin-code">${record.bin_code}</span>: 
-                        Item <span class="item-code">${record.item_code}</span>
-                        <span class="quantity">${record.box_count}</span> boxes × 
-                        <span class="quantity">${record.pieces_per_box}</span> pcs/box = 
-                        <span class="quantity">${record.total_pieces}</span> pcs
-                    </span>
-                </div>
-            </div>`;
+            return formatHistoryRecord(record, timestamp, document.body.className.includes('lang-en') ? 'en' : 'zh');
         }).join('');
         
         const recentHistoryList = document.getElementById('recent-history-list');
         if (recentHistoryList) {
             recentHistoryList.innerHTML = html;
         }
+    };
+
+    if (logsFromCache && logsFromCache.length) {
+        render(logsFromCache);
+        return;
+    }
+
+    $.get(`${API_URL}/api/logs`, function(logs) {
+        cachedLogs = logs;
+        render(logs);
     });
 }
 
 // 更新完整历史记录
-function updateFullHistory() {
-    $.get(`${API_URL}/api/logs`, function(logs) {
-        const html = logs.map(record => {
+function updateFullHistory(logsFromCache) {
+    const render = (logs) => {
+        const mergedLogs = mergeClearAndAddLogs(logs);
+        const html = mergedLogs.map(record => {
             const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',
@@ -565,33 +838,23 @@ function updateFullHistory() {
                 second: '2-digit',
                 hour12: false
             }).replace(/\//g, '-');
-            
-            return `
-            <div class="history-item">
-                <div class="time">${timestamp}</div>
-                <div class="details">
-                    <span class="lang-zh">
-                        库位 <span class="bin-code">${record.bin_code}</span>: 
-                        商品 <span class="item-code">${record.item_code}</span>
-                         <span class="quantity">${record.box_count}</span> 箱 × 
-                         <span class="quantity">${record.pieces_per_box}</span> 件/箱 = 
-                         <span class="quantity">${record.total_pieces}</span> 件
-                    </span>
-                    <span class="lang-en">
-                        Bin <span class="bin-code">${record.bin_code}</span>: 
-                        Item <span class="item-code">${record.item_code}</span>
-                        <span class="quantity">${record.box_count}</span> boxes × 
-                        <span class="quantity">${record.pieces_per_box}</span> pcs/box = 
-                        <span class="quantity">${record.total_pieces}</span> pcs
-                    </span>
-                </div>
-            </div>`;
+            return formatHistoryRecord(record, timestamp, document.body.className.includes('lang-en') ? 'en' : 'zh');
         }).join('');
         
         const fullHistoryList = document.getElementById('full-history-list');
         if (fullHistoryList) {
             fullHistoryList.innerHTML = html;
         }
+    };
+
+    if (logsFromCache && logsFromCache.length) {
+        render(logsFromCache);
+        return;
+    }
+
+    $.get(`${API_URL}/api/logs`, function(logs) {
+        cachedLogs = logs;
+        render(logs);
     });
 }
 
@@ -674,6 +937,15 @@ function clearBinInventory(binCode) {
                 </div>
             `);
             
+            // 设置按钮样式和文本 - 查询bin清空只需要两个按钮
+            $("#confirm-yes").removeClass('warning').addClass('success');
+            $("#confirm-yes .lang-zh").text('清空库位');
+            $("#confirm-yes .lang-en").text('Clear Bin');
+            $("#confirm-middle").hide();  // 隐藏中间按钮
+            $("#confirm-no").removeClass('cancel').addClass('cancel');
+            $("#confirm-no .lang-zh").text('取消');
+            $("#confirm-no .lang-en").text('Cancel');
+            
             // 显示确认对话框
             $("#confirm-dialog").fadeIn(200);
             
@@ -725,54 +997,4 @@ function clearBinInventory(binCode) {
     });
 }
 
-// 处理商品上传
-$("#uploadItemsForm").submit(function(e) {
-    e.preventDefault();
-    
-    const file = $("#itemsFile")[0].files[0];
-    if (!file) {
-        alert(document.body.className.includes('lang-en')
-            ? "Please select a file"
-            : "请选择文件");
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    $.ajax({
-        url: `${API_URL}/api/items/add`,
-        type: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function(response) {
-            let resultHtml = document.body.className.includes('lang-en')
-                ? `<p>Total items: ${response.total_items}</p>
-                   <p>New items added: ${response.new_items}</p>`
-                : `<p>商品总数：${response.total_items}</p>
-                   <p>新增商品数：${response.new_items}</p>`;
-            
-            if (response.new_items > 0) {
-                resultHtml += document.body.className.includes('lang-en')
-                    ? '<p>New items:</p>'
-                    : '<p>新增商品：</p>';
-                resultHtml += '<ul>' + response.new_item_codes.map(
-                    item => `<li>${item}</li>`
-                ).join('') + '</ul>';
-            }
-            
-            $("#uploadResult").html(resultHtml);
-            $("#itemsFile").val('');  // 清空文件选择
-        },
-        error: function(xhr, status, error) {
-            let errorMsg = document.body.className.includes('lang-en')
-                ? "Failed to upload items!"
-                : "上传商品失败！";
-            if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMsg = xhr.responseJSON.error;
-            }
-            alert(errorMsg);
-        }
-    });
-}); 
+ 

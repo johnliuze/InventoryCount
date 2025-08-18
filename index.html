@@ -493,12 +493,16 @@
             border: 1px solid #eee;
         }
         
+        /* 历史记录条目样式 - 网格布局 */
         .history-item {
-            padding: 12px;
+            padding: 10px 15px;
             border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background: white;
+            display: grid;
+            grid-template-columns: 160px 1fr;
+            column-gap: 15px;
+            row-gap: 4px;
+            align-items: start;
         }
         
         .history-item:last-child {
@@ -508,26 +512,35 @@
         .history-item .time {
             color: #666;
             font-size: 0.9em;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums; /* 数字等宽，时间更整齐 */
         }
         
         .history-item .details {
-            flex-grow: 1;
-            margin: 0 15px;
+            line-height: 1.45;
         }
+
+        /* 语言显示控制（历史记录区域只显示当前语言） */
+        body.lang-zh .history-item .details .lang-en { display: none !important; }
+        body.lang-en .history-item .details .lang-zh { display: none !important; }
+
+        /* 语言各占一行，避免内容拥挤导致错位 */
+        .history-item .details .lang-zh,
+        .history-item .details .lang-en {
+            display: block;
+        }
+        
+
         
         /* 移动设备适配 */
         @media (max-width: 768px) {
             .history-item {
-                flex-direction: column;
-                align-items: flex-start;
+                grid-template-columns: 1fr;
+                gap: 5px;
             }
             
             .history-item .time {
                 margin-bottom: 5px;
-            }
-            
-            .history-item .details {
-                margin: 5px 0;
             }
         }
 
@@ -604,28 +617,8 @@
             max-height: 300px;
         }
         
-        .history-item {
-            padding: 15px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: white;
-            margin-bottom: 1px;
-        }
-        
         .history-item:hover {
             background: #f8f9fa;
-        }
-        
-        .history-item .time {
-            color: #666;
-            font-size: 0.9em;
-        }
-        
-        .history-item .details {
-            flex-grow: 1;
-            margin: 0 15px;
         }
 
         /* 确认对话框 */
@@ -687,6 +680,16 @@
         
         .modal-button.cancel {
             background-color: #f44336;
+            color: white;
+        }
+        
+        .modal-button.warning {
+            background-color: #ff9800;
+            color: white;
+        }
+        
+        .modal-button.success {
+            background-color: #4CAF50;
             color: white;
         }
         
@@ -801,46 +804,7 @@
             padding: 20px;
         }
 
-        /* 上传部分样式 */
-        .upload-section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-        }
-        
-        .upload-section h3 {
-            margin-bottom: 15px;
-            color: #2c3e50;
-        }
-        
-        #uploadItemsForm {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        
-        .upload-button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        
-        #uploadResult {
-            margin-top: 15px;
-            padding: 10px;
-            background-color: white;
-            border-radius: 4px;
-        }
-        
-        #uploadResult ul {
-            margin-top: 10px;
-            padding-left: 20px;
-        }
+
     </style>
 </head>
 <body>
@@ -866,10 +830,7 @@
                 <span class="lang-zh">历史记录</span>
                 <span class="lang-en">History</span>
             </button>
-            <button class="tab-button" onclick="switchTab('import')" data-tab="import">
-                <span class="lang-zh">导入</span>
-                <span class="lang-en">Import</span>
-            </button>
+
             <button class="tab-button" onclick="switchTab('export')" data-tab="export">
                 <span class="lang-zh">导出</span>
                 <span class="lang-en">Export</span>
@@ -947,29 +908,7 @@
             </div>
         </div>
 
-        <!-- 导入标签页 -->
-        <div id="import-tab" class="tab-content">
-            <h2>
-                <span class="lang-zh">数据导入</span>
-                <span class="lang-en">Data Import</span>
-            </h2>
-            
-            <!-- 商品导入部分 -->
-            <div class="upload-section">
-                <h3>
-                    <span class="lang-zh">导入商品</span>
-                    <span class="lang-en">Import Items</span>
-                </h3>
-                <form id="uploadItemsForm" enctype="multipart/form-data">
-                    <input type="file" id="itemsFile" accept=".csv" required>
-                    <button type="submit" class="upload-button">
-                        <span class="lang-zh">上传商品</span>
-                        <span class="lang-en">Upload Items</span>
-                    </button>
-                </form>
-                <div id="uploadResult"></div>
-            </div>
-        </div>
+
 
         <!-- 导出部分 -->
         <div id="export-tab" class="tab-content">
@@ -988,8 +927,8 @@
                     <span class="lang-en">Export Bins Inventory</span>
                 </button>
                 <button onclick="exportItemDetails()" class="export-button">
-                    <span class="lang-zh">导出商品明细</span>
-                    <span class="lang-en">Export Item Details</span>
+                    <span class="lang-zh">导出明细</span>
+                    <span class="lang-en">Export Details</span>
                 </button>
                 <button onclick="exportDatabase()" class="export-button">
                     <span class="lang-zh">导出数据库</span>
@@ -1020,8 +959,8 @@
                 </div>
                 <div class="export-description">
                     <h3>
-                        <span class="lang-zh">商品明细</span>
-                        <span class="lang-en">Item Details</span>
+                        <span class="lang-zh">明细</span>
+                        <span class="lang-en">Details</span>
                     </h3>
                     <p>
                         <span class="lang-zh">导出所有商品在各库位的详细箱规信息。</span>
@@ -1190,6 +1129,10 @@
                 <button id="confirm-yes" class="modal-button confirm">
                     <span class="lang-zh">确认</span>
                     <span class="lang-en">Confirm</span>
+                </button>
+                <button id="confirm-middle" class="modal-button warning" style="display: none;">
+                    <span class="lang-zh">清空库位后添加</span>
+                    <span class="lang-en">Clear and Add</span>
                 </button>
                 <button id="confirm-no" class="modal-button cancel">
                     <span class="lang-zh">取消</span>

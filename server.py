@@ -137,7 +137,8 @@ def init_db():
                 bin_data = [(row[0],) for row in csv_reader]
                 print(f"从CSV读取到 {len(bin_data)} 个库位")
                 cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', bin_data)
-        
+        '''
+        #No need since no need to check item anymore
         if 'items' not in [row[0] for row in existing_tables]:
             print("导入商品数据...")
             try:
@@ -235,7 +236,7 @@ def init_db():
             except Exception as e:
                 print(f"导入商品数据时出错: {e}")
                 raise
-        
+        '''
         db.commit()
         print("数据库初始化完成")
         
@@ -399,18 +400,23 @@ def add_inventory():
     cursor = db.cursor()
     
     try:
-        # 先检查 bin_id 和 item_id 是否存在
+        # 先检查 bin_id 是否存在
         cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (data['bin_code'],))
         bin_result = cursor.fetchone()
         if not bin_result:
             return jsonify({'error': '库位不存在'}), 400
         bin_id = bin_result['bin_id']
 
+        # 检查商品是否存在，如果不存在则自动添加
         cursor.execute('SELECT item_id FROM items WHERE item_code = ?', (data['item_code'],))
         item_result = cursor.fetchone()
         if not item_result:
-            return jsonify({'error': '商品不存在'}), 400
-        item_id = item_result['item_id']
+            # 商品不存在，自动添加到items表
+            cursor.execute('INSERT INTO items (item_code) VALUES (?)', (data['item_code'],))
+            item_id = cursor.lastrowid
+            print(f"自动添加新商品: {data['item_code']}")
+        else:
+            item_id = item_result['item_id']
 
         # 计算总件数
         box_count = int(data['box_count'])
@@ -455,10 +461,13 @@ def get_item_inventory(item_id):
     cursor.execute('SELECT item_id FROM items WHERE item_code = ?', (item_id,))
     item_result = cursor.fetchone()
     if not item_result:
+        # 商品不存在，返回空结果
         return jsonify({
-            'error': '商品不存在',
-            'error_en': 'Item does not exist'
-        }), 404
+            'item_code': item_id,
+            'total': 0,
+            'total_boxes': 0,
+            'box_details': []
+        })
     
     cursor.execute('''
         SELECT 
@@ -564,8 +573,10 @@ def get_item_locations(item_id):
     item_result = cursor.fetchone()
     
     if not item_result:
-        return jsonify({'error': '商品不存在', 'locations': []}), 404
+        # 商品不存在，返回空结果
+        return jsonify({'locations': []})
     
+    # 查询商品在各库位的库存
     cursor.execute('''
         WITH merged_inventory AS (
             SELECT 
@@ -1053,21 +1064,25 @@ def export_item_details():
                 worksheet.write(bin_start, 1, data['bin_code'], bin_format)
                 worksheet.write(bin_start, 5, current_bin_total, number_format)
             
-            # 合并item_total
+            # 合并item_total - 确保总是显示商品总数量
             worksheet.merge_range(f'G{start_row+1}:G{row_num}', 
                                   data['item_total'], number_format)
             
-            # 合并item_code
+            # 合并item_code - 确保总是显示商品编码
             if row_num - start_row > 1:
                 worksheet.merge_range(f'A{start_row+1}:A{row_num}', 
                                       data['item_code'], item_format)
+            else:
+                # 如果只有一行，确保item_code和item_total都正确显示
+                worksheet.write(start_row, 0, data['item_code'], item_format)
+                worksheet.write(start_row, 6, data['item_total'], number_format)
     
     output.seek(0)
     return send_file(
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name='item_details.xlsx'
+        download_name='inventory_details.xlsx'
     )
 
 @app.route('/api/export/database', methods=['GET'])
@@ -1126,108 +1141,14 @@ def clear_bin_inventory(bin_code):
         print(f"Error clearing bin inventory: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/items/add', methods=['POST'])
-def add_items():
-    try:
-        db = get_db()
-        cursor = db.cursor()
-        
-        # 获取上传的CSV文件
-        if 'file' not in request.files:
-            return jsonify({'error': '没有上传文件'}), 400
-        
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': '没有选择文件'}), 400
 
-        # 初始化集合
-        items = set()  # 用于存储所有商品编码
-        new_items = set()  # 用于存储新增的商品编码
-        
-        # 获取现有商品列表
-        cursor.execute('SELECT item_code FROM items')
-        existing_items = {row['item_code'].upper().strip() for row in cursor.fetchall()}
-        
-        # 保存文件内容到临时变量
-        file_content = file.read()
-        
-        # 尝试不同的编码
-        encodings = ['utf-8', 'gbk', 'latin-1', 'iso-8859-1', 'cp1252']
-        content = None
-        
-        for encoding in encodings:
-            try:
-                content = file_content.decode(encoding)
-                break
-            except UnicodeDecodeError:
-                continue
-        
-        if content is None:
-            return jsonify({'error': '无法解析文件编码，请确保文件编码正确'}), 400
-        
-        # 读取并解析CSV文件
-        csv_reader = csv.reader(content.splitlines(), 
-            quoting=csv.QUOTE_ALL,
-            skipinitialspace=True,
-            strict=True
-        )
-        
-        # 跳过标题行
-        next(csv_reader)
-        
-        # 记录处理统计
-        line_count = 0
-        skipped_lines = []
-        
-        # 处理每一行
-        for row in csv_reader:
-            line_count += 1
-            if row and len(row) > 0:
-                item_code = row[0].strip()
-                if item_code and not item_code.lower().startswith('item') and len(item_code) > 0:
-                    normalized_code = item_code.upper().strip()
-                    items.add(normalized_code)
-                    if normalized_code not in existing_items:
-                        new_items.add(normalized_code)
-                else:
-                    skipped_lines.append((line_count, row, "无效的商品编码"))
-            else:
-                skipped_lines.append((line_count, row, "空行"))
-        
-        print(f"从CSV读取到 {len(items)} 个商品")
-        
-        # 插入新商品
-        if new_items:
-            cursor.executemany(
-                'INSERT OR IGNORE INTO items (item_code) VALUES (?)',
-                [(item,) for item in new_items]
-            )
-            db.commit()
-        
-        return jsonify({
-            'success': True,
-            'total_items': len(items),
-            'new_items': len(new_items),
-            'new_item_codes': sorted(list(new_items)),
-            'total_lines': line_count,
-            'skipped_lines': len(skipped_lines),
-            'skipped_details': [
-                {'line': line, 'content': content, 'reason': reason}
-                for line, content, reason in skipped_lines
-            ]
-        })
-        
-    except Exception as e:
-        print(f"Error adding items: {e}")
-        return jsonify({'error': str(e)}), 500
-    finally:
-        db.close()
 
 if __name__ == '__main__':
     print("Starting server...")
     print("Current working directory:", os.getcwd())
     print("Checking for required files:")
-    for file in ['index.html', 'inventory.js', 'schema.sql', 'BIN.csv', 'Item.CSV']:
+    # for file in ['index.html', 'inventory.js', 'schema.sql', 'BIN.csv', 'Item.CSV']:
+    for file in ['index.html', 'inventory.js', 'schema.sql', 'BIN.csv']:
         if os.path.exists(file):
             print(f"  {file}: Found")
         else:
