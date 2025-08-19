@@ -748,25 +748,26 @@ def export_bins():
     db = get_db()
     cursor = db.cursor()
     
-    # 查询所有库位的库存信息，调整列顺序
+    # 查询所有库位的库存信息，包含container信息
     cursor.execute('''
         SELECT 
             b.bin_code,
             i.item_code,
-            inv.box_count,           -- 调换顺序
-            inv.pieces_per_box,      -- 调换顺序
+            inv.container_number,
+            inv.box_count,
+            inv.pieces_per_box,
             SUM(inv.total_pieces) as total_pieces
         FROM bins b
         LEFT JOIN inventory inv ON b.bin_id = inv.bin_id
         LEFT JOIN items i ON inv.item_id = i.item_id
-        GROUP BY b.bin_code, i.item_code, inv.pieces_per_box, inv.box_count
-        ORDER BY b.bin_code, i.item_code, inv.pieces_per_box
+        GROUP BY b.bin_code, i.item_code, inv.container_number, inv.pieces_per_box, inv.box_count
+        ORDER BY b.bin_code, i.item_code, inv.container_number, inv.pieces_per_box
     ''')
     
     bins_data = cursor.fetchall()
     
-    # 创建DataFrame，调整列顺序
-    df = pd.DataFrame(bins_data, columns=['Bin Location', 'Item Code', 'Box Count', 'Pieces per Box', 'Total Pieces'])
+    # 创建DataFrame，包含container信息
+    df = pd.DataFrame(bins_data, columns=['Bin Location', 'Item Code', 'Container Number', 'Box Count', 'Pieces per Box', 'Total Pieces'])
     
     # 创建Excel文件
     output = BytesIO()
@@ -779,7 +780,8 @@ def export_bins():
         # 设置列宽
         worksheet.set_column('A:A', 15)  # Bin Location
         worksheet.set_column('B:B', 20)  # Item Code
-        worksheet.set_column('C:E', 12)  # Box Count, Pieces per Box, Total Pieces
+        worksheet.set_column('C:C', 18)  # Container Number
+        worksheet.set_column('D:F', 12)  # Box Count, Pieces per Box, Total Pieces
         
         # 定义格式
         bin_format = workbook.add_format({
@@ -794,6 +796,12 @@ def export_bins():
             'font_color': '#2962ff'  # 蓝色
         })
         
+        container_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#3498db'  # 浅蓝色
+        })
+        
         number_format = workbook.add_format({
             'align': 'center',
             'valign': 'vcenter',
@@ -803,7 +811,8 @@ def export_bins():
         # 应用格式到整列
         worksheet.set_column('A:A', 15, bin_format)    # Bin Location
         worksheet.set_column('B:B', 20, item_format)   # Item Code
-        worksheet.set_column('C:E', 12, number_format) # Box Count, Pieces per Box, Total Pieces
+        worksheet.set_column('C:C', 18, container_format) # Container Number
+        worksheet.set_column('D:F', 12, number_format) # Box Count, Pieces per Box, Total Pieces
         
         # 合并相同库位的单元格
         current_bin = None
@@ -850,6 +859,7 @@ def get_logs():
         SELECT 
             bin_code,
             item_code,
+            container_number,
             box_count,
             pieces_per_box,
             total_pieces,
@@ -863,6 +873,7 @@ def get_logs():
         log_entry = {
             'bin_code': row['bin_code'],
             'item_code': row['item_code'],
+            'container_number': row['container_number'],
             'box_count': row['box_count'],
             'pieces_per_box': row['pieces_per_box'],
             'total_pieces': row['total_pieces'],

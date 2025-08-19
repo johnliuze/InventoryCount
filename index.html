@@ -851,10 +851,10 @@
             <form id="inventoryForm">
                 <div>
                     <label>
-                        <span class="lang-zh">库位编号：</span>
-                        <span class="lang-en">Bin Location:</span>
+                        <span class="lang-zh">集装箱号：</span>
+                        <span class="lang-en">Container Number:</span>
                     </label>
-                    <input type="text" id="binInput" required>
+                    <input type="text" id="containerInput" required>
                 </div>
                 <div>
                     <label>
@@ -862,13 +862,6 @@
                         <span class="lang-en">Item Code:</span>
                     </label>
                     <input type="text" id="itemInput" required>
-                </div>
-                <div>
-                    <label>
-                        <span class="lang-zh">集装箱号：</span>
-                        <span class="lang-en">Container Number:</span>
-                    </label>
-                    <input type="text" id="containerInput">
                 </div>
                 <div>
                     <label>
@@ -893,6 +886,13 @@
                            min="1" 
                            step="1" 
                            oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
+                </div>
+                <div>
+                    <label>
+                        <span class="lang-zh">库位编号：</span>
+                        <span class="lang-en">Bin Location:</span>
+                    </label>
+                    <input type="text" id="binInput" required>
                 </div>
                 <button type="submit">
                     <span class="lang-zh">提交</span>

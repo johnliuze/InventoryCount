@@ -351,8 +351,8 @@ function showBinChoiceDialog(binCode, itemCode, containerNumber, boxCount, piece
         </div>
         <div class="confirm-row">
             <span class="label">
-                <span class="lang-zh">集装箱号：</span>
-                <span class="lang-en">Container Number:</span>
+                <span class="lang-zh">集装箱：</span>
+                <span class="lang-en">Container:</span>
             </span>
             <span class="container-number">${containerNumber || '-'}</span>
         </div>
@@ -449,8 +449,8 @@ function showConfirmDialog(binCode, itemCode, containerNumber, boxCount, piecesP
         </div>
         <div class="confirm-row">
             <span class="label">
-                <span class="lang-zh">集装箱号：</span>
-                <span class="lang-en">Container Number:</span>
+                <span class="lang-zh">集装箱：</span>
+                <span class="lang-en">Container:</span>
             </span>
             <span id="confirm-container" class="container-number">${containerNumber || '-'}</span>
         </div>
