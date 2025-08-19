@@ -94,30 +94,28 @@ function mergeClearAndAddLogs(logs) {
 function formatHistoryRecord(record, timestamp, lang) {
     const isZh = lang === 'zh';
     
-    // 构建BT显示部分
-    const BTDisplay = record.BT ? 
-        (isZh ? ` BT号: <span class="BT-number">${record.BT}</span>` :
-         ` BT: <span class="BT-number">${record.BT}</span>`) : '';
-    
-    const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${BTDisplay} <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
-    const mergedEn = `🗑️ Cleared then added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${BTDisplay} <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
-    const clearZh = `🗑️ 清空库位 <span class="bin-code">${record.bin_code}</span>`;
-    const clearEn = `🗑️ Cleared bin <span class="bin-code">${record.bin_code}</span>`;
-    const normalZh = `库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${BTDisplay} <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
-    const normalEn = `Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${BTDisplay} <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
-
     let lineHtml;
+    
     if (record.__merged) {
+        // 清空并添加的合并记录
+        const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span> (${record.box_count} 箱 × ${record.pieces_per_box} 件/箱 = ${record.total_pieces} 件) 来自 BT: <span class="BT-number">${record.BT || 'N/A'}</span> 添加到库位: <span class="bin-code">${record.bin_code}</span>`;
+        const mergedEn = `🗑️ Cleared then added: Item: <span class="item-code">${record.item_code}</span> (${record.box_count} boxes × ${record.pieces_per_box} pcs/box = ${record.total_pieces} pcs) from BT: <span class="BT-number">${record.BT || 'N/A'}</span> added at Bin: <span class="bin-code">${record.bin_code}</span>`;
         lineHtml = isZh ? mergedZh : mergedEn;
     } else if (record.item_code === '清空库位' || record.item_code === 'Clear Bin') {
+        // 清空bin
+        const clearZh = `🗑️ 清空库位: <span class="bin-code">${record.bin_code}</span> cleared`;
+        const clearEn = `🗑️ Bin: <span class="bin-code">${record.bin_code}</span> cleared`;
         lineHtml = isZh ? clearZh : clearEn;
     } else if (record.item_code && record.item_code.startsWith('清空商品')) {
-        // 处理清空商品操作
+        // 清空item
         const itemCode = record.item_code.replace('清空商品', '');
-        const clearItemZh = `🗑️ 清空商品: 库位 <span class="bin-code">${record.bin_code}</span> 中的商品 <span class="item-code">${itemCode}</span> (<span class="quantity">${record.total_pieces}</span> 件)`;
-        const clearItemEn = `🗑️ Cleared item: Item <span class="item-code">${itemCode}</span> from bin <span class="bin-code">${record.bin_code}</span> (<span class="quantity">${record.total_pieces}</span> pcs)`;
+        const clearItemZh = `🗑️ 清空商品: 商品: <span class="item-code">${itemCode}</span> 来自 BT: <span class="BT-number">${record.BT || 'N/A'}</span> 在库位: <span class="bin-code">${record.bin_code}</span> 清空`;
+        const clearItemEn = `🗑️ Item: <span class="item-code">${itemCode}</span> from BT: <span class="BT-number">${record.BT || 'N/A'}</span> cleared at Bin: <span class="bin-code">${record.bin_code}</span>`;
         lineHtml = isZh ? clearItemZh : clearItemEn;
     } else {
+        // 普通input记录
+        const normalZh = `商品: <span class="item-code">${record.item_code}</span> (${record.box_count} 箱 × ${record.pieces_per_box} 件/箱 = ${record.total_pieces} 件) 来自 BT: <span class="BT-number">${record.BT || 'N/A'}</span> 添加到库位: <span class="bin-code">${record.bin_code}</span>`;
+        const normalEn = `Item: <span class="item-code">${record.item_code}</span> (${record.box_count} boxes × ${record.pieces_per_box} pcs/box = ${record.total_pieces} pcs) from BT: <span class="BT-number">${record.BT || 'N/A'}</span> added at Bin: <span class="bin-code">${record.bin_code}</span>`;
         lineHtml = isZh ? normalZh : normalEn;
     }
 
