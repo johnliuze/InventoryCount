@@ -90,98 +90,34 @@ function mergeClearAndAddLogs(logs) {
     return result;
 }
 
-// 处理清空bin的记录分组
-function groupClearBinRecords(logs) {
-    const result = [];
-    const processedIndices = new Set();
-    
-    for (let i = 0; i < logs.length; i++) {
-        if (processedIndices.has(i)) continue;
-        
-        const current = logs[i];
-        
-        // 检查是否是清空bin的记录（通过检查是否有相同的bin_code和相同的时间戳）
-        const clearBinRecords = [];
-        const currentTime = new Date(current.timestamp).getTime();
-        
-        for (let j = i; j < logs.length; j++) {
-            if (processedIndices.has(j)) continue;
-            
-            const next = logs[j];
-            const nextTime = new Date(next.timestamp).getTime();
-            
-            // 如果时间戳相同且bin_code相同，且不是清空商品操作，则认为是清空bin的记录
-            if (nextTime === currentTime && 
-                next.bin_code === current.bin_code && 
-                !next.item_code.startsWith('清空商品') &&
-                next.item_code !== '清空库位' &&
-                next.item_code !== 'Clear Bin') {
-                clearBinRecords.push(next);
-                processedIndices.add(j);
-            }
-        }
-        
-        if (clearBinRecords.length > 0) {
-            // 创建清空bin的合并记录
-            const firstRecord = clearBinRecords[0];
-            result.push({
-                __clearBin: true,
-                bin_code: firstRecord.bin_code,
-                timestamp: firstRecord.timestamp,
-                items: clearBinRecords
-            });
-        } else if (!processedIndices.has(i)) {
-            result.push(current);
-            processedIndices.add(i);
-        }
-    }
-    
-    return result;
-}
-
 // 格式化历史记录显示
 function formatHistoryRecord(record, timestamp, lang) {
     const isZh = lang === 'zh';
     
     // 构建BT显示部分
     const BTDisplay = record.BT ? 
-        (isZh ? ` from BT: <span class="BT-number">${record.BT}</span>` :
-         ` from BT: <span class="BT-number">${record.BT}</span>`) : '';
+        (isZh ? ` BT号: <span class="BT-number">${record.BT}</span>` :
+         ` BT: <span class="BT-number">${record.BT}</span>`) : '';
     
+    const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${BTDisplay} <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
+    const mergedEn = `🗑️ Cleared then added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${BTDisplay} <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
+    const clearZh = `🗑️ 清空库位 <span class="bin-code">${record.bin_code}</span>`;
+    const clearEn = `🗑️ Cleared bin <span class="bin-code">${record.bin_code}</span>`;
+    const normalZh = `库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${BTDisplay} <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
+    const normalEn = `Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${BTDisplay} <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
+
     let lineHtml;
-    
-    if (record.__clearBin) {
-        // 清空bin记录 - 显示该bin原本的所有物品
-        const itemsHtml = record.items.map(item => {
-            const itemBTDisplay = item.BT ? 
-                (isZh ? ` from BT: <span class="BT-number">${item.BT}</span>` :
-                 ` from BT: <span class="BT-number">${item.BT}</span>`) : '';
-            return `🗑️Item: <span class="item-code">${item.item_code}</span> (<span class="quantity">${item.box_count}</span> boxes × <span class="quantity">${item.pieces_per_box}</span> pcs/box = <span class="quantity">${item.total_pieces}</span> pcs)${itemBTDisplay}`;
-        }).join('<br>');
-        
-        const clearBinZh = `${itemsHtml}<br>are cleared at Bin: <span class="bin-code">${record.bin_code}</span>`;
-        const clearBinEn = `${itemsHtml}<br>are cleared at Bin: <span class="bin-code">${record.bin_code}</span>`;
-        lineHtml = isZh ? clearBinZh : clearBinEn;
-    } else if (record.__merged) {
-        // 清空并添加的合并记录 - 显示为清空bin格式
-        const mergedZh = `🗑️Item: <span class="item-code">${record.item_code}</span> (<span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs)${BTDisplay}<br>🗑️Item: <span class="item-code">${record.item_code}</span> (<span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs)${BTDisplay}<br>are cleared at Bin: <span class="bin-code">${record.bin_code}</span>`;
-        const mergedEn = `🗑️Item: <span class="item-code">${record.item_code}</span> (<span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs)${BTDisplay}<br>🗑️Item: <span class="item-code">${record.item_code}</span> (<span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs)${BTDisplay}<br>are cleared at Bin: <span class="bin-code">${record.bin_code}</span>`;
+    if (record.__merged) {
         lineHtml = isZh ? mergedZh : mergedEn;
     } else if (record.item_code === '清空库位' || record.item_code === 'Clear Bin') {
-        // 清空bin - 显示为清空bin格式
-        const clearZh = `🗑️Item: <span class="item-code">${record.item_code}</span> (<span class="quantity">${record.box_count || 0}</span> boxes × <span class="quantity">${record.pieces_per_box || 0}</span> pcs/box = <span class="quantity">${record.total_pieces || 0}</span> pcs)${BTDisplay}<br>🗑️Item: <span class="item-code">${record.item_code}</span> (<span class="quantity">${record.box_count || 0}</span> boxes × <span class="quantity">${record.pieces_per_box || 0}</span> pcs/box = <span class="quantity">${record.total_pieces || 0}</span> pcs)${BTDisplay}<br>are cleared at Bin: <span class="bin-code">${record.bin_code}</span>`;
-        const clearEn = `🗑️Item: <span class="item-code">${record.item_code}</span> (<span class="quantity">${record.box_count || 0}</span> boxes × <span class="quantity">${record.pieces_per_box || 0}</span> pcs/box = <span class="quantity">${record.total_pieces || 0}</span> pcs)${BTDisplay}<br>🗑️Item: <span class="item-code">${record.item_code}</span> (<span class="quantity">${record.box_count || 0}</span> boxes × <span class="quantity">${record.pieces_per_box || 0}</span> pcs/box = <span class="quantity">${record.total_pieces || 0}</span> pcs)${BTDisplay}<br>are cleared at Bin: <span class="bin-code">${record.bin_code}</span>`;
         lineHtml = isZh ? clearZh : clearEn;
     } else if (record.item_code && record.item_code.startsWith('清空商品')) {
-        // 清空item
+        // 处理清空商品操作
         const itemCode = record.item_code.replace('清空商品', '');
-        const clearItemZh = `🗑️Item: <span class="item-code">${itemCode}</span> (<span class="quantity">${record.box_count || 0}</span> boxes × <span class="quantity">${record.pieces_per_box || 0}</span> pcs/box = <span class="quantity">${record.total_pieces || 0}</span> pcs)${BTDisplay} is cleared at Bin: <span class="bin-code">${record.bin_code}</span>`;
-        const clearItemEn = `🗑️Item: <span class="item-code">${itemCode}</span> (<span class="quantity">${record.box_count || 0}</span> boxes × <span class="quantity">${record.pieces_per_box || 0}</span> pcs/box = <span class="quantity">${record.total_pieces || 0}</span> pcs)${BTDisplay} is cleared at Bin: <span class="bin-code">${record.bin_code}</span>`;
+        const clearItemZh = `🗑️ 清空商品: 库位 <span class="bin-code">${record.bin_code}</span> 中的商品 <span class="item-code">${itemCode}</span> (<span class="quantity">${record.total_pieces}</span> 件)`;
+        const clearItemEn = `🗑️ Cleared item: Item <span class="item-code">${itemCode}</span> from bin <span class="bin-code">${record.bin_code}</span> (<span class="quantity">${record.total_pieces}</span> pcs)`;
         lineHtml = isZh ? clearItemZh : clearItemEn;
     } else {
-        // 普通input记录
-        const normalZh = `➕Item: <span class="item-code">${record.item_code}</span> (<span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs)${BTDisplay} is added at Bin: <span class="bin-code">${record.bin_code}</span>`;
-        const normalEn = `➕Item: <span class="item-code">${record.item_code}</span> (<span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs)${BTDisplay} is added at Bin: <span class="bin-code">${record.bin_code}</span>`;
         lineHtml = isZh ? normalZh : normalEn;
     }
 
@@ -207,22 +143,16 @@ function updateHistoryDisplay(logsFromCache) {
         
         lastUpdateTime = logs[0] ? logs[0].timestamp : null;
         
-        // 先处理清空bin的记录分组，再处理清空并添加的合并
-        const clearBinLogs = groupClearBinRecords(logs);
-        const mergedLogs = mergeClearAndAddLogs(clearBinLogs);
-        
+        const mergedLogs = mergeClearAndAddLogs(logs);
         const html = mergedLogs.map(record => {
-            // 使用本地时间格式化时间戳
-            const date = new Date(record.timestamp);
-            const timestamp = date.toLocaleString('zh-CN', {
+            const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
-                hour12: false,
-                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone // 使用本地时区
+                hour12: false
             }).replace(/\//g, '-');
             return formatHistoryRecord(record, timestamp, lang);
         }).join('');
@@ -948,19 +878,18 @@ function renderFilteredHistory(logs, date) {
     // 合并清空并添加的记录
     const mergedLogs = mergeClearAndAddLogs(logs);
     
-    let html = '';
-    mergedLogs.forEach(record => {
+    const html = mergedLogs.map(record => {
         const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            }).replace(/\//g, '-');
-        html += formatHistoryRecord(record, timestamp, lang);
-    });
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).replace(/\//g, '-');
+        return formatHistoryRecord(record, timestamp, lang);
+    }).join('');
     
     $("#full-history-list").html(html);
 }
