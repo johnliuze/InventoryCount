@@ -177,8 +177,8 @@ function updateHistoryDisplay(logsFromCache) {
 // 初始化自动完成功能
 $(document).ready(function() {
     console.log("初始化自动完成功能");
-    // 商品输入自动完成
-    $("#itemInput, #itemSearch, #itemLocationSearch").autocomplete({
+    // 商品输入自动完成（仅搜索功能）
+    $("#itemSearch, #itemLocationSearch").autocomplete({
         source: function(request, response) {
             console.log("搜索商品:", request.term);
             $.get(`${API_URL}/api/items`, { search: request.term })
