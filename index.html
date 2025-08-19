@@ -351,22 +351,28 @@
             min-width: 0; /* 防止flex项目溢出 */
         }
 
+        /* 左侧商品信息列样式 */
+        .input-section:first-child {
+            height: 280px; /* 设置固定高度 */
+        }
+
         /* 右侧列样式 */
         .right-column {
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            justify-content: space-between;
+            height: 280px; /* 与左侧列高度一致 */
         }
 
         /* 库位信息部分样式 */
         .bin-section {
-            flex: 1;
+            flex: 0 0 auto;
         }
 
         /* 提交按钮部分样式 */
         .submit-section {
-            flex: 1;
+            flex: 0 0 auto;
             display: flex;
             align-items: center;
             justify-content: center;
