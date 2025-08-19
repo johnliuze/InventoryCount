@@ -276,9 +276,11 @@ $(document).ready(function() {
         });
     });
 
-    // 初始化搜索框占位符
-    const savedLang = localStorage.getItem('preferred-language') || 'zh';
-    updateSearchPlaceholders(savedLang);
+    // 初始化搜索框占位符 - 延迟执行确保语言已设置
+    setTimeout(() => {
+        const savedLang = localStorage.getItem('preferred-language') || 'zh';
+        updateSearchPlaceholders(savedLang);
+    }, 100);
 });
 
 // 提交盘点表单

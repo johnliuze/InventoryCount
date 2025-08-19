@@ -1377,6 +1377,10 @@
             // 更新按钮状态
             $('.language-switch button').removeClass('active');
             $(`.language-switch button[onclick="switchLanguage('${lang}')"]`).addClass('active');
+            // 更新搜索框占位符
+            if (typeof updateSearchPlaceholders === 'function') {
+                updateSearchPlaceholders(lang);
+            }
         }
         
         // 标签页切换功能
