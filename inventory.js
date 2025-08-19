@@ -114,8 +114,9 @@ function formatHistoryRecord(record, timestamp, lang) {
     } else if (record.item_code && record.item_code.startsWith('清空商品')) {
         // 处理清空商品操作
         const itemCode = record.item_code.replace('清空商品', '');
-        const clearItemZh = `🗑️ 清空商品: 库位 <span class="bin-code">${record.bin_code}</span> 中的商品 <span class="item-code">${itemCode}</span> (<span class="quantity">${record.total_pieces}</span> 件)`;
-        const clearItemEn = `🗑️ Cleared item: Item <span class="item-code">${itemCode}</span> from bin <span class="bin-code">${record.bin_code}</span> (<span class="quantity">${record.total_pieces}</span> pcs)`;
+        const clearedQuantity = record.total_pieces || 0;
+        const clearItemZh = `🗑️ 清空商品: 库位 <span class="bin-code">${record.bin_code}</span> 中的商品 <span class="item-code">${itemCode}</span> (<span class="quantity">${clearedQuantity}</span> 件)`;
+        const clearItemEn = `🗑️ Cleared item: Item <span class="item-code">${itemCode}</span> from bin <span class="bin-code">${record.bin_code}</span> (<span class="quantity">${clearedQuantity}</span> pcs)`;
         lineHtml = isZh ? clearItemZh : clearItemEn;
     } else {
         lineHtml = isZh ? normalZh : normalEn;
@@ -880,7 +881,7 @@ function renderFilteredHistory(logs, date) {
     
     let html = '';
     mergedLogs.forEach(record => {
-        const timestamp = formatTimestampToLA(record.timestamp);
+        const timestamp = new Date(record.timestamp).toLocaleString(isZh ? 'zh-CN' : 'en-US');
         html += formatHistoryRecord(record, timestamp, lang);
     });
     
@@ -1063,17 +1064,31 @@ function updateRecentHistory(logsFromCache) {
     const render = (logs) => {
         const mergedLogs = mergeClearAndAddLogs(logs);
         
-        // 获取今日日期（使用洛杉矶时区）
-        const todayStr = getTodayInLA();
+        // 获取今日日期（使用本地时区）
+        const today = new Date();
+        const todayStr = today.getFullYear() + '-' + 
+                        String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                        String(today.getDate()).padStart(2, '0');
         
-        // 过滤出今日的记录（使用洛杉矶时区）
+        // 过滤出今日的记录（使用本地时区）
         const todayLogs = mergedLogs.filter(record => {
-            const recordDateStr = getRecordDateInLA(record.timestamp);
+            const recordDate = new Date(record.timestamp);
+            const recordDateStr = recordDate.getFullYear() + '-' + 
+                                 String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                                 String(recordDate.getDate()).padStart(2, '0');
             return recordDateStr === todayStr;
         });
         
         const html = todayLogs.map(record => {
-            const timestamp = formatTimestampToLA(record.timestamp);
+            const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(/\//g, '-');
             return formatHistoryRecord(record, timestamp, document.body.className.includes('lang-en') ? 'en' : 'zh');
         }).join('');
         
@@ -1105,7 +1120,15 @@ function updateFullHistory(logsFromCache) {
     const render = (logs) => {
         const mergedLogs = mergeClearAndAddLogs(logs);
         const html = mergedLogs.map(record => {
-            const timestamp = formatTimestampToLA(record.timestamp);
+            const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(/\//g, '-');
             return formatHistoryRecord(record, timestamp, document.body.className.includes('lang-en') ? 'en' : 'zh');
         }).join('');
         
@@ -1124,39 +1147,6 @@ function updateFullHistory(logsFromCache) {
         cachedLogs = logs;
         render(logs);
     });
-}
-
-// 格式化时间戳为洛杉矶时间
-function formatTimestampToLA(timestamp) {
-    const date = new Date(timestamp);
-    return date.toLocaleString('en-US', {
-        timeZone: 'America/Los_Angeles',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    }).replace(/\//g, '-');
-}
-
-// 获取洛杉矶时区的今日日期
-function getTodayInLA() {
-    const now = new Date();
-    const laDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
-    return laDate.getFullYear() + '-' + 
-           String(laDate.getMonth() + 1).padStart(2, '0') + '-' + 
-           String(laDate.getDate()).padStart(2, '0');
-}
-
-// 获取记录在洛杉矶时区的日期
-function getRecordDateInLA(timestamp) {
-    const recordDate = new Date(timestamp);
-    const laDate = new Date(recordDate.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
-    return laDate.getFullYear() + '-' + 
-           String(laDate.getMonth() + 1).padStart(2, '0') + '-' + 
-           String(laDate.getDate()).padStart(2, '0');
 }
 
 // 清空库位中特定商品
