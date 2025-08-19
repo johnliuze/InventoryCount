@@ -971,22 +971,52 @@ def get_logs():
     
     # 检查是否有日期过滤参数
     date_filter = request.args.get('date', '').strip()
+    # 获取用户时区偏移量（分钟）
+    timezone_offset = request.args.get('timezone_offset', None)
+    
+    print(f"Debug: date_filter={date_filter}, timezone_offset={timezone_offset}")
     
     if date_filter:
-        # 如果有日期过滤，只返回指定日期的记录
-        cursor.execute('''
-            SELECT 
-                bin_code,
-                item_code,
-                BT,
-                box_count,
-                pieces_per_box,
-                total_pieces,
-                input_time
-            FROM input_history
-            WHERE DATE(input_time) = ?
-            ORDER BY input_time DESC
-        ''', (date_filter,))
+        # 如果有日期过滤，需要根据用户时区进行过滤
+        if timezone_offset is not None:
+            # 将用户时区偏移量转换为小时
+            # getTimezoneOffset()返回的是UTC到本地时间的分钟数
+            # 例如：PDT是UTC-7，getTimezoneOffset()返回420分钟（7小时）
+            # 所以我们需要减去这个偏移量来将UTC转换为本地时间
+            offset_hours = -int(timezone_offset) / 60
+            print(f"Debug: offset_hours={offset_hours}")
+            
+            # 构建时区调整的SQL查询
+            # 将UTC时间转换为用户本地时间进行过滤
+            cursor.execute('''
+                SELECT 
+                    bin_code,
+                    item_code,
+                    BT,
+                    box_count,
+                    pieces_per_box,
+                    total_pieces,
+                    input_time,
+                    datetime(input_time, '+' || ? || ' hours') as local_time
+                FROM input_history
+                WHERE DATE(datetime(input_time, '+' || ? || ' hours')) = ?
+                ORDER BY input_time DESC
+            ''', (offset_hours, offset_hours, date_filter))
+        else:
+            # 如果没有时区信息，使用UTC时间过滤（向后兼容）
+            cursor.execute('''
+                SELECT 
+                    bin_code,
+                    item_code,
+                    BT,
+                    box_count,
+                    pieces_per_box,
+                    total_pieces,
+                    input_time
+                FROM input_history
+                WHERE DATE(input_time) = ?
+                ORDER BY input_time DESC
+            ''', (date_filter,))
     else:
         # 否则返回所有记录
         cursor.execute('''
@@ -1015,6 +1045,7 @@ def get_logs():
         }
         logs.append(log_entry)
     
+    print(f"Debug: Found {len(logs)} records")
     return jsonify(logs)
 
 @app.route('/api/inventory/input', methods=['POST'])
@@ -1299,25 +1330,14 @@ def clear_bin_inventory(bin_code):
         if not bin_result:
             return jsonify({'error': '库位不存在'}), 404
         
-        # 获取该库位的所有库存记录用于历史记录
-        cursor.execute('''
-            SELECT i.item_code, inv.box_count, inv.pieces_per_box, inv.total_pieces, inv.BT
-            FROM inventory inv
-            JOIN items i ON inv.item_id = i.item_id
-            WHERE inv.bin_id = ?
-        ''', (bin_result['bin_id'],))
-        
-        inventory_records = cursor.fetchall()
-        
         # 删除该库位的所有库存记录
         cursor.execute('DELETE FROM inventory WHERE bin_id = ?', (bin_result['bin_id'],))
         
-        # 为每个被清空的物品记录历史记录
-        for record in inventory_records:
-            cursor.execute('''
-                INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces, BT)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (bin_code, record['item_code'], record['box_count'], record['pieces_per_box'], record['total_pieces'], record['BT']))
+        # 记录清除操作到历史记录
+        cursor.execute('''
+            INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces)
+            VALUES (?, '清空库位', 0, 0, 0)
+        ''', (bin_code,))
         
         db.commit()
         return jsonify({'success': True, 'message': f'已清空库位 {bin_code} 的所有库存'})
@@ -1384,22 +1404,47 @@ def export_history():
     
     # 检查是否有日期过滤参数
     date_filter = request.args.get('date', '').strip()
+    # 获取用户时区偏移量（分钟）
+    timezone_offset = request.args.get('timezone_offset', None)
     
     if date_filter:
         # 导出指定日期的历史记录
-        cursor.execute('''
-            SELECT 
-                input_time,
-                bin_code,
-                item_code,
-                BT,
-                box_count,
-                pieces_per_box,
-                total_pieces
-            FROM input_history
-            WHERE DATE(input_time) = ?
-            ORDER BY input_time DESC
-        ''', (date_filter,))
+        if timezone_offset is not None:
+            # 将用户时区偏移量转换为小时
+            # getTimezoneOffset()返回的是UTC到本地时间的分钟数
+            # 例如：PDT是UTC-7，getTimezoneOffset()返回420分钟（7小时）
+            # 所以我们需要减去这个偏移量来将UTC转换为本地时间
+            offset_hours = -int(timezone_offset) / 60
+            
+            # 根据用户时区过滤
+            cursor.execute('''
+                SELECT 
+                    datetime(input_time, '+' || ? || ' hours') as local_time,
+                    bin_code,
+                    item_code,
+                    BT,
+                    box_count,
+                    pieces_per_box,
+                    total_pieces
+                FROM input_history
+                WHERE DATE(datetime(input_time, '+' || ? || ' hours')) = ?
+                ORDER BY input_time DESC
+            ''', (offset_hours, offset_hours, date_filter))
+        else:
+            # 如果没有时区信息，使用UTC时间过滤（向后兼容）
+            cursor.execute('''
+                SELECT 
+                    input_time,
+                    bin_code,
+                    item_code,
+                    BT,
+                    box_count,
+                    pieces_per_box,
+                    total_pieces
+                FROM input_history
+                WHERE DATE(input_time) = ?
+                ORDER BY input_time DESC
+            ''', (date_filter,))
         filename = f'history_{date_filter}.xlsx'
     else:
         # 导出所有历史记录

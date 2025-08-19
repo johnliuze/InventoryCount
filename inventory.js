@@ -860,10 +860,16 @@ function filterHistoryByDate() {
     // 设置用户选择的日期
     userSelectedDate = selectedDate;
     
+    // 获取用户时区偏移量（分钟）
+    const timezoneOffset = new Date().getTimezoneOffset();
+    
     $.ajax({
         url: `${API_URL}/api/logs`,
         type: 'GET',
-        data: { date: selectedDate },
+        data: { 
+            date: selectedDate,
+            timezone_offset: timezoneOffset
+        },
         success: function(logs) {
             cachedLogs = logs;
             renderFilteredHistory(logs, selectedDate);
@@ -912,7 +918,10 @@ function exportHistoryByDate() {
         return;
     }
     
-    window.open(`${API_URL}/api/export/history?date=${selectedDate}`, '_blank');
+    // 获取用户时区偏移量（分钟）
+    const timezoneOffset = new Date().getTimezoneOffset();
+    
+    window.open(`${API_URL}/api/export/history?date=${selectedDate}&timezone_offset=${timezoneOffset}`, '_blank');
 }
 
 // 导出全部历史记录
@@ -1086,6 +1095,7 @@ function updateRecentHistory(logsFromCache) {
         
         // Filter today's records (using local timezone)
         const todayLogs = mergedLogs.filter(record => {
+            // 将UTC时间戳转换为本地时间进行比较
             const recordDate = new Date(record.timestamp + ' UTC');
             const recordDateStr = recordDate.getFullYear() + '-' + 
                                  String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
