@@ -291,6 +291,35 @@
         #input-tab form div {
             margin: 20px 0;
         }
+
+        /* 输入部分样式 */
+        .input-section {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .section-title {
+            margin: 0 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #dee2e6;
+            color: #495057;
+            font-size: 1.3em;
+            font-weight: 600;
+        }
+
+        .input-section:last-of-type {
+            margin-bottom: 30px;
+        }
+
+        .input-section:hover {
+            border-color: #adb5bd;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
         
         /* 查询结果样式改进 */
         .result-item {
@@ -993,51 +1022,75 @@
                 <span class="lang-en">Inventory Count</span>
             </h2>
             <form id="inventoryForm">
-                <div>
-                    <label>
-                        <span class="lang-zh">集装箱：</span>
-                        <span class="lang-en">Container:</span>
-                    </label>
-                    <input type="text" id="containerInput" required>
+                <!-- 集装箱信息部分 -->
+                <div class="input-section">
+                    <h3 class="section-title">
+                        <span class="lang-zh">🚢 集装箱信息</span>
+                        <span class="lang-en">🚢 Container Information</span>
+                    </h3>
+                    <div>
+                        <label>
+                            <span class="lang-zh">集装箱号：</span>
+                            <span class="lang-en">Container Number:</span>
+                        </label>
+                        <input type="text" id="containerInput" required>
+                    </div>
                 </div>
-                <div>
-                    <label>
-                        <span class="lang-zh">商品编号：</span>
-                        <span class="lang-en">Item Code:</span>
-                    </label>
-                    <input type="text" id="itemInput" required>
+
+                <!-- 商品信息部分 -->
+                <div class="input-section">
+                    <h3 class="section-title">
+                        <span class="lang-zh">📋 商品信息</span>
+                        <span class="lang-en">📋 Item Information</span>
+                    </h3>
+                    <div>
+                        <label>
+                            <span class="lang-zh">商品编号：</span>
+                            <span class="lang-en">Item Code:</span>
+                        </label>
+                        <input type="text" id="itemInput" required>
+                    </div>
+                    <div>
+                        <label>
+                            <span class="lang-zh">箱数：</span>
+                            <span class="lang-en">Box Count:</span>
+                        </label>
+                        <input type="number" 
+                               id="boxCount" 
+                               required 
+                               min="1" 
+                               step="1" 
+                               oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
+                    </div>
+                    <div>
+                        <label>
+                            <span class="lang-zh">每箱数量：</span>
+                            <span class="lang-en">Pieces per Box:</span>
+                        </label>
+                        <input type="number" 
+                               id="piecesPerBox" 
+                               required 
+                               min="1" 
+                               step="1" 
+                               oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
+                    </div>
                 </div>
-                <div>
-                    <label>
-                        <span class="lang-zh">箱数：</span>
-                        <span class="lang-en">Box Count:</span>
-                    </label>
-                    <input type="number" 
-                           id="boxCount" 
-                           required 
-                           min="1" 
-                           step="1" 
-                           oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
+
+                <!-- 库位信息部分 -->
+                <div class="input-section">
+                    <h3 class="section-title">
+                        <span class="lang-zh">📦 库位信息</span>
+                        <span class="lang-en">📦 Bin Information</span>
+                    </h3>
+                    <div>
+                        <label>
+                            <span class="lang-zh">库位编号：</span>
+                            <span class="lang-en">Bin Location:</span>
+                        </label>
+                        <input type="text" id="binInput" required>
+                    </div>
                 </div>
-                <div>
-                    <label>
-                        <span class="lang-zh">每箱数量：</span>
-                        <span class="lang-en">Pieces per Box:</span>
-                    </label>
-                    <input type="number" 
-                           id="piecesPerBox" 
-                           required 
-                           min="1" 
-                           step="1" 
-                           oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
-                </div>
-                <div>
-                    <label>
-                        <span class="lang-zh">库位编号：</span>
-                        <span class="lang-en">Bin Location:</span>
-                    </label>
-                    <input type="text" id="binInput" required>
-                </div>
+
                 <button type="submit">
                     <span class="lang-zh">提交</span>
                     <span class="lang-en">Submit</span>
