@@ -4,7 +4,7 @@ function getApiUrl() {
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
         return 'http://localhost:5001';
     } else if (hostname.includes('railway.app')) {
-        return 'https://inventorycount-production.up.railway.app';
+        return 'https://sohoapparelwarehouse.up.railway.app';
     } else {
         return 'https://inventorycount-production.up.railway.app';
     }
@@ -90,12 +90,18 @@ function mergeClearAndAddLogs(logs) {
 // 格式化历史记录显示
 function formatHistoryRecord(record, timestamp, lang) {
     const isZh = lang === 'zh';
-    const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span> <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
-    const mergedEn = `🗑️ Cleared then added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span> <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
+    
+    // 构建container number显示部分
+    const containerDisplay = record.container_number ? 
+        (isZh ? ` 集装箱号: <span class="container-number">${record.container_number}</span>` : 
+                 ` Container: <span class="container-number">${record.container_number}</span>`) : '';
+    
+    const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${containerDisplay} <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
+    const mergedEn = `🗑️ Cleared then added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${containerDisplay} <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
     const clearZh = `🗑️ 清空库位 <span class="bin-code">${record.bin_code}</span>`;
     const clearEn = `🗑️ Cleared bin <span class="bin-code">${record.bin_code}</span>`;
-    const normalZh = `库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span> <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
-    const normalEn = `Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span> <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
+    const normalZh = `库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${containerDisplay} <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
+    const normalEn = `Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${containerDisplay} <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
 
     let lineHtml;
     if (record.__merged) {
@@ -242,6 +248,7 @@ $("#inventoryForm").submit(function(e) {
     
     const binCode = $("#binInput").val();
     const itemCode = $("#itemInput").val();
+    const containerNumber = $("#containerInput").val();
     const boxCount = parseInt($("#boxCount").val());
     const piecesPerBox = parseInt($("#piecesPerBox").val());
     
@@ -254,11 +261,11 @@ $("#inventoryForm").submit(function(e) {
     }
     
     // 先检查库位状态
-    checkBinStatus(binCode, itemCode, boxCount, piecesPerBox);
+    checkBinStatus(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
 });
 
 // 检查库位状态并显示相应的确认对话框
-function checkBinStatus(binCode, itemCode, boxCount, piecesPerBox) {
+function checkBinStatus(binCode, itemCode, containerNumber, boxCount, piecesPerBox) {
     const encodedBinCode = binCode.trim()
         .replace(/\//g, '___SLASH___')
         .replace(/\s/g, '___SPACE___');
@@ -269,21 +276,21 @@ function checkBinStatus(binCode, itemCode, boxCount, piecesPerBox) {
         success: function(contents) {
             if (contents && contents.length > 0) {
                 // 库位有库存，显示选择对话框
-                showBinChoiceDialog(binCode, itemCode, boxCount, piecesPerBox, contents);
+                showBinChoiceDialog(binCode, itemCode, containerNumber, boxCount, piecesPerBox, contents);
             } else {
                 // 库位为空，直接显示确认对话框
-                showConfirmDialog(binCode, itemCode, boxCount, piecesPerBox);
+                showConfirmDialog(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
             }
         },
         error: function(xhr, status, error) {
             // 如果查询失败，直接显示确认对话框
-            showConfirmDialog(binCode, itemCode, boxCount, piecesPerBox);
+            showConfirmDialog(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
         }
     });
 }
 
 // 显示库位选择对话框
-function showBinChoiceDialog(binCode, itemCode, boxCount, piecesPerBox, existingContents) {
+function showBinChoiceDialog(binCode, itemCode, containerNumber, boxCount, piecesPerBox, existingContents) {
     // 移除之前可能存在的事件处理器
     $("#confirm-yes").off('click');
     $("#confirm-no").off('click');
@@ -344,6 +351,13 @@ function showBinChoiceDialog(binCode, itemCode, boxCount, piecesPerBox, existing
         </div>
         <div class="confirm-row">
             <span class="label">
+                <span class="lang-zh">集装箱号：</span>
+                <span class="lang-en">Container Number:</span>
+            </span>
+            <span class="container-number">${containerNumber || '-'}</span>
+        </div>
+        <div class="confirm-row">
+            <span class="label">
                 <span class="lang-zh">新库存：</span>
                 <span class="lang-en">New Inventory:</span>
             </span>
@@ -384,7 +398,7 @@ function showBinChoiceDialog(binCode, itemCode, boxCount, piecesPerBox, existing
         $("#confirm-dialog").fadeOut(200);
         
         // 直接添加新库存
-        addInventory(binCode, itemCode, boxCount, piecesPerBox);
+        addInventory(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
     });
     
     // 中间按钮事件 - 清空库位后添加
@@ -395,7 +409,7 @@ function showBinChoiceDialog(binCode, itemCode, boxCount, piecesPerBox, existing
         $("#confirm-dialog").fadeOut(200);
         
         // 先清空库位，然后添加新库存
-        clearBinAndAdd(binCode, itemCode, boxCount, piecesPerBox);
+        clearBinAndAdd(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
     });
     
     // 取消按钮事件
@@ -408,7 +422,7 @@ function showBinChoiceDialog(binCode, itemCode, boxCount, piecesPerBox, existing
 }
 
 // 显示普通确认对话框
-function showConfirmDialog(binCode, itemCode, boxCount, piecesPerBox) {
+function showConfirmDialog(binCode, itemCode, containerNumber, boxCount, piecesPerBox) {
     // 移除之前可能存在的事件处理器
     $("#confirm-yes").off('click');
     $("#confirm-no").off('click');
@@ -432,6 +446,13 @@ function showConfirmDialog(binCode, itemCode, boxCount, piecesPerBox) {
                 <span class="lang-en">Item:</span>
             </span>
             <span id="confirm-item" class="item-code">${itemCode}</span>
+        </div>
+        <div class="confirm-row">
+            <span class="label">
+                <span class="lang-zh">集装箱号：</span>
+                <span class="lang-en">Container Number:</span>
+            </span>
+            <span id="confirm-container" class="container-number">${containerNumber || '-'}</span>
         </div>
         <div class="confirm-row">
             <span class="label">
@@ -471,7 +492,7 @@ function showConfirmDialog(binCode, itemCode, boxCount, piecesPerBox) {
         $("#confirm-dialog").fadeOut(200);
         
         // 添加库存
-        addInventory(binCode, itemCode, boxCount, piecesPerBox);
+        addInventory(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
     });
     
     // 取消按钮事件
@@ -484,7 +505,7 @@ function showConfirmDialog(binCode, itemCode, boxCount, piecesPerBox) {
 }
 
 // 清空库位后添加新库存
-function clearBinAndAdd(binCode, itemCode, boxCount, piecesPerBox) {
+function clearBinAndAdd(binCode, itemCode, containerNumber, boxCount, piecesPerBox) {
     const encodedBinCode = binCode.trim()
         .replace(/\//g, '___SLASH___')
         .replace(/\s/g, '___SPACE___');
@@ -494,7 +515,7 @@ function clearBinAndAdd(binCode, itemCode, boxCount, piecesPerBox) {
         type: 'DELETE',
         success: function(response) {
             // 清空成功后添加新库存
-            addInventory(binCode, itemCode, boxCount, piecesPerBox);
+            addInventory(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
         },
         error: function(xhr, status, error) {
             alert(document.body.className.includes('lang-en')
@@ -505,7 +526,7 @@ function clearBinAndAdd(binCode, itemCode, boxCount, piecesPerBox) {
 }
 
 // 添加库存
-function addInventory(binCode, itemCode, boxCount, piecesPerBox) {
+function addInventory(binCode, itemCode, containerNumber, boxCount, piecesPerBox) {
     $.ajax({
         url: `${API_URL}/api/inventory`,
         type: 'POST',
@@ -513,13 +534,22 @@ function addInventory(binCode, itemCode, boxCount, piecesPerBox) {
         data: JSON.stringify({
             bin_code: binCode,
             item_code: itemCode,
+            container_number: containerNumber,
             box_count: boxCount,
             pieces_per_box: piecesPerBox
         }),
         success: function(response) {
-            // 成功后再更新显示并重置表单
+            // 成功后再更新显示并重置表单（保留container number）
             setTimeout(updateHistoryDisplay, 100);
+            
+            // 保存container number的值
+            const containerValue = $("#containerInput").val();
+            
+            // 重置表单
             $("#inventoryForm")[0].reset();
+            
+            // 恢复container number的值
+            $("#containerInput").val(containerValue);
         },
         error: function(xhr, status, error) {
             let errorMsg = "添加失败，请检查输入！";
