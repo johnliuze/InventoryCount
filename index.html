@@ -171,6 +171,35 @@
             border-bottom: 2px solid #4CAF50;
             padding-bottom: 10px;
         }
+        
+        .input-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .input-header h2 {
+            margin-bottom: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        
+        .input-header .submit-button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s;
+        }
+        
+        .input-header .submit-button:hover {
+            background-color: #45a049;
+        }
+        
         h3 {
             color: #34495e;
             margin-top: 25px;
@@ -351,27 +380,6 @@
             min-width: 0; /* 防止flex项目溢出 */
         }
 
-        /* 右侧列样式 */
-        .right-column {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        /* 库位信息部分样式 */
-        .bin-section {
-            flex: 1;
-        }
-
-        /* 提交按钮部分样式 */
-        .submit-section {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
         /* BT部分特殊样式 */
         .container-section {
             margin-bottom: 25px;
@@ -386,10 +394,6 @@
             
             .input-section {
                 margin-bottom: 10px;
-            }
-
-            .right-column {
-                gap: 10px;
             }
         }
         
@@ -1089,27 +1093,33 @@
         
         <!-- 盘点录入标签页 -->
         <div id="input-tab" class="tab-content active">
-            <h2>
-                <span class="lang-zh">库存录入</span>
-                <span class="lang-en">Inventory Input</span>
-            </h2>
+            <div class="input-header">
+                <h2>
+                    <span class="lang-zh">库存录入</span>
+                    <span class="lang-en">Inventory Input</span>
+                </h2>
+                <button type="submit" class="submit-button" form="inventoryForm">
+                    <span class="lang-zh">提交</span>
+                    <span class="lang-en">Submit</span>
+                </button>
+            </div>
             <form id="inventoryForm">
                 <!-- BT信息部分 - 单独一行 -->
                 <div class="input-section container-section">
                     <h3 class="section-title">
-                        <span class="lang-zh">🚢 BT信息</span>
-                        <span class="lang-en">🚢 BT Information</span>
+                        <span class="lang-zh">🚢 BT号</span>
+                        <span class="lang-en">🚢 BT No.</span>
                     </h3>
                     <div>
                         <label>
-                                                    <span class="lang-zh">BT：</span>
-                        <span class="lang-en">BT:</span>
+                            <span class="lang-zh">BT：</span>
+                            <span class="lang-en">BT:</span>
                         </label>
                         <input type="text" id="BTInput" required>
                     </div>
                 </div>
 
-                <!-- 商品信息和右侧列并排显示 -->
+                <!-- 商品信息和库位信息并排显示 -->
                 <div class="input-sections-container">
                     <!-- 商品信息部分 -->
                     <div class="input-section">
@@ -1150,29 +1160,18 @@
                         </div>
                     </div>
 
-                    <!-- 右侧列：库位信息 + 提交按钮 -->
-                    <div class="right-column">
-                        <!-- 库位信息部分 -->
-                        <div class="input-section bin-section">
-                            <h3 class="section-title">
-                                <span class="lang-zh">📦 库位信息</span>
-                                <span class="lang-en">📦 Bin Information</span>
-                            </h3>
-                            <div>
-                                <label>
-                                    <span class="lang-zh">库位编号：</span>
-                                    <span class="lang-en">Bin Location:</span>
-                                </label>
-                                <input type="text" id="binInput" required>
-                            </div>
-                        </div>
-
-                        <!-- 提交按钮部分 -->
-                        <div class="input-section submit-section">
-                            <button type="submit" class="submit-button">
-                                <span class="lang-zh">提交</span>
-                                <span class="lang-en">Submit</span>
-                            </button>
+                    <!-- 库位信息部分 -->
+                    <div class="input-section">
+                        <h3 class="section-title">
+                            <span class="lang-zh">📦 库位信息</span>
+                            <span class="lang-en">📦 Bin Information</span>
+                        </h3>
+                        <div>
+                            <label>
+                                <span class="lang-zh">库位编号：</span>
+                                <span class="lang-en">Bin Location:</span>
+                            </label>
+                            <input type="text" id="binInput" required>
                         </div>
                     </div>
                 </div>
