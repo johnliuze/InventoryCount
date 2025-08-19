@@ -333,6 +333,11 @@
             min-width: 0; /* 防止flex项目溢出 */
         }
 
+        /* 集装箱部分特殊样式 */
+        .container-section {
+            margin-bottom: 15px;
+        }
+
         /* 响应式设计 */
         @media (max-width: 768px) {
             .input-sections-container {
@@ -1046,22 +1051,23 @@
                 <span class="lang-en">Inventory Count</span>
             </h2>
             <form id="inventoryForm">
-                <div class="input-sections-container">
-                    <!-- 集装箱信息部分 -->
-                    <div class="input-section">
-                        <h3 class="section-title">
-                            <span class="lang-zh">🚢 集装箱信息</span>
-                            <span class="lang-en">🚢 Container Information</span>
-                        </h3>
-                        <div>
-                            <label>
-                                <span class="lang-zh">集装箱号：</span>
-                                <span class="lang-en">Container Number:</span>
-                            </label>
-                            <input type="text" id="containerInput" required>
-                        </div>
+                <!-- 集装箱信息部分 - 单独一行 -->
+                <div class="input-section container-section">
+                    <h3 class="section-title">
+                        <span class="lang-zh">🚢 集装箱信息</span>
+                        <span class="lang-en">🚢 Container Information</span>
+                    </h3>
+                    <div>
+                        <label>
+                            <span class="lang-zh">集装箱号：</span>
+                            <span class="lang-en">Container Number:</span>
+                        </label>
+                        <input type="text" id="containerInput" required>
                     </div>
+                </div>
 
+                <!-- 商品信息和库位信息并排显示 -->
+                <div class="input-sections-container">
                     <!-- 商品信息部分 -->
                     <div class="input-section">
                         <h3 class="section-title">
