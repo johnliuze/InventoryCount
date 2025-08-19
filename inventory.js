@@ -45,8 +45,9 @@ function mergeClearAndAddLogs(logs) {
         if (j < logs.length && !usedIndexSet.has(j)) {
             const next = logs[j];
             const sameBin = current.bin_code === next.bin_code;
-            const timeA = new Date(current.timestamp).getTime();
-            const timeB = new Date(next.timestamp).getTime();
+            // 确保按UTC时间进行比较
+            const timeA = new Date(current.timestamp + 'Z').getTime();
+            const timeB = new Date(next.timestamp + 'Z').getTime();
             const closeInTime = Math.abs(timeA - timeB) <= withinMs;
 
             // 情况1：按时间倒序常见，先看到添加，后一条是清空
@@ -114,9 +115,8 @@ function formatHistoryRecord(record, timestamp, lang) {
     } else if (record.item_code && record.item_code.startsWith('清空商品')) {
         // 处理清空商品操作
         const itemCode = record.item_code.replace('清空商品', '');
-        const clearedQuantity = record.total_pieces || 0;
-        const clearItemZh = `🗑️ 清空商品: 库位 <span class="bin-code">${record.bin_code}</span> 中的商品 <span class="item-code">${itemCode}</span> (<span class="quantity">${clearedQuantity}</span> 件)`;
-        const clearItemEn = `🗑️ Cleared item: Item <span class="item-code">${itemCode}</span> from bin <span class="bin-code">${record.bin_code}</span> (<span class="quantity">${clearedQuantity}</span> pcs)`;
+        const clearItemZh = `🗑️ 清空商品: 库位 <span class="bin-code">${record.bin_code}</span> 中的商品 <span class="item-code">${itemCode}</span> (<span class="quantity">${record.total_pieces}</span> 件)`;
+        const clearItemEn = `🗑️ Cleared item: Item <span class="item-code">${itemCode}</span> from bin <span class="bin-code">${record.bin_code}</span> (<span class="quantity">${record.total_pieces}</span> pcs)`;
         lineHtml = isZh ? clearItemZh : clearItemEn;
     } else {
         lineHtml = isZh ? normalZh : normalEn;
@@ -881,7 +881,17 @@ function renderFilteredHistory(logs, date) {
     
     let html = '';
     mergedLogs.forEach(record => {
-        const timestamp = new Date(record.timestamp).toLocaleString(isZh ? 'zh-CN' : 'en-US');
+        // 将UTC时间转换为本地时间显示
+        const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
+        const timestamp = utcDate.toLocaleString(isZh ? 'zh-CN' : 'en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).replace(/\//g, '-');
         html += formatHistoryRecord(record, timestamp, lang);
     });
     
@@ -1070,9 +1080,10 @@ function updateRecentHistory(logsFromCache) {
                         String(today.getMonth() + 1).padStart(2, '0') + '-' + 
                         String(today.getDate()).padStart(2, '0');
         
-        // 过滤出今日的记录（使用本地时区）
+        // 过滤出今日的记录（将UTC时间转换为本地时间进行比较）
         const todayLogs = mergedLogs.filter(record => {
-            const recordDate = new Date(record.timestamp);
+            // 将UTC时间转换为本地时间
+            const recordDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
             const recordDateStr = recordDate.getFullYear() + '-' + 
                                  String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
                                  String(recordDate.getDate()).padStart(2, '0');
@@ -1080,7 +1091,9 @@ function updateRecentHistory(logsFromCache) {
         });
         
         const html = todayLogs.map(record => {
-            const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
+            // 将UTC时间转换为本地时间显示
+            const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
+            const timestamp = utcDate.toLocaleString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
@@ -1120,7 +1133,9 @@ function updateFullHistory(logsFromCache) {
     const render = (logs) => {
         const mergedLogs = mergeClearAndAddLogs(logs);
         const html = mergedLogs.map(record => {
-            const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
+            // 将UTC时间转换为本地时间显示
+            const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
+            const timestamp = utcDate.toLocaleString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
