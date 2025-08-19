@@ -756,18 +756,20 @@ def export_items():
             SELECT 
                 i.item_code,
                 b.bin_code,
+                inv.BT,
                 SUM(inv.total_pieces) as bin_total,
                 SUM(inv.box_count) as bin_boxes
             FROM inventory inv
             JOIN items i ON inv.item_id = i.item_id
             JOIN bins b ON inv.bin_id = b.bin_id
-            GROUP BY i.item_code, b.bin_code
+            GROUP BY i.item_code, b.bin_code, inv.BT
         )
         SELECT 
             item_code,
             SUM(bin_total) as total_quantity,
             SUM(bin_boxes) as total_boxes,
-            GROUP_CONCAT(DISTINCT bin_code) as bin_locations
+            GROUP_CONCAT(DISTINCT bin_code) as bin_locations,
+            GROUP_CONCAT(DISTINCT BT) as BT_list
         FROM merged_locations
         GROUP BY item_code
         ORDER BY item_code
@@ -780,10 +782,17 @@ def export_items():
             if not rows:
                 break
             for row in rows:
+                # 处理BT列表，移除NULL值并去重
+                bt_list = row['BT_list'] if row['BT_list'] else ''
+                if bt_list:
+                    # 分割、去重、过滤空值
+                    bt_items = [bt.strip() for bt in bt_list.split(',') if bt.strip() and bt.strip() != 'None']
+                    bt_items = list(set(bt_items))  # 去重
+                    bt_list = ', '.join(bt_items)
                 yield row
     
     # 创建DataFrame，使用迭代器
-    df = pd.DataFrame(generate_rows(), columns=['Item Code', 'Total Quantity', 'Total Boxes', 'Bin Locations'])
+    df = pd.DataFrame(generate_rows(), columns=['Item Code', 'Total Quantity', 'Total Boxes', 'Bin Locations', 'BT'])
     
     # 创建Excel文件
     output = BytesIO()
@@ -798,6 +807,7 @@ def export_items():
         worksheet.set_column('B:B', 15)  # Total Quantity
         worksheet.set_column('C:C', 12)  # Total Boxes
         worksheet.set_column('D:D', 40)  # Bin Locations
+        worksheet.set_column('E:E', 30)  # BT
         
         # 定义格式
         item_format = workbook.add_format({
@@ -818,11 +828,18 @@ def export_items():
             'font_color': '#e67e22'  # 橙色
         })
         
+        bt_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#9c27b0'  # 紫色
+        })
+        
         # 应用格式到整列
         worksheet.set_column('A:A', 20, item_format)   # Item Code
         worksheet.set_column('B:B', 15, number_format) # Total Quantity
         worksheet.set_column('C:C', 12, number_format) # Total Boxes
         worksheet.set_column('D:D', 40, bin_format)    # Bin Locations
+        worksheet.set_column('E:E', 30, bt_format)     # BT
         
         # 设置标题行格式
         header_format = workbook.add_format({
