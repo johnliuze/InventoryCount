@@ -288,19 +288,22 @@
             margin-right: auto;
         }
 
-        /* 库位信息中的提交按钮样式 */
+        /* 提交按钮容器和样式 */
+        .submit-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+
         .submit-button {
             font-size: 1.2em;
-            padding: 12px 24px;
-            margin-top: 20px;
-            width: 100%;
-            display: block;
+            padding: 12px 40px;
             background-color: #28a745;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             transition: background-color 0.3s;
+            min-width: 150px;
         }
 
         .submit-button:hover {
@@ -343,8 +346,8 @@
         /* 水平布局容器 */
         .input-sections-container {
             display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
+            gap: 25px;
+            margin-bottom: 30px;
         }
 
         .input-section {
@@ -354,7 +357,7 @@
 
         /* 集装箱部分特殊样式 */
         .container-section {
-            margin-bottom: 15px;
+            margin-bottom: 25px;
         }
 
         /* 响应式设计 */
@@ -1139,13 +1142,15 @@
                             </label>
                             <input type="text" id="binInput" required>
                         </div>
-                        
-                        <!-- 提交按钮放在库位信息下方 -->
-                        <button type="submit" class="submit-button">
-                            <span class="lang-zh">提交</span>
-                            <span class="lang-en">Submit</span>
-                        </button>
                     </div>
+                </div>
+
+                <!-- 提交按钮独立放置 -->
+                <div class="submit-container">
+                    <button type="submit" class="submit-button">
+                        <span class="lang-zh">提交</span>
+                        <span class="lang-en">Submit</span>
+                    </button>
                 </div>
             </form>
             
