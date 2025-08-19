@@ -1172,6 +1172,57 @@ def clear_bin_inventory(bin_code):
         print(f"Error clearing bin inventory: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/inventory/bin/<bin_code>/item/<item_code>/clear', methods=['DELETE'])
+def clear_item_at_bin(bin_code, item_code):
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        
+        # 先检查库位是否存在
+        cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (bin_code,))
+        bin_result = cursor.fetchone()
+        if not bin_result:
+            return jsonify({'error': '库位不存在'}), 404
+        
+        # 检查商品是否存在
+        cursor.execute('SELECT item_id FROM items WHERE item_code = ?', (item_code,))
+        item_result = cursor.fetchone()
+        if not item_result:
+            return jsonify({'error': '商品不存在'}), 404
+        
+        # 获取要删除的库存信息用于历史记录
+        cursor.execute('''
+            SELECT box_count, pieces_per_box, total_pieces 
+            FROM inventory 
+            WHERE bin_id = ? AND item_id = ?
+        ''', (bin_result['bin_id'], item_result['item_id']))
+        
+        inventory_records = cursor.fetchall()
+        total_cleared = sum(record['total_pieces'] for record in inventory_records)
+        
+        # 删除该库位中特定商品的所有库存记录
+        cursor.execute('''
+            DELETE FROM inventory 
+            WHERE bin_id = ? AND item_id = ?
+        ''', (bin_result['bin_id'], item_result['item_id']))
+        
+        # 记录清除操作到历史记录
+        if total_cleared > 0:
+            cursor.execute('''
+                INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces)
+                VALUES (?, ?, 0, 0, ?)
+            ''', (bin_code, f'清空商品{item_code}', total_cleared))
+        
+        db.commit()
+        return jsonify({
+            'success': True, 
+            'message': f'已清空库位 {bin_code} 中商品 {item_code} 的所有库存'
+        })
+        
+    except Exception as e:
+        print(f"Error clearing item at bin: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 
 
 if __name__ == '__main__':

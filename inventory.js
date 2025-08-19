@@ -721,12 +721,18 @@ function searchBinContents() {
             html += contents.map(inv => `
                 <div class="item-card">
                     <div class="item-header">
-                        <span class="lang-zh">
-                            商品 <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> 件
-                        </span>
-                        <span class="lang-en">
-                            Item <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> pcs
-                        </span>
+                        <div class="item-info">
+                            <span class="lang-zh">
+                                商品 <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> 件
+                            </span>
+                            <span class="lang-en">
+                                Item <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> pcs
+                            </span>
+                        </div>
+                        <button class="clear-item-button" onclick="clearItemAtBin('${binCode}', '${inv.item_code}')">
+                            <span class="lang-zh">清空此商品</span>
+                            <span class="lang-en">Clear Item</span>
+                        </button>
                     </div>
                     <div class="box-details-container">
                         ${inv.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box).map(detail => `
@@ -867,6 +873,83 @@ function updateFullHistory(logsFromCache) {
     $.get(`${API_URL}/api/logs`, function(logs) {
         cachedLogs = logs;
         render(logs);
+    });
+}
+
+// 清空库位中特定商品
+function clearItemAtBin(binCode, itemCode) {
+    const encodedBinCode = binCode.trim()
+        .replace(/\//g, '___SLASH___')
+        .replace(/\s/g, '___SPACE___');
+    const encodedItemCode = itemCode.trim()
+        .replace(/\//g, '___SLASH___')
+        .replace(/\s/g, '___SPACE___');
+    
+    // 显示确认对话框
+    $("#confirm-dialog h3 .lang-zh").text('确认清空此商品');
+    $("#confirm-dialog h3 .lang-en").text('Confirm Clear Item');
+    
+    $(".confirm-details").html(`
+        <div class="confirm-row">
+            <span class="label">
+                <span class="lang-zh">库位：</span>
+                <span class="lang-en">Bin:</span>
+            </span>
+            <span class="bin-code">${binCode}</span>
+        </div>
+        <div class="confirm-row">
+            <span class="label">
+                <span class="lang-zh">商品：</span>
+                <span class="lang-en">Item:</span>
+            </span>
+            <span class="item-code">${itemCode}</span>
+        </div>
+    `);
+    
+    // 重置按钮显示和样式
+    $("#confirm-yes").removeClass('success').addClass('warning');
+    $("#confirm-yes .lang-zh").text('确认清空');
+    $("#confirm-yes .lang-en").text('Clear Item');
+    
+    $("#confirm-middle").hide();
+    
+    $("#confirm-no").removeClass('cancel').addClass('cancel');
+    $("#confirm-no .lang-zh").text('取消');
+    $("#confirm-no .lang-en").text('Cancel');
+    
+    // 显示确认对话框
+    $("#confirm-dialog").fadeIn(200);
+    
+    // 确认按钮事件
+    $("#confirm-yes").on('click', function() {
+        $("#confirm-yes").off('click');
+        $("#confirm-middle").off('click');
+        $("#confirm-no").off('click');
+        $("#confirm-dialog").fadeOut(200);
+        
+        // 执行清空操作
+        $.ajax({
+            url: `${API_URL}/api/inventory/bin/${encodedBinCode}/item/${encodedItemCode}/clear`,
+            type: 'DELETE',
+            success: function(response) {
+                // 清空成功后刷新显示
+                setTimeout(searchBinContents, 100);
+                setTimeout(updateHistoryDisplay, 100);
+            },
+            error: function(xhr, status, error) {
+                alert(document.body.className.includes('lang-en')
+                    ? "Failed to clear item, please try again"
+                    : "清空商品失败，请重试");
+            }
+        });
+    });
+    
+    // 取消按钮事件
+    $("#confirm-no").on('click', function() {
+        $("#confirm-yes").off('click');
+        $("#confirm-middle").off('click');
+        $("#confirm-no").off('click');
+        $("#confirm-dialog").fadeOut(200);
     });
 }
 

@@ -379,6 +379,33 @@
             margin-bottom: 10px;
             font-size: 1.1em;
         }
+        
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .item-info {
+            flex: 1;
+        }
+        
+        .clear-item-button {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-left: 10px;
+        }
+        
+        .clear-item-button:hover {
+            background-color: #c0392b;
+        }
 
         /* 导出按钮组样式 */
         .export-buttons {
@@ -1024,8 +1051,8 @@
                     <span class="lang-en">Query by Item</span>
                 </button>
                 <button class="query-tab-button" onclick="switchQueryTab('bin-contents')" data-tab="bin-contents">
-                    <span class="lang-zh">按库位查询商品</span>
-                    <span class="lang-en">Query Items by Bin</span>
+                    <span class="lang-zh">搜索库位</span>
+                    <span class="lang-en">Search Bin</span>
                 </button>
             </div>
             
@@ -1045,11 +1072,11 @@
                 <div id="itemTotalResult" class="result-div"></div>
             </div>
 
-            <!-- 按库位查询商品 -->
+            <!-- 搜索库位 -->
             <div id="bin-contents-tab" class="query-content">
                 <h3>
-                    <span class="lang-zh">按库位查询商品</span>
-                    <span class="lang-en">Query Items by Bin</span>
+                    <span class="lang-zh">搜索库位</span>
+                    <span class="lang-en">Search Bin</span>
                 </h3>
                 <div class="search-input-group">
                     <input type="text" id="binSearch">
