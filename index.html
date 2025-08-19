@@ -1168,44 +1168,28 @@
             
             <!-- 查询类型标签页 -->
             <div class="query-tab-buttons">
-                <button class="query-tab-button active" onclick="switchQueryTab('item-total')" data-tab="item-total">
-                    <span class="lang-zh">搜索商品</span>
-                    <span class="lang-en">Search Item</span>
-                </button>
-                <button class="query-tab-button" onclick="switchQueryTab('bin-contents')" data-tab="bin-contents">
-                    <span class="lang-zh">搜索库位</span>
-                    <span class="lang-en">Search Bin</span>
+                <button class="query-tab-button active" onclick="switchQueryTab('bin-contents')" data-tab="bin-contents">
+                    <span class="lang-zh">📦 搜索库位</span>
+                    <span class="lang-en">📦 Search Bin</span>
                 </button>
                 <button class="query-tab-button" onclick="switchQueryTab('container-search')" data-tab="container-search">
-                    <span class="lang-zh">搜索集装箱</span>
-                    <span class="lang-en">Search Container</span>
+                    <span class="lang-zh">🚢 搜索集装箱</span>
+                    <span class="lang-en">🚢 Search Container</span>
+                </button>
+                <button class="query-tab-button" onclick="switchQueryTab('item-total')" data-tab="item-total">
+                    <span class="lang-zh">📋 搜索商品</span>
+                    <span class="lang-en">📋 Search Item</span>
                 </button>
             </div>
             
-            <!-- 搜索商品 -->
-            <div id="item-total-tab" class="query-content active">
-                <h3>
-                    <span class="lang-zh">搜索商品总数量和所在库位</span>
-                    <span class="lang-en">Search Item Total Quantity and Locations</span>
-                </h3>
-                <div class="search-input-group">
-                    <input type="text" id="itemSearch">
-                    <button onclick="searchItemTotal()">
-                        <span class="lang-zh">查询</span>
-                        <span class="lang-en">Search</span>
-                    </button>
-                </div>
-                <div id="itemTotalResult" class="result-div"></div>
-            </div>
-
             <!-- 搜索库位 -->
-            <div id="bin-contents-tab" class="query-content">
+            <div id="bin-contents-tab" class="query-content active">
                 <h3>
-                    <span class="lang-zh">搜索库位</span>
-                    <span class="lang-en">Search Bin</span>
+                    <span class="lang-zh">📦 搜索库位</span>
+                    <span class="lang-en">📦 Search Bin</span>
                 </h3>
                 <div class="search-input-group">
-                    <input type="text" id="binSearch">
+                    <input type="text" id="binSearch" placeholder="输入库位编号">
                     <button onclick="searchBinContents()">
                         <span class="lang-zh">查询</span>
                         <span class="lang-en">Search</span>
@@ -1217,17 +1201,33 @@
             <!-- 搜索集装箱 -->
             <div id="container-search-tab" class="query-content">
                 <h3>
-                    <span class="lang-zh">搜索集装箱</span>
-                    <span class="lang-en">Search Container</span>
+                    <span class="lang-zh">🚢 搜索集装箱</span>
+                    <span class="lang-en">🚢 Search Container</span>
                 </h3>
                 <div class="search-input-group">
-                    <input type="text" id="containerSearch">
+                    <input type="text" id="containerSearch" placeholder="输入集装箱号">
                     <button onclick="searchContainer()">
                         <span class="lang-zh">搜索</span>
                         <span class="lang-en">Search</span>
                     </button>
                 </div>
                 <div id="containerSearchResult" class="result-div"></div>
+            </div>
+
+            <!-- 搜索商品 -->
+            <div id="item-total-tab" class="query-content">
+                <h3>
+                    <span class="lang-zh">📋 搜索商品总数量和所在库位</span>
+                    <span class="lang-en">📋 Search Item Total Quantity and Locations</span>
+                </h3>
+                <div class="search-input-group">
+                    <input type="text" id="itemSearch" placeholder="输入商品编号">
+                    <button onclick="searchItemTotal()">
+                        <span class="lang-zh">查询</span>
+                        <span class="lang-en">Search</span>
+                    </button>
+                </div>
+                <div id="itemTotalResult" class="result-div"></div>
             </div>
         </div>
     </div>
