@@ -6,9 +6,7 @@ import os
 import traceback
 import pandas as pd
 from io import BytesIO
-import shutil
 from datetime import datetime
-import tempfile
 
 app = Flask(__name__)
 CORS(app)
@@ -270,107 +268,13 @@ with app.app_context():
     except Exception as e:
         print(f"启动时初始化数据库失败: {str(e)}")
 
-# 导入CSV数据
-def import_data():
-    db = get_db()
-    cursor = db.cursor()
-    
-    # 导入库位数据
-    print("开始导入库位数据...")
-    with open('BIN.csv', 'r', encoding='utf-8') as f:
-        csv_reader = csv.reader(f)
-        next(csv_reader)  # 跳过标题行
-        bin_data = [(row[0],) for row in csv_reader]
-        print(f"从CSV读取到 {len(bin_data)} 个库位")
-        print("示例库位:", bin_data[:5])  # 打印前5个库位
-        cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', 
-                          bin_data)
-        print("库位数据导入完成")
-    
-    # 导入商品数据
-    print("开始导入商品数据...")
-    try:
-        encodings = ['utf-8', 'gbk', 'latin-1', 'iso-8859-1', 'cp1252']
-        content = None
-        
-        for encoding in encodings:
-            try:
-                with open('Item.CSV', 'r', encoding=encoding) as f:
-                    content = f.read()
-                    break
-            except UnicodeDecodeError:
-                continue
-        
-        if content is None:
-            raise Exception("无法读取Item.CSV文件，请检查文件编码")
-        
-        # 手动处理CSV内容
-        lines = content.split('\n')
-        print(f"从CSV读取到 {len(lines)} 行数据")
-        print("前几行数据:", lines[:5])  # 打印前5行
-        items = set()  # 使用集合去重
-        for line in lines[1:]:  # 跳过标题行
-            if ',' in line:
-                item_code = line.split(',')[0].strip().strip('"')  # 移除引号
-                if item_code and not item_code.startswith('"Item No"'):
-                    # 规范化商品编号格式
-                    item_code = item_code.strip()
-                    items.add(item_code)
-                    print(f"添加商品: {item_code}")  # 打印每个添加的商品
-        
-        # 测试数据
-        test_items = ['A3422/H GREY', 'A3422/H/GREY']
-        for test_item in test_items:
-            items.add(test_item)
-            print(f"添加测试商品: {test_item}")
-        
-        # 插入数据
-        items = [(item,) for item in items]  # 转换回元组列表
-        print(f"处理后的商品数: {len(items)}")
-        print("示例商品:", items[:5])  # 打印前5个商品
-        cursor.executemany('INSERT INTO items (item_code) VALUES (?)', items)
-        print(f"成功导入 {len(items)} 个商品")
-        
-        # 验证数据是否正确导入
-        cursor.execute('SELECT COUNT(*) FROM bins')
-        bin_count = cursor.fetchone()[0]
-        cursor.execute('SELECT COUNT(*) FROM items')
-        item_count = cursor.fetchone()[0]
-        print(f"数据库中的库位数: {bin_count}")
-        print(f"数据库中的商品数: {item_count}")
-        
-        # 检查商品数据的格式
-        cursor.execute('SELECT item_code FROM items LIMIT 5')
-        sample_items = cursor.fetchall()
-        print("商品编号示例:", [row['item_code'] for row in sample_items])
-        
-        # 检查商品查询是否正常工作
-        test_item = 'A3422/H GREY'  # 使用一个实际的商品编号
-        cursor.execute('SELECT * FROM items WHERE item_code = ?', (test_item,))
-        test_result = cursor.fetchone()
-        print(f"测试查询商品 '{test_item}' 结果:", test_result)
-        
-        # 打印一些示例数据
-        cursor.execute('SELECT bin_code FROM bins LIMIT 5')
-        print("数据库中的库位示例:", [row[0] for row in cursor.fetchall()])
-        cursor.execute('SELECT item_code FROM items LIMIT 5')
-        print("数据库中的商品示例:", [row[0] for row in cursor.fetchall()])
-    
-    except Exception as e:
-        print(f"导入商品数据时出错: {str(e)}")
-        raise
-    
-    db.commit()
-
 @app.route('/api/bins', methods=['GET'])
 def get_bins():
     search = request.args.get('search', '')
-    print(f"Searching bins with term: {search}")
     db = get_db()
     cursor = db.cursor()
     search_pattern = f'%{search}%'
     start_pattern = f'{search}%'
-    print(f"Search patterns: {search_pattern}, {start_pattern}")
     cursor.execute('''
         SELECT * FROM bins 
         WHERE bin_code LIKE ? 
@@ -383,14 +287,11 @@ def get_bins():
         LIMIT 10
     ''', (search_pattern, start_pattern))
     bins = [dict(row) for row in cursor.fetchall()]
-    print(f"Found {len(bins)} bins")
-    print("Results:", bins)
     return jsonify(bins)
 
 @app.route('/api/items', methods=['GET'])
 def get_items():
     search = request.args.get('search', '')
-    print(f"Searching items with term: {search}")
     db = get_db()
     cursor = db.cursor()
     cursor.execute('''
@@ -405,13 +306,11 @@ def get_items():
         LIMIT 10
     ''', (f'%{search}%', f'{search}%'))
     items = [dict(row) for row in cursor.fetchall()]
-    print(f"Found {len(items)} items")
     return jsonify(items)
 
 @app.route('/api/inventory', methods=['POST'])
 def add_inventory():
     data = request.json
-    print("收到的数据:", data)
     db = get_db()
     cursor = db.cursor()
     
@@ -430,7 +329,6 @@ def add_inventory():
             # 商品不存在，自动添加到items表
             cursor.execute('INSERT INTO items (item_code) VALUES (?)', (data['item_code'],))
             item_id = cursor.lastrowid
-            print(f"自动添加新商品: {data['item_code']}")
         else:
             item_id = item_result['item_id']
 
@@ -455,7 +353,6 @@ def add_inventory():
         ''', (data['bin_code'], data['item_code'], BT, box_count, pieces_per_box, total_pieces))
         
         db.commit()
-        print("库存记录添加成功")
         
         return jsonify({'success': True})
     except Exception as e:
@@ -580,7 +477,6 @@ def get_item_locations(item_id):
     cursor = db.cursor()
     
     item_id = item_id.replace('___SLASH___', '/').replace('___SPACE___', ' ')
-    print(f"查询商品库位，商品编号: {item_id}")
     
     cursor.execute('SELECT item_id FROM items WHERE item_code = ?', (item_id,))
     item_result = cursor.fetchone()
@@ -650,7 +546,6 @@ def get_BT_inventory(BT):
     cursor = db.cursor()
     
     BT = BT.replace('___SLASH___', '/').replace('___SPACE___', ' ')
-    print(f"查询集装箱库存，集装箱号: {BT}")
     
     # 查询指定集装箱的所有商品
     cursor.execute('''
@@ -714,7 +609,6 @@ def get_BTs():
     cursor = db.cursor()
     
     search_term = request.args.get('search', '').strip()
-    print(f"Searching BTs with term: {search_term}")
     
     if not search_term:
         # 如果没有搜索词，返回所有BT
@@ -742,7 +636,6 @@ def get_BTs():
             'BT': row['BT']
         })
     
-    print(f"Found {len(BTs)} BTs")
     return jsonify(BTs)
 
 @app.route('/api/export/items', methods=['GET'])
