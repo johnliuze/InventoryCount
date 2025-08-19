@@ -791,6 +791,108 @@ function exportItemDetails() {
     window.location.href = `${API_URL}/api/export/item-details`;
 }
 
+// 搜索集装箱
+function searchContainer() {
+    const containerNumber = $("#containerSearch").val();
+    if (!containerNumber) {
+        $("#containerSearchResult").html(`
+            <span class="lang-zh">请输入集装箱号！</span>
+            <span class="lang-en">Please enter container number!</span>
+        `);
+        return;
+    }
+    
+    $.ajax({
+        url: `${API_URL}/api/inventory/container/${encodeURIComponent(containerNumber)}`,
+        type: 'GET',
+        success: function(data) {
+            if (!data.items || data.items.length === 0) {
+                $("#containerSearchResult").html(`
+                    <div class="result-item">
+                        <span class="lang-zh">
+                            集装箱 <span class="container-number">${containerNumber}</span> 中暂无商品
+                        </span>
+                        <span class="lang-en">
+                            Container <span class="container-number">${containerNumber}</span> has no items
+                        </span>
+                    </div>
+                `);
+                return;
+            }
+            
+            // 构建总数量信息
+            let html = `
+                <div class="result-item">
+                    <div class="total-summary">
+                        <span class="lang-zh">
+                            集装箱 <span class="container-number">${containerNumber}</span> 
+                            总商品数：<span class="quantity">${data.total_items}</span> 种
+                            总数量：<span class="quantity">${data.total_pieces}</span> 件
+                        </span>
+                        <span class="lang-en">
+                            Container <span class="container-number">${containerNumber}</span> 
+                            total items: <span class="quantity">${data.total_items}</span> types
+                            total quantity: <span class="quantity">${data.total_pieces}</span> pcs
+                        </span>
+                    </div>
+                    <div class="items-details">
+                        <h4>
+                            <span class="lang-zh">商品明细：</span>
+                            <span class="lang-en">Item Details:</span>
+                        </h4>
+                        ${data.items.map(item => `
+                            <div class="item-card">
+                                <div class="item-header">
+                                    <div class="item-info">
+                                        <span class="lang-zh">
+                                            商品 <span class="item-code">${item.item_code}</span>: <span class="quantity">${item.total_pieces}</span> 件
+                                        </span>
+                                        <span class="lang-en">
+                                            Item <span class="item-code">${item.item_code}</span>: <span class="quantity">${item.total_pieces}</span> pcs
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="locations-details">
+                                    <span class="lang-zh">所在库位：</span>
+                                    <span class="lang-en">Locations:</span>
+                                    ${item.locations.map(loc => `
+                                        <div class="location-item">
+                                            <span class="lang-zh">
+                                                库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.pieces}</span> 件
+                                            </span>
+                                            <span class="lang-en">
+                                                Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.pieces}</span> pcs
+                                            </span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `).join("")}
+                    </div>
+                </div>
+            `;
+            
+            $("#containerSearchResult").html(html);
+        },
+        error: function(xhr, status, error) {
+            let errorMsg = {
+                zh: "搜索失败！",
+                en: "Search failed!"
+            };
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = {
+                    zh: xhr.responseJSON.error,
+                    en: xhr.responseJSON.error_en || xhr.responseJSON.error
+                };
+            }
+            $("#containerSearchResult").html(`
+                <span class="lang-zh">${errorMsg.zh}</span>
+                <span class="lang-en">${errorMsg.en}</span>
+            `);
+        }
+    });
+}
+
 // 导出数据库
 function exportDatabase() {
     window.location.href = `${API_URL}/api/export/database`;

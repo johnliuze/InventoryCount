@@ -140,6 +140,10 @@
             border-color: #4CAF50;
             box-shadow: 0 0 5px rgba(76,175,80,0.2);
         }
+        input::placeholder {
+            color: #999;
+            font-style: italic;
+        }
         button {
             padding: 8px 15px;
             background-color: #4CAF50;
@@ -409,6 +413,23 @@
         
         .location-info {
             flex: 1;
+        }
+        
+        .items-details {
+            margin-top: 15px;
+        }
+        
+        .items-details h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .location-item {
+            margin-left: 20px;
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #666;
         }
 
         /* 导出按钮组样式 */
@@ -877,8 +898,8 @@
                 <span class="lang-en">Input</span>
             </button>
             <button class="tab-button" onclick="switchTab('query')" data-tab="query">
-                <span class="lang-zh">库存查询</span>
-                <span class="lang-en">Query</span>
+                <span class="lang-zh">搜索</span>
+                <span class="lang-en">Search</span>
             </button>
             <button class="tab-button" onclick="switchTab('history')" data-tab="history">
                 <span class="lang-zh">历史记录</span>
@@ -1041,11 +1062,11 @@
             </div>
         </div>
 
-        <!-- 查询部分 -->
+        <!-- 搜索部分 -->
         <div id="query-tab" class="tab-content">
             <h2>
-                <span class="lang-zh">库存查询</span>
-                <span class="lang-en">Inventory Query</span>
+                <span class="lang-zh">搜索</span>
+                <span class="lang-en">Search</span>
             </h2>
             
             <!-- 查询类型标签页 -->
@@ -1057,6 +1078,10 @@
                 <button class="query-tab-button" onclick="switchQueryTab('bin-contents')" data-tab="bin-contents">
                     <span class="lang-zh">搜索库位</span>
                     <span class="lang-en">Search Bin</span>
+                </button>
+                <button class="query-tab-button" onclick="switchQueryTab('container-search')" data-tab="container-search">
+                    <span class="lang-zh">搜索集装箱</span>
+                    <span class="lang-en">Search Container</span>
                 </button>
             </div>
             
@@ -1092,7 +1117,21 @@
                 <div id="binContentsResult" class="result-div"></div>
             </div>
 
-
+            <!-- 搜索集装箱 -->
+            <div id="container-search-tab" class="query-content">
+                <h3>
+                    <span class="lang-zh">搜索集装箱</span>
+                    <span class="lang-en">Search Container</span>
+                </h3>
+                <div class="search-input-group">
+                    <input type="text" id="containerSearch" placeholder="输入集装箱号">
+                    <button onclick="searchContainer()">
+                        <span class="lang-zh">搜索</span>
+                        <span class="lang-en">Search</span>
+                    </button>
+                </div>
+                <div id="containerSearchResult" class="result-div"></div>
+            </div>
         </div>
     </div>
 

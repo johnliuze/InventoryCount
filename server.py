@@ -651,6 +651,70 @@ def get_item_locations(item_id):
     
     return jsonify(locations)
 
+@app.route('/api/inventory/container/<container_number>', methods=['GET'])
+def get_container_inventory(container_number):
+    db = get_db()
+    cursor = db.cursor()
+    
+    container_number = container_number.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+    print(f"查询集装箱库存，集装箱号: {container_number}")
+    
+    # 查询指定集装箱的所有商品
+    cursor.execute('''
+        SELECT 
+            i.item_code,
+            b.bin_code,
+            inv.container_number,
+            SUM(inv.total_pieces) as total_pieces,
+            SUM(inv.box_count) as total_boxes
+        FROM inventory inv
+        JOIN items i ON inv.item_id = i.item_id
+        JOIN bins b ON inv.bin_id = b.bin_id
+        WHERE inv.container_number = ?
+        GROUP BY i.item_code, b.bin_code
+        ORDER BY i.item_code, b.bin_code
+    ''', (container_number,))
+    
+    results = cursor.fetchall()
+    
+    if not results:
+        return jsonify({
+            'container_number': container_number,
+            'total_items': 0,
+            'total_pieces': 0,
+            'items': []
+        })
+    
+    # 按商品分组整理数据
+    items_data = {}
+    total_pieces = 0
+    
+    for row in results:
+        item_code = row['item_code']
+        if item_code not in items_data:
+            items_data[item_code] = {
+                'item_code': item_code,
+                'total_pieces': 0,
+                'locations': []
+            }
+        
+        items_data[item_code]['total_pieces'] += row['total_pieces']
+        items_data[item_code]['locations'].append({
+            'bin_code': row['bin_code'],
+            'pieces': row['total_pieces']
+        })
+        total_pieces += row['total_pieces']
+    
+    # 转换为列表格式
+    items_list = list(items_data.values())
+    
+    return jsonify({
+        'container_number': container_number,
+        'total_items': len(items_list),
+        'total_pieces': total_pieces,
+        'items': items_list
+    })
+
 @app.route('/api/export/items', methods=['GET'])
 def export_items():
     db = get_db()
