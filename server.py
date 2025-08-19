@@ -107,7 +107,7 @@ def init_db():
                     inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     bin_id INTEGER NOT NULL,
                     item_id INTEGER NOT NULL,
-                    container_number TEXT,
+                    BT TEXT,
                     box_count INTEGER NOT NULL,
                     pieces_per_box INTEGER NOT NULL,
                     total_pieces INTEGER NOT NULL,
@@ -116,12 +116,12 @@ def init_db():
                 )
             ''')
         else:
-            # 检查是否需要添加container_number字段
+            # 检查是否需要添加BT字段
             cursor.execute("PRAGMA table_info(inventory)")
             columns = [column[1] for column in cursor.fetchall()]
-            if 'container_number' not in columns:
-                print("为inventory表添加container_number字段...")
-                cursor.execute('ALTER TABLE inventory ADD COLUMN container_number TEXT')
+            if 'BT' not in columns:
+                print("为inventory表添加BT字段...")
+                cursor.execute('ALTER TABLE inventory ADD COLUMN BT TEXT')
         
         if 'input_history' not in [row[0] for row in existing_tables]:
             cursor.execute('''
@@ -129,7 +129,7 @@ def init_db():
                     history_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     bin_code TEXT NOT NULL,
                     item_code TEXT NOT NULL,
-                    container_number TEXT,
+                    BT TEXT,
                     box_count INTEGER NOT NULL,
                     pieces_per_box INTEGER NOT NULL,
                     total_pieces INTEGER NOT NULL,
@@ -137,12 +137,12 @@ def init_db():
                 )
             ''')
         else:
-            # 检查是否需要添加container_number字段
+            # 检查是否需要添加BT字段
             cursor.execute("PRAGMA table_info(input_history)")
             columns = [column[1] for column in cursor.fetchall()]
-            if 'container_number' not in columns:
-                print("为input_history表添加container_number字段...")
-                cursor.execute('ALTER TABLE input_history ADD COLUMN container_number TEXT')
+            if 'BT' not in columns:
+                print("为input_history表添加BT字段...")
+                cursor.execute('ALTER TABLE input_history ADD COLUMN BT TEXT')
         
         # 只有在相应的表不存在时才导入初始数据
         if 'bins' not in [row[0] for row in existing_tables]:
@@ -439,30 +439,23 @@ def add_inventory():
         pieces_per_box = int(data['pieces_per_box'])
         total_pieces = box_count * pieces_per_box
 
-        # 获取container_number，如果不存在则为None
-        container_number = data.get('container_number', None)
+        # 获取BT，如果不存在则为None
+        BT = data.get('BT', None)
         
+        # 插入库存记录
         cursor.execute('''
-            INSERT INTO inventory (bin_id, item_id, container_number, box_count, pieces_per_box, total_pieces)
+            INSERT INTO inventory (bin_id, item_id, BT, box_count, pieces_per_box, total_pieces)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (bin_id, item_id, container_number, box_count, pieces_per_box, total_pieces))
+        ''', (bin_id, item_id, BT, box_count, pieces_per_box, total_pieces))
+        
+        # 记录输入历史
+        cursor.execute('''
+            INSERT INTO input_history (bin_code, item_code, BT, box_count, pieces_per_box, total_pieces)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (data['bin_code'], data['item_code'], BT, box_count, pieces_per_box, total_pieces))
         
         db.commit()
         print("库存记录添加成功")
-        
-        # 添加日志记录
-        cursor.execute('''
-            INSERT INTO input_history (bin_code, item_code, container_number, box_count, pieces_per_box, total_pieces)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
-            data['bin_code'],
-            data['item_code'],
-            container_number,
-            data['box_count'],
-            data['pieces_per_box'],
-            data['box_count'] * data['pieces_per_box']
-        ))
-        db.commit()
         
         return jsonify({'success': True})
     except Exception as e:
@@ -601,39 +594,39 @@ def get_item_locations(item_id):
         WITH merged_inventory AS (
             SELECT 
                 b.bin_code,
-                inv.container_number,
+                inv.BT,
                 inv.pieces_per_box,
                 SUM(inv.box_count) as merged_box_count,
                 SUM(inv.total_pieces) as pieces_for_box_size
             FROM inventory inv
             JOIN bins b ON inv.bin_id = b.bin_id
             WHERE inv.item_id = ?
-            GROUP BY b.bin_code, inv.container_number, inv.pieces_per_box
+            GROUP BY b.bin_code, inv.BT, inv.pieces_per_box
         ),
         total_by_bin AS (
             SELECT
                 bin_code,
-                container_number,
+                BT,
                 SUM(pieces_for_box_size) as total_pieces
             FROM merged_inventory
-            GROUP BY bin_code, container_number
+            GROUP BY bin_code, BT
         )
         SELECT 
             m.bin_code,
-            m.container_number,
+            m.BT,
             t.total_pieces,
             GROUP_CONCAT(m.merged_box_count || 'x' || m.pieces_per_box) as box_details
         FROM merged_inventory m
-        JOIN total_by_bin t ON m.bin_code = t.bin_code AND m.container_number = t.container_number
-        GROUP BY m.bin_code, m.container_number
-        ORDER BY m.bin_code, m.container_number
+        JOIN total_by_bin t ON m.bin_code = t.bin_code AND m.BT = t.BT
+        GROUP BY m.bin_code, m.BT
+        ORDER BY m.bin_code, m.BT
     ''', (item_result['item_id'],))
     
     locations = []
     for row in cursor.fetchall():
         location_info = {
             'bin_code': row['bin_code'],
-            'container_number': row['container_number'],
+            'BT': row['BT'],
             'total_pieces': row['total_pieces'],
             'box_details': []
         }
@@ -651,35 +644,35 @@ def get_item_locations(item_id):
     
     return jsonify(locations)
 
-@app.route('/api/inventory/container/<container_number>', methods=['GET'])
-def get_container_inventory(container_number):
+@app.route('/api/inventory/container/<BT>', methods=['GET'])
+def get_container_inventory(BT):
     db = get_db()
     cursor = db.cursor()
     
-    container_number = container_number.replace('___SLASH___', '/').replace('___SPACE___', ' ')
-    print(f"查询BT库存，BT号: {container_number}")
+    BT = BT.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+    print(f"查询集装箱库存，集装箱号: {BT}")
     
-    # 查询指定BT的所有商品
+    # 查询指定集装箱的所有商品
     cursor.execute('''
         SELECT 
             i.item_code,
             b.bin_code,
-            inv.container_number,
+            inv.BT,
             SUM(inv.total_pieces) as total_pieces,
             SUM(inv.box_count) as total_boxes
         FROM inventory inv
         JOIN items i ON inv.item_id = i.item_id
         JOIN bins b ON inv.bin_id = b.bin_id
-        WHERE inv.container_number = ?
+        WHERE inv.BT = ?
         GROUP BY i.item_code, b.bin_code
         ORDER BY i.item_code, b.bin_code
-    ''', (container_number,))
+    ''', (BT,))
     
     results = cursor.fetchall()
     
     if not results:
         return jsonify({
-            'container_number': container_number,
+            'BT': BT,
             'total_items': 0,
             'total_pieces': 0,
             'items': []
@@ -709,7 +702,7 @@ def get_container_inventory(container_number):
     items_list = list(items_data.values())
     
     return jsonify({
-        'container_number': container_number,
+        'BT': BT,
         'total_items': len(items_list),
         'total_pieces': total_pieces,
         'items': items_list
@@ -726,27 +719,27 @@ def get_containers():
     if not search_term:
         # 如果没有搜索词，返回所有container
         cursor.execute('''
-            SELECT DISTINCT container_number 
+            SELECT DISTINCT BT 
             FROM inventory 
-            WHERE container_number IS NOT NULL AND container_number != ''
-            ORDER BY container_number
+            WHERE BT IS NOT NULL AND BT != ''
+            ORDER BY BT
         ''')
     else:
         # 如果有搜索词，进行模糊搜索
         search_pattern = f'%{search_term}%'
         cursor.execute('''
-            SELECT DISTINCT container_number 
+            SELECT DISTINCT BT 
             FROM inventory 
-            WHERE container_number IS NOT NULL 
-            AND container_number != '' 
-            AND container_number LIKE ?
-            ORDER BY container_number
+            WHERE BT IS NOT NULL 
+            AND BT != '' 
+            AND BT LIKE ?
+            ORDER BY BT
         ''', (search_pattern,))
     
     containers = []
     for row in cursor.fetchall():
         containers.append({
-            'container_number': row['container_number']
+            'BT': row['BT']
         })
     
     print(f"Found {len(containers)} containers")
@@ -858,21 +851,21 @@ def export_bins():
         SELECT 
             b.bin_code,
             i.item_code,
-            inv.container_number,
+            inv.BT,
             inv.box_count,
             inv.pieces_per_box,
             SUM(inv.total_pieces) as total_pieces
         FROM bins b
         LEFT JOIN inventory inv ON b.bin_id = inv.bin_id
         LEFT JOIN items i ON inv.item_id = i.item_id
-        GROUP BY b.bin_code, i.item_code, inv.container_number, inv.pieces_per_box, inv.box_count
-        ORDER BY b.bin_code, i.item_code, inv.container_number, inv.pieces_per_box
+        GROUP BY b.bin_code, i.item_code, inv.BT, inv.box_count, inv.pieces_per_box
+        ORDER BY b.bin_code, i.item_code, inv.BT, inv.box_count, inv.pieces_per_box
     ''')
     
     bins_data = cursor.fetchall()
     
     # 创建DataFrame，包含container信息
-            df = pd.DataFrame(bins_data, columns=['Bin Location', 'Item Code', 'BT', 'Box Count', 'Pieces per Box', 'Total Pieces'])
+    df = pd.DataFrame(bins_data, columns=['Bin Location', 'Item Code', 'Container Number', 'Box Count', 'Pieces per Box', 'Total Pieces'])
     
     # 创建Excel文件
     output = BytesIO()
@@ -885,7 +878,7 @@ def export_bins():
         # 设置列宽
         worksheet.set_column('A:A', 15)  # Bin Location
         worksheet.set_column('B:B', 20)  # Item Code
-        worksheet.set_column('C:C', 18)  # BT
+        worksheet.set_column('C:C', 18)  # Container Number
         worksheet.set_column('D:F', 12)  # Box Count, Pieces per Box, Total Pieces
         
         # 定义格式
@@ -916,7 +909,7 @@ def export_bins():
         # 应用格式到整列
         worksheet.set_column('A:A', 15, bin_format)    # Bin Location
         worksheet.set_column('B:B', 20, item_format)   # Item Code
-        worksheet.set_column('C:C', 18, container_format) # BT
+        worksheet.set_column('C:C', 18, container_format) # Container Number
         worksheet.set_column('D:F', 12, number_format) # Box Count, Pieces per Box, Total Pieces
         
         # 合并相同库位的单元格
@@ -968,7 +961,7 @@ def get_logs():
             SELECT 
                 bin_code,
                 item_code,
-                container_number,
+                BT,
                 box_count,
                 pieces_per_box,
                 total_pieces,
@@ -983,7 +976,7 @@ def get_logs():
             SELECT 
                 bin_code,
                 item_code,
-                container_number,
+                BT,
                 box_count,
                 pieces_per_box,
                 total_pieces,
@@ -997,7 +990,7 @@ def get_logs():
         log_entry = {
             'bin_code': row['bin_code'],
             'item_code': row['item_code'],
-            'container_number': row['container_number'],
+            'BT': row['BT'],
             'box_count': row['box_count'],
             'pieces_per_box': row['pieces_per_box'],
             'total_pieces': row['total_pieces'],
@@ -1362,7 +1355,7 @@ def export_history():
                 input_time,
                 bin_code,
                 item_code,
-                container_number,
+                BT,
                 box_count,
                 pieces_per_box,
                 total_pieces
@@ -1378,7 +1371,7 @@ def export_history():
                 input_time,
                 bin_code,
                 item_code,
-                container_number,
+                BT,
                 box_count,
                 pieces_per_box,
                 total_pieces
@@ -1391,7 +1384,7 @@ def export_history():
     
     # 创建DataFrame
     df = pd.DataFrame(history_data, columns=[
-        'Time', 'Bin Code', 'Item Code', 'BT', 
+        'Time', 'Bin Code', 'Item Code', 'Container Number', 
         'Box Count', 'Pieces per Box', 'Total Pieces'
     ])
     
@@ -1407,7 +1400,7 @@ def export_history():
         worksheet.set_column('A:A', 20)  # Time
         worksheet.set_column('B:B', 15)  # Bin Code
         worksheet.set_column('C:C', 15)  # Item Code
-        worksheet.set_column('D:D', 15)  # BT
+        worksheet.set_column('D:D', 15)  # Container Number
         worksheet.set_column('E:E', 12)  # Box Count
         worksheet.set_column('F:F', 15)  # Pieces per Box
         worksheet.set_column('G:G', 12)  # Total Pieces

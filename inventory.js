@@ -94,10 +94,10 @@ function mergeClearAndAddLogs(logs) {
 function formatHistoryRecord(record, timestamp, lang) {
     const isZh = lang === 'zh';
     
-    // 构建container number显示部分
-    const containerDisplay = record.container_number ? 
-                (isZh ? ` BT号: <span class="container-number">${record.container_number}</span>` :
-         ` BT: <span class="container-number">${record.container_number}</span>`) : '';
+    // 构建BT显示部分
+    const containerDisplay = record.BT ? 
+        (isZh ? ` BT号: <span class="container-number">${record.BT}</span>` :
+         ` BT: <span class="container-number">${record.BT}</span>`) : '';
     
     const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${containerDisplay} <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
     const mergedEn = `🗑️ Cleared then added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${containerDisplay} <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
@@ -220,7 +220,7 @@ $(document).ready(function() {
             $.get(`${API_URL}/api/containers`, { search: request.term })
                 .done(containers => {
                     console.log('Containers response:', containers);
-                    response(containers.map(container => container.container_number));
+                    response(containers.map(container => container.BT));
                 })
                 .fail(error => {
                     console.error('Containers search error:', error);
@@ -579,7 +579,7 @@ function addInventory(binCode, itemCode, containerNumber, boxCount, piecesPerBox
         data: JSON.stringify({
             bin_code: binCode,
             item_code: itemCode,
-            container_number: containerNumber,
+            BT: containerNumber,
             box_count: boxCount,
             pieces_per_box: piecesPerBox
         }),
@@ -675,11 +675,11 @@ function searchItemTotal() {
                                 <div class="location-info">
                                     <span class="lang-zh">
                                         库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> 件
-                                        ${loc.container_number ? ` (BT: <span class="container-number">${loc.container_number}</span>)` : ''}
+                                        ${loc.BT ? ` (BT: <span class="container-number">${loc.BT}</span>)` : ''}
                                     </span>
                                     <span class="lang-en">
                                         Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> pcs
-                                        ${loc.container_number ? ` (Container: <span class="container-number">${loc.container_number}</span>)` : ''}
+                                        ${loc.BT ? ` (BT: <span class="container-number">${loc.BT}</span>)` : ''}
                                     </span>
                                 </div>
                             </div>
