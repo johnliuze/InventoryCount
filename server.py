@@ -79,7 +79,10 @@ def init_db():
                         WHERE type='table' AND name IN ('bins', 'items', 'inventory', 'input_history') ''')
         existing_tables = cursor.fetchall()
         if len(existing_tables) == 4:
+            print("数据库已存在且包含所有必要的表")
             return
+        
+        print("开始初始化数据库...")
         
         # 创建缺失的表
         if 'bins' not in [row[0] for row in existing_tables]:
@@ -101,60 +104,161 @@ def init_db():
         if 'inventory' not in [row[0] for row in existing_tables]:
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS inventory (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    bin_code TEXT NOT NULL,
-                    item_code TEXT NOT NULL,
+                    inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    bin_id INTEGER NOT NULL,
+                    item_id INTEGER NOT NULL,
+                    BT TEXT,
                     box_count INTEGER NOT NULL,
                     pieces_per_box INTEGER NOT NULL,
                     total_pieces INTEGER NOT NULL,
-                    BT TEXT,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (bin_code) REFERENCES bins (bin_code),
-                    FOREIGN KEY (item_code) REFERENCES items (item_code)
+                    FOREIGN KEY (bin_id) REFERENCES bins (bin_id),
+                    FOREIGN KEY (item_id) REFERENCES items (item_id)
                 )
             ''')
+        else:
+            # 检查是否需要添加BT字段
+            cursor.execute("PRAGMA table_info(inventory)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'BT' not in columns:
+                print("为inventory表添加BT字段...")
+                cursor.execute('ALTER TABLE inventory ADD COLUMN BT TEXT')
         
         if 'input_history' not in [row[0] for row in existing_tables]:
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS input_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    history_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     bin_code TEXT NOT NULL,
                     item_code TEXT NOT NULL,
+                    BT TEXT,
                     box_count INTEGER NOT NULL,
                     pieces_per_box INTEGER NOT NULL,
                     total_pieces INTEGER NOT NULL,
-                    BT TEXT,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                    input_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+        else:
+            # 检查是否需要添加BT字段
+            cursor.execute("PRAGMA table_info(input_history)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'BT' not in columns:
+                print("为input_history表添加BT字段...")
+                cursor.execute('ALTER TABLE input_history ADD COLUMN BT TEXT')
         
-        # 检查是否需要添加BT字段
-        cursor.execute("PRAGMA table_info(inventory)")
-        inventory_columns = [row[1] for row in cursor.fetchall()]
-        if 'BT' not in inventory_columns:
-            cursor.execute('ALTER TABLE inventory ADD COLUMN BT TEXT')
-        
-        cursor.execute("PRAGMA table_info(input_history)")
-        history_columns = [row[1] for row in cursor.fetchall()]
-        if 'BT' not in history_columns:
-            cursor.execute('ALTER TABLE input_history ADD COLUMN BT TEXT')
-        
-        # 检查是否需要导入初始数据
-        cursor.execute('SELECT COUNT(*) FROM bins')
-        bin_count = cursor.fetchone()[0]
-        
-        cursor.execute('SELECT COUNT(*) FROM items')
-        item_count = cursor.fetchone()[0]
-        
-        # 只有当两个表都为空时才导入数据
-        if bin_count == 0 and item_count == 0:
-            import_initial_data(cursor)
-        
+        # 只有在相应的表不存在时才导入初始数据
+        if 'bins' not in [row[0] for row in existing_tables]:
+            print("导入库位数据...")
+            with open('BIN.csv', 'r', encoding='utf-8') as f:
+                csv_reader = csv.reader(f)
+                next(csv_reader)  # 跳过标题行
+                bin_data = [(row[0],) for row in csv_reader]
+                print(f"从CSV读取到 {len(bin_data)} 个库位")
+                cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', bin_data)
+        '''
+        #No need since no need to check item anymore
+        if 'items' not in [row[0] for row in existing_tables]:
+            print("导入商品数据...")
+            try:
+                encodings = ['utf-8', 'gbk', 'latin-1', 'iso-8859-1', 'cp1252']
+                items = set()  # 使用集合去重
+                duplicates = {}  # 记录重复的商品及其行号
+                invalid_items = []  # 记录不合格的商品及原因
+                empty_lines = []  # 记录空行的行号
+                total_lines = 0  # 总行数
+                processed_codes = {}  # 用于检测重复，存储商品编码及其首次出现的行号
+                successful_encoding = None
+                
+                for encoding in encodings:
+                    try:
+                        with open('Item.CSV', 'r', encoding=encoding) as f:
+                            content = f.read()
+                            successful_encoding = encoding
+                            break
+                    except UnicodeDecodeError:
+                        continue
+                
+                if not successful_encoding:
+                    raise Exception("无法读取Item.CSV文件，请检查文件编码和格式")
+                
+                # 直接使用已读取的内容
+                csv_reader = csv.reader(content.splitlines(), 
+                    quoting=csv.QUOTE_ALL,
+                    skipinitialspace=True,
+                    strict=True
+                )
+                
+                # 跳过标题行
+                next(csv_reader)
+                
+                # 读取每一行
+                for row in csv_reader:
+                    total_lines += 1
+                    try:
+                        # 检查空行
+                        if not row or len(row) == 0:
+                            empty_lines.append(total_lines)
+                            continue
+                        
+                        # 检查第一列是否为空
+                        if len(row[0].strip()) == 0:
+                            invalid_items.append((total_lines, "", "空商品编码"))
+                            continue
+                        
+                        if row and len(row) > 0:
+                            item_code = row[0].strip()
+                            normalized_code = item_code.upper().strip()
+                            
+                            # 检查是否以 "Item" 开头
+                            if item_code.lower().startswith('item'):
+                                invalid_items.append((total_lines, item_code, "以'Item'开头"))
+                                continue
+                            
+                            # 检查重复
+                            if normalized_code in processed_codes:
+                                if normalized_code not in duplicates:
+                                    duplicates[normalized_code] = [processed_codes[normalized_code]]
+                                duplicates[normalized_code].append(total_lines)
+                            else:
+                                processed_codes[normalized_code] = total_lines
+                                items.add(normalized_code)
+                    except Exception as e:
+                        invalid_items.append((total_lines, str(row), f"处理错误: {str(e)}"))
+                
+                print(f"从CSV读取到 {len(items)} 个商品")
+                print(f"\n处理统计:")
+                print(f"总行数: {total_lines}")
+                print(f"有效商品数: {len(items)}")
+                print(f"重复商品数: {len(duplicates)} (共 {sum(len(lines) for lines in duplicates.values())} 行)")
+                print(f"不合格商品数: {len(invalid_items)}")
+                print(f"空行数: {len(empty_lines)}")
+                
+                if duplicates:
+                    print("\n重复的商品编码:")
+                    for code in sorted(duplicates.keys()):
+                        print(f"- {code} (出现在第 {', '.join(map(str, duplicates[code]))} 行)")
+                
+                if invalid_items:
+                    print("\n不合格的商品:")
+                    for line, code, reason in sorted(invalid_items):
+                        print(f"第 {line} 行: {code} - {reason}")
+                
+                if empty_lines:
+                    print("\n空行:")
+                    print(f"第 {', '.join(map(str, empty_lines))} 行")
+                
+                # 插入数据
+                items = [(item,) for item in items]
+                cursor.executemany('INSERT INTO items (item_code) VALUES (?)', items)
+                
+            except Exception as e:
+                print(f"导入商品数据时出错: {e}")
+                raise
+        '''
         db.commit()
+        print("数据库初始化完成")
         
     except Exception as e:
         print(f"初始化数据库时出错: {str(e)}")
-        db.rollback()
+        print(traceback.format_exc())
         raise
     finally:
         db.close()
@@ -172,13 +276,19 @@ def import_data():
     cursor = db.cursor()
     
     # 导入库位数据
+    print("开始导入库位数据...")
     with open('BIN.csv', 'r', encoding='utf-8') as f:
         csv_reader = csv.reader(f)
         next(csv_reader)  # 跳过标题行
         bin_data = [(row[0],) for row in csv_reader]
-        cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', bin_data)
+        print(f"从CSV读取到 {len(bin_data)} 个库位")
+        print("示例库位:", bin_data[:5])  # 打印前5个库位
+        cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', 
+                          bin_data)
+        print("库位数据导入完成")
     
     # 导入商品数据
+    print("开始导入商品数据...")
     try:
         encodings = ['utf-8', 'gbk', 'latin-1', 'iso-8859-1', 'cp1252']
         content = None
@@ -196,6 +306,8 @@ def import_data():
         
         # 手动处理CSV内容
         lines = content.split('\n')
+        print(f"从CSV读取到 {len(lines)} 行数据")
+        print("前几行数据:", lines[:5])  # 打印前5行
         items = set()  # 使用集合去重
         for line in lines[1:]:  # 跳过标题行
             if ',' in line:
@@ -204,15 +316,45 @@ def import_data():
                     # 规范化商品编号格式
                     item_code = item_code.strip()
                     items.add(item_code)
+                    print(f"添加商品: {item_code}")  # 打印每个添加的商品
         
         # 测试数据
         test_items = ['A3422/H GREY', 'A3422/H/GREY']
         for test_item in test_items:
             items.add(test_item)
+            print(f"添加测试商品: {test_item}")
         
         # 插入数据
         items = [(item,) for item in items]  # 转换回元组列表
+        print(f"处理后的商品数: {len(items)}")
+        print("示例商品:", items[:5])  # 打印前5个商品
         cursor.executemany('INSERT INTO items (item_code) VALUES (?)', items)
+        print(f"成功导入 {len(items)} 个商品")
+        
+        # 验证数据是否正确导入
+        cursor.execute('SELECT COUNT(*) FROM bins')
+        bin_count = cursor.fetchone()[0]
+        cursor.execute('SELECT COUNT(*) FROM items')
+        item_count = cursor.fetchone()[0]
+        print(f"数据库中的库位数: {bin_count}")
+        print(f"数据库中的商品数: {item_count}")
+        
+        # 检查商品数据的格式
+        cursor.execute('SELECT item_code FROM items LIMIT 5')
+        sample_items = cursor.fetchall()
+        print("商品编号示例:", [row['item_code'] for row in sample_items])
+        
+        # 检查商品查询是否正常工作
+        test_item = 'A3422/H GREY'  # 使用一个实际的商品编号
+        cursor.execute('SELECT * FROM items WHERE item_code = ?', (test_item,))
+        test_result = cursor.fetchone()
+        print(f"测试查询商品 '{test_item}' 结果:", test_result)
+        
+        # 打印一些示例数据
+        cursor.execute('SELECT bin_code FROM bins LIMIT 5')
+        print("数据库中的库位示例:", [row[0] for row in cursor.fetchall()])
+        cursor.execute('SELECT item_code FROM items LIMIT 5')
+        print("数据库中的商品示例:", [row[0] for row in cursor.fetchall()])
     
     except Exception as e:
         print(f"导入商品数据时出错: {str(e)}")
@@ -223,10 +365,12 @@ def import_data():
 @app.route('/api/bins', methods=['GET'])
 def get_bins():
     search = request.args.get('search', '')
+    print(f"Searching bins with term: {search}")
     db = get_db()
     cursor = db.cursor()
     search_pattern = f'%{search}%'
     start_pattern = f'{search}%'
+    print(f"Search patterns: {search_pattern}, {start_pattern}")
     cursor.execute('''
         SELECT * FROM bins 
         WHERE bin_code LIKE ? 
@@ -239,11 +383,14 @@ def get_bins():
         LIMIT 10
     ''', (search_pattern, start_pattern))
     bins = [dict(row) for row in cursor.fetchall()]
+    print(f"Found {len(bins)} bins")
+    print("Results:", bins)
     return jsonify(bins)
 
 @app.route('/api/items', methods=['GET'])
 def get_items():
     search = request.args.get('search', '')
+    print(f"Searching items with term: {search}")
     db = get_db()
     cursor = db.cursor()
     cursor.execute('''
@@ -258,11 +405,13 @@ def get_items():
         LIMIT 10
     ''', (f'%{search}%', f'{search}%'))
     items = [dict(row) for row in cursor.fetchall()]
+    print(f"Found {len(items)} items")
     return jsonify(items)
 
 @app.route('/api/inventory', methods=['POST'])
 def add_inventory():
     data = request.json
+    print("收到的数据:", data)
     db = get_db()
     cursor = db.cursor()
     
@@ -281,6 +430,7 @@ def add_inventory():
             # 商品不存在，自动添加到items表
             cursor.execute('INSERT INTO items (item_code) VALUES (?)', (data['item_code'],))
             item_id = cursor.lastrowid
+            print(f"自动添加新商品: {data['item_code']}")
         else:
             item_id = item_result['item_id']
 
@@ -305,6 +455,7 @@ def add_inventory():
         ''', (data['bin_code'], data['item_code'], BT, box_count, pieces_per_box, total_pieces))
         
         db.commit()
+        print("库存记录添加成功")
         
         return jsonify({'success': True})
     except Exception as e:
@@ -319,9 +470,9 @@ def get_item_inventory(item_id):
     
     item_id = item_id.replace('___SLASH___', '/').replace('___SPACE___', ' ')
     
+    # 先检查商品是否存在
     cursor.execute('SELECT item_id FROM items WHERE item_code = ?', (item_id,))
     item_result = cursor.fetchone()
-    
     if not item_result:
         # 商品不存在，返回空结果
         return jsonify({
@@ -429,6 +580,7 @@ def get_item_locations(item_id):
     cursor = db.cursor()
     
     item_id = item_id.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+    print(f"查询商品库位，商品编号: {item_id}")
     
     cursor.execute('SELECT item_id FROM items WHERE item_code = ?', (item_id,))
     item_result = cursor.fetchone()
@@ -498,6 +650,7 @@ def get_BT_inventory(BT):
     cursor = db.cursor()
     
     BT = BT.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+    print(f"查询集装箱库存，集装箱号: {BT}")
     
     # 查询指定集装箱的所有商品
     cursor.execute('''
@@ -561,6 +714,7 @@ def get_BTs():
     cursor = db.cursor()
     
     search_term = request.args.get('search', '').strip()
+    print(f"Searching BTs with term: {search_term}")
     
     if not search_term:
         # 如果没有搜索词，返回所有BT
@@ -588,6 +742,7 @@ def get_BTs():
             'BT': row['BT']
         })
     
+    print(f"Found {len(BTs)} BTs")
     return jsonify(BTs)
 
 @app.route('/api/export/items', methods=['GET'])
@@ -1337,8 +1492,20 @@ def export_history():
 
 
 if __name__ == '__main__':
+    print("Starting server...")
+    print("Current working directory:", os.getcwd())
+    print("Checking for required files:")
+    # for file in ['index.html', 'inventory.js', 'schema.sql', 'BIN.csv', 'Item.CSV']:
+    for file in ['index.html', 'inventory.js', 'schema.sql', 'BIN.csv']:
+        if os.path.exists(file):
+            print(f"  {file}: Found")
+        else:
+            print(f"  {file}: Missing!")
+    
     try:
         init_db()
+        print("Database initialized successfully")
+        
         # 关闭Flask的访问日志
         import logging
         log = logging.getLogger('werkzeug')
