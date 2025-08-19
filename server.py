@@ -715,6 +715,43 @@ def get_container_inventory(container_number):
         'items': items_list
     })
 
+@app.route('/api/containers', methods=['GET'])
+def get_containers():
+    db = get_db()
+    cursor = db.cursor()
+    
+    search_term = request.args.get('search', '').strip()
+    print(f"Searching containers with term: {search_term}")
+    
+    if not search_term:
+        # 如果没有搜索词，返回所有container
+        cursor.execute('''
+            SELECT DISTINCT container_number 
+            FROM inventory 
+            WHERE container_number IS NOT NULL AND container_number != ''
+            ORDER BY container_number
+        ''')
+    else:
+        # 如果有搜索词，进行模糊搜索
+        search_pattern = f'%{search_term}%'
+        cursor.execute('''
+            SELECT DISTINCT container_number 
+            FROM inventory 
+            WHERE container_number IS NOT NULL 
+            AND container_number != '' 
+            AND container_number LIKE ?
+            ORDER BY container_number
+        ''', (search_pattern,))
+    
+    containers = []
+    for row in cursor.fetchall():
+        containers.append({
+            'container_number': row['container_number']
+        })
+    
+    print(f"Found {len(containers)} containers")
+    return jsonify(containers)
+
 @app.route('/api/export/items', methods=['GET'])
 def export_items():
     db = get_db()

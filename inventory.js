@@ -211,6 +211,24 @@ $(document).ready(function() {
         autoFocus: true
     });
 
+    // 集装箱输入自动完成
+    $("#containerSearch").autocomplete({
+        source: function(request, response) {
+            $.get(`${API_URL}/api/containers`, { search: request.term })
+                .done(containers => {
+                    console.log('Containers response:', containers);
+                    response(containers.map(container => container.container_number));
+                })
+                .fail(error => {
+                    console.error('Containers search error:', error);
+                    response([]);
+                });
+        },
+        minLength: 1,
+        delay: 300,
+        autoFocus: true
+    });
+
     // 页面加载时初始化历史记录显示
     updateHistoryDisplay();
     
