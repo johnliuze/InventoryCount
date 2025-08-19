@@ -95,16 +95,16 @@ function formatHistoryRecord(record, timestamp, lang) {
     const isZh = lang === 'zh';
     
     // 构建BT显示部分
-    const containerDisplay = record.BT ? 
-        (isZh ? ` BT号: <span class="container-number">${record.BT}</span>` :
-         ` BT: <span class="container-number">${record.BT}</span>`) : '';
+    const BTDisplay = record.BT ? 
+        (isZh ? ` BT号: <span class="BT-number">${record.BT}</span>` :
+         ` BT: <span class="BT-number">${record.BT}</span>`) : '';
     
-    const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${containerDisplay} <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
-    const mergedEn = `🗑️ Cleared then added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${containerDisplay} <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
+    const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${BTDisplay} <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
+    const mergedEn = `🗑️ Cleared then added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${BTDisplay} <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
     const clearZh = `🗑️ 清空库位 <span class="bin-code">${record.bin_code}</span>`;
     const clearEn = `🗑️ Cleared bin <span class="bin-code">${record.bin_code}</span>`;
-    const normalZh = `库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${containerDisplay} <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
-    const normalEn = `Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${containerDisplay} <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
+    const normalZh = `库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${BTDisplay} <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
+    const normalEn = `Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${BTDisplay} <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
 
     let lineHtml;
     if (record.__merged) {
@@ -215,15 +215,15 @@ $(document).ready(function() {
     });
 
     // BT输入自动完成
-    $("#containerSearch").autocomplete({
+    $("#BTSearch").autocomplete({
         source: function(request, response) {
-            $.get(`${API_URL}/api/containers`, { search: request.term })
-                .done(containers => {
-                    console.log('Containers response:', containers);
-                    response(containers.map(container => container.BT));
+            $.get(`${API_URL}/api/BTs`, { search: request.term })
+                .done(BTs => {
+                    console.log('BTs response:', BTs);
+                    response(BTs.map(BT => BT.BT));
                 })
                 .fail(error => {
-                    console.error('Containers search error:', error);
+                    console.error('BTs search error:', error);
                     response([]);
                 });
         },
@@ -293,7 +293,7 @@ $("#inventoryForm").submit(function(e) {
     
     const binCode = $("#binInput").val();
     const itemCode = $("#itemInput").val();
-    const containerNumber = $("#containerInput").val();
+    const BTNumber = $("#BTInput").val();
     const boxCount = parseInt($("#boxCount").val());
     const piecesPerBox = parseInt($("#piecesPerBox").val());
     
@@ -306,11 +306,11 @@ $("#inventoryForm").submit(function(e) {
     }
     
     // 先检查库位状态
-    checkBinStatus(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
+    checkBinStatus(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
 });
 
 // 检查库位状态并显示相应的确认对话框
-function checkBinStatus(binCode, itemCode, containerNumber, boxCount, piecesPerBox) {
+function checkBinStatus(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
     const encodedBinCode = binCode.trim()
         .replace(/\//g, '___SLASH___')
         .replace(/\s/g, '___SPACE___');
@@ -321,21 +321,21 @@ function checkBinStatus(binCode, itemCode, containerNumber, boxCount, piecesPerB
         success: function(contents) {
             if (contents && contents.length > 0) {
                 // 库位有库存，显示选择对话框
-                showBinChoiceDialog(binCode, itemCode, containerNumber, boxCount, piecesPerBox, contents);
+                showBinChoiceDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox, contents);
             } else {
                 // 库位为空，直接显示确认对话框
-                showConfirmDialog(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
+                showConfirmDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
             }
         },
         error: function(xhr, status, error) {
             // 如果查询失败，直接显示确认对话框
-            showConfirmDialog(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
+            showConfirmDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
         }
     });
 }
 
 // 显示库位选择对话框
-function showBinChoiceDialog(binCode, itemCode, containerNumber, boxCount, piecesPerBox, existingContents) {
+function showBinChoiceDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox, existingContents) {
     // 移除之前可能存在的事件处理器
     $("#confirm-yes").off('click');
     $("#confirm-no").off('click');
@@ -399,7 +399,7 @@ function showBinChoiceDialog(binCode, itemCode, containerNumber, boxCount, piece
                 <span class="lang-zh">BT：</span>
                 <span class="lang-en">BT:</span>
             </span>
-            <span class="container-number">${containerNumber || '-'}</span>
+            <span class="BT-number">${BTNumber || '-'}</span>
         </div>
         <div class="confirm-row">
             <span class="label">
@@ -443,7 +443,7 @@ function showBinChoiceDialog(binCode, itemCode, containerNumber, boxCount, piece
         $("#confirm-dialog").fadeOut(200);
         
         // 直接添加新库存
-        addInventory(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
+        addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
     });
     
     // 中间按钮事件 - 清空库位后添加
@@ -454,7 +454,7 @@ function showBinChoiceDialog(binCode, itemCode, containerNumber, boxCount, piece
         $("#confirm-dialog").fadeOut(200);
         
         // 先清空库位，然后添加新库存
-        clearBinAndAdd(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
+        clearBinAndAdd(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
     });
     
     // 取消按钮事件
@@ -467,7 +467,7 @@ function showBinChoiceDialog(binCode, itemCode, containerNumber, boxCount, piece
 }
 
 // 显示普通确认对话框
-function showConfirmDialog(binCode, itemCode, containerNumber, boxCount, piecesPerBox) {
+function showConfirmDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
     // 移除之前可能存在的事件处理器
     $("#confirm-yes").off('click');
     $("#confirm-no").off('click');
@@ -497,7 +497,7 @@ function showConfirmDialog(binCode, itemCode, containerNumber, boxCount, piecesP
                 <span class="lang-zh">BT：</span>
                 <span class="lang-en">BT:</span>
             </span>
-            <span id="confirm-container" class="container-number">${containerNumber || '-'}</span>
+            <span id="confirm-BT" class="BT-number">${BTNumber || '-'}</span>
         </div>
         <div class="confirm-row">
             <span class="label">
@@ -537,7 +537,7 @@ function showConfirmDialog(binCode, itemCode, containerNumber, boxCount, piecesP
         $("#confirm-dialog").fadeOut(200);
         
         // 添加库存
-        addInventory(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
+        addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
     });
     
     // 取消按钮事件
@@ -550,7 +550,7 @@ function showConfirmDialog(binCode, itemCode, containerNumber, boxCount, piecesP
 }
 
 // 清空库位后添加新库存
-function clearBinAndAdd(binCode, itemCode, containerNumber, boxCount, piecesPerBox) {
+function clearBinAndAdd(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
     const encodedBinCode = binCode.trim()
         .replace(/\//g, '___SLASH___')
         .replace(/\s/g, '___SPACE___');
@@ -560,7 +560,7 @@ function clearBinAndAdd(binCode, itemCode, containerNumber, boxCount, piecesPerB
         type: 'DELETE',
         success: function(response) {
             // 清空成功后添加新库存
-            addInventory(binCode, itemCode, containerNumber, boxCount, piecesPerBox);
+            addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
         },
         error: function(xhr, status, error) {
             alert(document.body.className.includes('lang-en')
@@ -571,7 +571,7 @@ function clearBinAndAdd(binCode, itemCode, containerNumber, boxCount, piecesPerB
 }
 
 // 添加库存
-function addInventory(binCode, itemCode, containerNumber, boxCount, piecesPerBox) {
+function addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
     $.ajax({
         url: `${API_URL}/api/inventory`,
         type: 'POST',
@@ -579,22 +579,22 @@ function addInventory(binCode, itemCode, containerNumber, boxCount, piecesPerBox
         data: JSON.stringify({
             bin_code: binCode,
             item_code: itemCode,
-            BT: containerNumber,
+            BT: BTNumber,
             box_count: boxCount,
             pieces_per_box: piecesPerBox
         }),
         success: function(response) {
-            // 成功后再更新显示并重置表单（保留container number）
+            // 成功后再更新显示并重置表单（保留BT）
             setTimeout(updateHistoryDisplay, 100);
             
-            // 保存container number的值
-            const containerValue = $("#containerInput").val();
+            // 保存BT的值
+            const BTValue = $("#BTInput").val();
             
             // 重置表单
             $("#inventoryForm")[0].reset();
             
-            // 恢复container number的值
-            $("#containerInput").val(containerValue);
+            // 恢复BT的值
+            $("#BTInput").val(BTValue);
         },
         error: function(xhr, status, error) {
             let errorMsg = "添加失败，请检查输入！";
@@ -675,15 +675,15 @@ function searchItemTotal() {
                                 <div class="location-info">
                                     <span class="lang-zh">
                                         库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> 件
-                                        ${loc.BT ? ` (BT: <span class="container-number">${loc.BT}</span>)` : ''}
+                                        ${loc.BT ? ` (BT: <span class="BT-number">${loc.BT}</span>)` : ''}
                                     </span>
                                     <span class="lang-en">
                                         Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> pcs
-                                        ${loc.BT ? ` (BT: <span class="container-number">${loc.BT}</span>)` : ''}
+                                        ${loc.BT ? ` (BT: <span class="BT-number">${loc.BT}</span>)` : ''}
                                     </span>
                                 </div>
                             </div>
-                            <div class="box-details-container">
+                            <div class="box-details-BT">
                                 ${loc.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box).map(detail => `
                                     <div class="box-detail-line">
                                         <span class="lang-zh">
@@ -783,7 +783,7 @@ function searchBinContents() {
                             <span class="lang-en">Clear Item</span>
                         </button>
                     </div>
-                    <div class="box-details-container">
+                    <div class="box-details-BT">
                         ${inv.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box).map(detail => `
                             <div class="box-detail-line">
                                 <span class="lang-zh">
@@ -912,10 +912,10 @@ function exportAllHistory() {
 }
 
     // 搜索BT
-function searchContainer() {
-    const containerNumber = $("#containerSearch").val();
-    if (!containerNumber) {
-        $("#containerSearchResult").html(`
+function searchBT() {
+    const BTNumber = $("#BTSearch").val();
+    if (!BTNumber) {
+        $("#BTSearchResult").html(`
             <span class="lang-zh">请输入BT号！</span>
             <span class="lang-en">Please enter BT number!</span>
         `);
@@ -923,17 +923,17 @@ function searchContainer() {
     }
     
     $.ajax({
-        url: `${API_URL}/api/inventory/container/${encodeURIComponent(containerNumber)}`,
+        url: `${API_URL}/api/inventory/BT/${encodeURIComponent(BTNumber)}`,
         type: 'GET',
         success: function(data) {
             if (!data.items || data.items.length === 0) {
-                $("#containerSearchResult").html(`
+                $("#BTSearchResult").html(`
                     <div class="result-item">
                         <span class="lang-zh">
-                            BT <span class="container-number">${containerNumber}</span> 中暂无商品
+                            BT <span class="BT-number">${BTNumber}</span> 中暂无商品
                         </span>
                         <span class="lang-en">
-                            BT <span class="container-number">${containerNumber}</span> has no items
+                            BT <span class="BT-number">${BTNumber}</span> has no items
                         </span>
                     </div>
                 `);
@@ -945,12 +945,12 @@ function searchContainer() {
                 <div class="result-item">
                     <div class="total-summary">
                         <span class="lang-zh">
-                            BT <span class="container-number">${containerNumber}</span> 
+                            BT <span class="BT-number">${BTNumber}</span> 
                             总商品数：<span class="quantity">${data.total_items}</span> 种
                             总数量：<span class="quantity">${data.total_pieces}</span> 件
                         </span>
                         <span class="lang-en">
-                            BT <span class="container-number">${containerNumber}</span> 
+                            BT <span class="BT-number">${BTNumber}</span> 
                             total items: <span class="quantity">${data.total_items}</span> types
                             total quantity: <span class="quantity">${data.total_pieces}</span> pcs
                         </span>
@@ -992,7 +992,7 @@ function searchContainer() {
                 </div>
             `;
             
-            $("#containerSearchResult").html(html);
+            $("#BTSearchResult").html(html);
         },
         error: function(xhr, status, error) {
             let errorMsg = {
@@ -1005,7 +1005,7 @@ function searchContainer() {
                     en: xhr.responseJSON.error_en || xhr.responseJSON.error
                 };
             }
-            $("#containerSearchResult").html(`
+            $("#BTSearchResult").html(`
                 <span class="lang-zh">${errorMsg.zh}</span>
                 <span class="lang-en">${errorMsg.en}</span>
             `);
@@ -1040,19 +1040,19 @@ function updateSearchPlaceholders(lang) {
             const placeholders = {
             zh: {
                 binSearch: '输入库位编号',
-                containerSearch: '输入BT号',
+                BTSearch: '输入BT号',
                 itemSearch: '输入商品编号'
             },
             en: {
                 binSearch: 'Enter bin location',
-                containerSearch: 'Enter BT number',
+                BTSearch: 'Enter BT number',
                 itemSearch: 'Enter item code'
             }
         };
     
     const texts = placeholders[lang];
     $('#binSearch').attr('placeholder', texts.binSearch);
-    $('#containerSearch').attr('placeholder', texts.containerSearch);
+    $('#BTSearch').attr('placeholder', texts.BTSearch);
     $('#itemSearch').attr('placeholder', texts.itemSearch);
 }
 

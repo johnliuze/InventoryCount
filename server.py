@@ -644,8 +644,8 @@ def get_item_locations(item_id):
     
     return jsonify(locations)
 
-@app.route('/api/inventory/container/<BT>', methods=['GET'])
-def get_container_inventory(BT):
+@app.route('/api/inventory/BT/<BT>', methods=['GET'])
+def get_BT_inventory(BT):
     db = get_db()
     cursor = db.cursor()
     
@@ -708,16 +708,16 @@ def get_container_inventory(BT):
         'items': items_list
     })
 
-@app.route('/api/containers', methods=['GET'])
-def get_containers():
+@app.route('/api/BTs', methods=['GET'])
+def get_BTs():
     db = get_db()
     cursor = db.cursor()
     
     search_term = request.args.get('search', '').strip()
-    print(f"Searching containers with term: {search_term}")
+    print(f"Searching BTs with term: {search_term}")
     
     if not search_term:
-        # 如果没有搜索词，返回所有container
+        # 如果没有搜索词，返回所有BT
         cursor.execute('''
             SELECT DISTINCT BT 
             FROM inventory 
@@ -736,14 +736,14 @@ def get_containers():
             ORDER BY BT
         ''', (search_pattern,))
     
-    containers = []
+    BTs = []
     for row in cursor.fetchall():
-        containers.append({
+        BTs.append({
             'BT': row['BT']
         })
     
-    print(f"Found {len(containers)} containers")
-    return jsonify(containers)
+    print(f"Found {len(BTs)} BTs")
+    return jsonify(BTs)
 
 @app.route('/api/export/items', methods=['GET'])
 def export_items():
@@ -846,7 +846,7 @@ def export_bins():
     db = get_db()
     cursor = db.cursor()
     
-    # 查询所有库位的库存信息，包含container信息
+    # 查询所有库位的库存信息，包含BT信息
     cursor.execute('''
         SELECT 
             b.bin_code,
@@ -864,8 +864,8 @@ def export_bins():
     
     bins_data = cursor.fetchall()
     
-    # 创建DataFrame，包含container信息
-    df = pd.DataFrame(bins_data, columns=['Bin Location', 'Item Code', 'Container Number', 'Box Count', 'Pieces per Box', 'Total Pieces'])
+    # 创建DataFrame，包含BT信息
+    df = pd.DataFrame(bins_data, columns=['Bin Location', 'Item Code', 'BT Number', 'Box Count', 'Pieces per Box', 'Total Pieces'])
     
     # 创建Excel文件
     output = BytesIO()
@@ -878,7 +878,7 @@ def export_bins():
         # 设置列宽
         worksheet.set_column('A:A', 15)  # Bin Location
         worksheet.set_column('B:B', 20)  # Item Code
-        worksheet.set_column('C:C', 18)  # Container Number
+        worksheet.set_column('C:C', 18)  # BT Number
         worksheet.set_column('D:F', 12)  # Box Count, Pieces per Box, Total Pieces
         
         # 定义格式
@@ -894,7 +894,7 @@ def export_bins():
             'font_color': '#2962ff'  # 蓝色
         })
         
-        container_format = workbook.add_format({
+        BT_format = workbook.add_format({
             'align': 'center',
             'valign': 'vcenter',
             'font_color': '#3498db'  # 浅蓝色
@@ -909,7 +909,7 @@ def export_bins():
         # 应用格式到整列
         worksheet.set_column('A:A', 15, bin_format)    # Bin Location
         worksheet.set_column('B:B', 20, item_format)   # Item Code
-        worksheet.set_column('C:C', 18, container_format) # Container Number
+        worksheet.set_column('C:C', 18, BT_format) # BT Number
         worksheet.set_column('D:F', 12, number_format) # Box Count, Pieces per Box, Total Pieces
         
         # 合并相同库位的单元格
@@ -1384,7 +1384,7 @@ def export_history():
     
     # 创建DataFrame
     df = pd.DataFrame(history_data, columns=[
-        'Time', 'Bin Code', 'Item Code', 'Container Number', 
+        'Time', 'Bin Code', 'Item Code', 'BT Number', 
         'Box Count', 'Pieces per Box', 'Total Pieces'
     ])
     
@@ -1400,7 +1400,7 @@ def export_history():
         worksheet.set_column('A:A', 20)  # Time
         worksheet.set_column('B:B', 15)  # Bin Code
         worksheet.set_column('C:C', 15)  # Item Code
-        worksheet.set_column('D:D', 15)  # Container Number
+        worksheet.set_column('D:D', 15)  # BT Number
         worksheet.set_column('E:E', 12)  # Box Count
         worksheet.set_column('F:F', 15)  # Pieces per Box
         worksheet.set_column('G:G', 12)  # Total Pieces
