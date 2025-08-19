@@ -25,6 +25,9 @@ let cachedLogs = [];
 let recentHistoryUpdateInterval = null;
 let fullHistoryUpdateInterval = null;
 
+// 跟踪用户选择的日期
+let userSelectedDate = null;
+
 // 合并“清空并添加”的历史记录（将紧邻的 清空库位 + 添加 组合为一条）
 function mergeClearAndAddLogs(logs) {
     if (!Array.isArray(logs) || logs.length === 0) return [];
@@ -251,7 +254,16 @@ $(document).ready(function() {
         if (fullHistoryUpdateInterval) {
             clearInterval(fullHistoryUpdateInterval);
         }
-        fullHistoryUpdateInterval = setInterval(updateFullHistory, 5000);
+        // 使用自定义的定时器函数，保持当前选择的日期
+        fullHistoryUpdateInterval = setInterval(function() {
+            if (userSelectedDate) {
+                // 如果用户选择了日期，继续使用该日期
+                filterHistoryByDate();
+            } else {
+                // 否则显示所有记录
+                updateFullHistory();
+            }
+        }, 5000);
     });
 
     // 当切换离开历史记录标签页时停止更新
@@ -816,6 +828,7 @@ function exportItemDetails() {
 function showTodayHistory() {
     const today = new Date().toISOString().split('T')[0];
     $("#historyDate").val(today);
+    userSelectedDate = today; // 设置用户选择的日期为今天
     filterHistoryByDate();
 }
 
@@ -823,9 +836,13 @@ function showTodayHistory() {
 function filterHistoryByDate() {
     const selectedDate = $("#historyDate").val();
     if (!selectedDate) {
+        userSelectedDate = null;
         updateFullHistory();
         return;
     }
+    
+    // 设置用户选择的日期
+    userSelectedDate = selectedDate;
     
     $.ajax({
         url: `${API_URL}/api/logs`,
