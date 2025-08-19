@@ -120,28 +120,12 @@ function formatHistoryRecord(record, timestamp, lang) {
     } else {
         lineHtml = isZh ? normalZh : normalEn;
     }
-    
-    return `
-        <div class="history-item">
-            <div class="time">${timestamp}</div>
-            <div class="content">${lineHtml}</div>
-        </div>
-    `;
-}
 
-// 格式化时间戳为本地时间
-function formatTimestamp(timestamp) {
-    // 将UTC时间戳转换为本地时间
-    const date = new Date(timestamp + ' UTC');
-    return date.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    }).replace(/\//g, '-');
+    return `
+    <div class="history-item">
+        <div class="time">${timestamp}</div>
+        <div class="details">${lineHtml}</div>
+    </div>`;
 }
 
 // 更新历史记录显示
@@ -860,16 +844,10 @@ function filterHistoryByDate() {
     // 设置用户选择的日期
     userSelectedDate = selectedDate;
     
-    // 获取用户时区偏移量（分钟）
-    const timezoneOffset = new Date().getTimezoneOffset();
-    
     $.ajax({
         url: `${API_URL}/api/logs`,
         type: 'GET',
-        data: { 
-            date: selectedDate,
-            timezone_offset: timezoneOffset
-        },
+        data: { date: selectedDate },
         success: function(logs) {
             cachedLogs = logs;
             renderFilteredHistory(logs, selectedDate);
@@ -900,10 +878,11 @@ function renderFilteredHistory(logs, date) {
     // 合并清空并添加的记录
     const mergedLogs = mergeClearAndAddLogs(logs);
     
-    const html = mergedLogs.map(record => {
-        const timestamp = formatTimestamp(record.timestamp);
-        return formatHistoryRecord(record, timestamp, lang);
-    }).join('');
+    let html = '';
+    mergedLogs.forEach(record => {
+        const timestamp = formatTimestampToLA(record.timestamp);
+        html += formatHistoryRecord(record, timestamp, lang);
+    });
     
     $("#full-history-list").html(html);
 }
@@ -918,10 +897,7 @@ function exportHistoryByDate() {
         return;
     }
     
-    // 获取用户时区偏移量（分钟）
-    const timezoneOffset = new Date().getTimezoneOffset();
-    
-    window.open(`${API_URL}/api/export/history?date=${selectedDate}&timezone_offset=${timezoneOffset}`, '_blank');
+    window.open(`${API_URL}/api/export/history?date=${selectedDate}`, '_blank');
 }
 
 // 导出全部历史记录
@@ -1087,24 +1063,17 @@ function updateRecentHistory(logsFromCache) {
     const render = (logs) => {
         const mergedLogs = mergeClearAndAddLogs(logs);
         
-        // Get today's date (using local timezone)
-        const today = new Date();
-        const todayStr = today.getFullYear() + '-' + 
-                        String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                        String(today.getDate()).padStart(2, '0');
+        // 获取今日日期（使用洛杉矶时区）
+        const todayStr = getTodayInLA();
         
-        // Filter today's records (using local timezone)
+        // 过滤出今日的记录（使用洛杉矶时区）
         const todayLogs = mergedLogs.filter(record => {
-            // 将UTC时间戳转换为本地时间进行比较
-            const recordDate = new Date(record.timestamp + ' UTC');
-            const recordDateStr = recordDate.getFullYear() + '-' + 
-                                 String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                                 String(recordDate.getDate()).padStart(2, '0');
+            const recordDateStr = getRecordDateInLA(record.timestamp);
             return recordDateStr === todayStr;
         });
         
         const html = todayLogs.map(record => {
-            const timestamp = formatTimestamp(record.timestamp);
+            const timestamp = formatTimestampToLA(record.timestamp);
             return formatHistoryRecord(record, timestamp, document.body.className.includes('lang-en') ? 'en' : 'zh');
         }).join('');
         
@@ -1136,7 +1105,7 @@ function updateFullHistory(logsFromCache) {
     const render = (logs) => {
         const mergedLogs = mergeClearAndAddLogs(logs);
         const html = mergedLogs.map(record => {
-            const timestamp = formatTimestamp(record.timestamp);
+            const timestamp = formatTimestampToLA(record.timestamp);
             return formatHistoryRecord(record, timestamp, document.body.className.includes('lang-en') ? 'en' : 'zh');
         }).join('');
         
@@ -1155,6 +1124,39 @@ function updateFullHistory(logsFromCache) {
         cachedLogs = logs;
         render(logs);
     });
+}
+
+// 格式化时间戳为洛杉矶时间
+function formatTimestampToLA(timestamp) {
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-US', {
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).replace(/\//g, '-');
+}
+
+// 获取洛杉矶时区的今日日期
+function getTodayInLA() {
+    const now = new Date();
+    const laDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+    return laDate.getFullYear() + '-' + 
+           String(laDate.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(laDate.getDate()).padStart(2, '0');
+}
+
+// 获取记录在洛杉矶时区的日期
+function getRecordDateInLA(timestamp) {
+    const recordDate = new Date(timestamp);
+    const laDate = new Date(recordDate.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+    return laDate.getFullYear() + '-' + 
+           String(laDate.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(laDate.getDate()).padStart(2, '0');
 }
 
 // 清空库位中特定商品
