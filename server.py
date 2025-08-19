@@ -969,54 +969,34 @@ def get_logs():
     db = get_db()
     cursor = db.cursor()
     
-    # 检查是否有日期过滤参数
+    # 检查是否有日期过滤参数和时区参数
     date_filter = request.args.get('date', '').strip()
-    # 获取用户时区偏移量（分钟）
-    timezone_offset = request.args.get('timezone_offset', None)
+    timezone_str = request.args.get('timezone', '+00:00').strip()
     
-    print(f"Debug: date_filter={date_filter}, timezone_offset={timezone_offset}")
+    # 解析时区偏移量
+    try:
+        if timezone_str.startswith('+'):
+            timezone_offset = int(timezone_str[1:3]) * 60 + int(timezone_str[4:6])
+        else:
+            timezone_offset = -(int(timezone_str[1:3]) * 60 + int(timezone_str[4:6]))
+    except (ValueError, IndexError):
+        timezone_offset = 0  # 默认UTC
     
     if date_filter:
-        # 如果有日期过滤，需要根据用户时区进行过滤
-        if timezone_offset is not None:
-            # 将用户时区偏移量转换为小时
-            # getTimezoneOffset()返回的是UTC到本地时间的分钟数
-            # 例如：PDT是UTC-7，getTimezoneOffset()返回420分钟（7小时）
-            # 所以我们需要减去这个偏移量来将UTC转换为本地时间
-            offset_hours = -int(timezone_offset) / 60
-            print(f"Debug: offset_hours={offset_hours}")
-            
-            # 构建时区调整的SQL查询
-            # 将UTC时间转换为用户本地时间进行过滤
-            cursor.execute('''
-                SELECT 
-                    bin_code,
-                    item_code,
-                    BT,
-                    box_count,
-                    pieces_per_box,
-                    total_pieces,
-                    input_time,
-                    datetime(input_time, '+' || ? || ' hours') as local_time
-                FROM input_history
-                WHERE DATE(datetime(input_time, '+' || ? || ' hours')) = ?
-                ORDER BY input_time DESC
-            ''', (offset_hours, offset_hours, date_filter))
-        else:
-            # 如果没有时区信息，使用UTC时间过滤（向后兼容）
-            cursor.execute('''
-                SELECT 
-                    bin_code,
-                    item_code,
-                    BT,
-                    box_count,
-                    pieces_per_box,
-                    total_pieces,
-                    input_time
-                FROM input_history
-                WHERE DATE(input_time) = ?
-                ORDER BY input_time DESC
-            ''', (date_filter,))
+        # 如果有日期过滤，只返回指定日期的记录
+        cursor.execute('''
+            SELECT 
+                bin_code,
+                item_code,
+                BT,
+                box_count,
+                pieces_per_box,
+                total_pieces,
+                input_time
+            FROM input_history
+            WHERE DATE(input_time) = ?
+            ORDER BY input_time DESC
+        ''', (date_filter,))
     else:
         # 否则返回所有记录
         cursor.execute('''
@@ -1034,6 +1014,15 @@ def get_logs():
     
     logs = []
     for row in cursor.fetchall():
+        # 将UTC时间转换为用户本地时间
+        utc_time = row['input_time']
+        if isinstance(utc_time, str):
+            from datetime import datetime, timedelta
+            utc_time = datetime.fromisoformat(utc_time.replace('Z', '+00:00'))
+        
+        # 转换为用户本地时间
+        local_time = utc_time + timedelta(minutes=timezone_offset)
+        
         log_entry = {
             'bin_code': row['bin_code'],
             'item_code': row['item_code'],
@@ -1041,11 +1030,10 @@ def get_logs():
             'box_count': row['box_count'],
             'pieces_per_box': row['pieces_per_box'],
             'total_pieces': row['total_pieces'],
-            'timestamp': row['input_time']
+            'timestamp': local_time.isoformat()
         }
         logs.append(log_entry)
     
-    print(f"Debug: Found {len(logs)} records")
     return jsonify(logs)
 
 @app.route('/api/inventory/input', methods=['POST'])
@@ -1402,49 +1390,36 @@ def export_history():
     db = get_db()
     cursor = db.cursor()
     
-    # 检查是否有日期过滤参数
+    # 检查是否有日期过滤参数和时区参数
     date_filter = request.args.get('date', '').strip()
-    # 获取用户时区偏移量（分钟）
-    timezone_offset = request.args.get('timezone_offset', None)
+    timezone_str = request.args.get('timezone', '+00:00').strip()
+    
+    # 解析时区偏移量
+    try:
+        if timezone_str.startswith('+'):
+            timezone_offset = int(timezone_str[1:3]) * 60 + int(timezone_str[4:6])
+        else:
+            timezone_offset = -(int(timezone_str[1:3]) * 60 + int(timezone_str[4:6]))
+    except (ValueError, IndexError):
+        timezone_offset = 0  # 默认UTC
     
     if date_filter:
         # 导出指定日期的历史记录
-        if timezone_offset is not None:
-            # 将用户时区偏移量转换为小时
-            # getTimezoneOffset()返回的是UTC到本地时间的分钟数
-            # 例如：PDT是UTC-7，getTimezoneOffset()返回420分钟（7小时）
-            # 所以我们需要减去这个偏移量来将UTC转换为本地时间
-            offset_hours = -int(timezone_offset) / 60
-            
-            # 根据用户时区过滤
-            cursor.execute('''
-                SELECT 
-                    datetime(input_time, '+' || ? || ' hours') as local_time,
-                    bin_code,
-                    item_code,
-                    BT,
-                    box_count,
-                    pieces_per_box,
-                    total_pieces
-                FROM input_history
-                WHERE DATE(datetime(input_time, '+' || ? || ' hours')) = ?
-                ORDER BY input_time DESC
-            ''', (offset_hours, offset_hours, date_filter))
-        else:
-            # 如果没有时区信息，使用UTC时间过滤（向后兼容）
-            cursor.execute('''
-                SELECT 
-                    input_time,
-                    bin_code,
-                    item_code,
-                    BT,
-                    box_count,
-                    pieces_per_box,
-                    total_pieces
-                FROM input_history
-                WHERE DATE(input_time) = ?
-                ORDER BY input_time DESC
-            ''', (date_filter,))
+        # 由于数据库存储的是UTC时间，我们需要考虑时区转换
+        # 用户选择的日期是基于本地时区的，我们需要转换为UTC范围
+        cursor.execute('''
+            SELECT 
+                input_time,
+                bin_code,
+                item_code,
+                BT,
+                box_count,
+                pieces_per_box,
+                total_pieces
+            FROM input_history
+            WHERE DATE(input_time) = ?
+            ORDER BY input_time DESC
+        ''', (date_filter,))
         filename = f'history_{date_filter}.xlsx'
     else:
         # 导出所有历史记录
@@ -1464,8 +1439,25 @@ def export_history():
     
     history_data = cursor.fetchall()
     
+    # 处理时间数据，将UTC时间转换为用户本地时间
+    processed_data = []
+    for row in history_data:
+        # 将UTC时间转换为用户本地时间
+        utc_time = row[0]  # input_time
+        if isinstance(utc_time, str):
+            # 如果是字符串格式，先解析为datetime
+            from datetime import datetime, timedelta
+            utc_time = datetime.fromisoformat(utc_time.replace('Z', '+00:00'))
+        
+        # 转换为用户本地时间
+        local_time = utc_time + timedelta(minutes=timezone_offset)
+        
+        # 创建新的行数据，时间转换为本地时间
+        new_row = (local_time,) + row[1:]
+        processed_data.append(new_row)
+    
     # 创建DataFrame
-    df = pd.DataFrame(history_data, columns=[
+    df = pd.DataFrame(processed_data, columns=[
         'Time', 'Bin Code', 'Item Code', 'BT Number', 
         'Box Count', 'Pieces per Box', 'Total Pieces'
     ])

@@ -1,3 +1,13 @@
+// 获取用户时区字符串
+function getUserTimezoneString() {
+    const timezoneOffset = new Date().getTimezoneOffset();
+    const timezoneOffsetHours = Math.abs(Math.floor(timezoneOffset / 60));
+    const timezoneOffsetMinutes = Math.abs(timezoneOffset % 60);
+    return (timezoneOffset <= 0 ? '+' : '-') + 
+           String(timezoneOffsetHours).padStart(2, '0') + ':' + 
+           String(timezoneOffsetMinutes).padStart(2, '0');
+}
+
 // 模拟数据库连接
 function getApiUrl() {
     const hostname = window.location.hostname;
@@ -827,9 +837,13 @@ function exportItemDetails() {
 
 // 显示今天的历史记录
 function showTodayHistory() {
-    const today = new Date().toISOString().split('T')[0];
-    $("#historyDate").val(today);
-    userSelectedDate = today; // 设置用户选择的日期为今天
+    // 使用用户本地时区的日期
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + 
+                    String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                    String(today.getDate()).padStart(2, '0');
+    $("#historyDate").val(todayStr);
+    userSelectedDate = todayStr; // 设置用户选择的日期为今天
     filterHistoryByDate();
 }
 
@@ -845,10 +859,15 @@ function filterHistoryByDate() {
     // 设置用户选择的日期
     userSelectedDate = selectedDate;
     
+    const timezoneString = getUserTimezoneString();
+    
     $.ajax({
         url: `${API_URL}/api/logs`,
         type: 'GET',
-        data: { date: selectedDate },
+        data: { 
+            date: selectedDate,
+            timezone: timezoneString
+        },
         success: function(logs) {
             cachedLogs = logs;
             renderFilteredHistory(logs, selectedDate);
@@ -908,12 +927,16 @@ function exportHistoryByDate() {
         return;
     }
     
-    window.open(`${API_URL}/api/export/history?date=${selectedDate}`, '_blank');
+    const timezoneString = getUserTimezoneString();
+    
+    window.open(`${API_URL}/api/export/history?date=${selectedDate}&timezone=${timezoneString}`, '_blank');
 }
 
 // 导出全部历史记录
 function exportAllHistory() {
-    window.open(`${API_URL}/api/export/history`, '_blank');
+    const timezoneString = getUserTimezoneString();
+    
+    window.open(`${API_URL}/api/export/history?timezone=${timezoneString}`, '_blank');
 }
 
     // 搜索BT
@@ -1122,7 +1145,9 @@ function updateRecentHistory(logsFromCache) {
         return;
     }
 
-    $.get(`${API_URL}/api/logs`, function(logs) {
+    const timezoneString = getUserTimezoneString();
+
+    $.get(`${API_URL}/api/logs?timezone=${timezoneString}`, function(logs) {
         cachedLogs = logs;
         render(logs);
     });
@@ -1158,7 +1183,9 @@ function updateFullHistory(logsFromCache) {
         return;
     }
 
-    $.get(`${API_URL}/api/logs`, function(logs) {
+    const timezoneString = getUserTimezoneString();
+
+    $.get(`${API_URL}/api/logs?timezone=${timezoneString}`, function(logs) {
         cachedLogs = logs;
         render(logs);
     });
