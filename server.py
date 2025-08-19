@@ -596,7 +596,7 @@ def get_item_locations(item_id):
         # 商品不存在，返回空结果
         return jsonify({'locations': []})
     
-    # 查询商品在各库位的库存，包含container number
+    # 查询商品在各库位的库存，包含BT
     cursor.execute('''
         WITH merged_inventory AS (
             SELECT 
@@ -657,9 +657,9 @@ def get_container_inventory(container_number):
     cursor = db.cursor()
     
     container_number = container_number.replace('___SLASH___', '/').replace('___SPACE___', ' ')
-    print(f"查询集装箱库存，集装箱号: {container_number}")
+    print(f"查询BT库存，BT号: {container_number}")
     
-    # 查询指定集装箱的所有商品
+    # 查询指定BT的所有商品
     cursor.execute('''
         SELECT 
             i.item_code,
@@ -872,7 +872,7 @@ def export_bins():
     bins_data = cursor.fetchall()
     
     # 创建DataFrame，包含container信息
-    df = pd.DataFrame(bins_data, columns=['Bin Location', 'Item Code', 'Container Number', 'Box Count', 'Pieces per Box', 'Total Pieces'])
+            df = pd.DataFrame(bins_data, columns=['Bin Location', 'Item Code', 'BT', 'Box Count', 'Pieces per Box', 'Total Pieces'])
     
     # 创建Excel文件
     output = BytesIO()
@@ -885,7 +885,7 @@ def export_bins():
         # 设置列宽
         worksheet.set_column('A:A', 15)  # Bin Location
         worksheet.set_column('B:B', 20)  # Item Code
-        worksheet.set_column('C:C', 18)  # Container Number
+        worksheet.set_column('C:C', 18)  # BT
         worksheet.set_column('D:F', 12)  # Box Count, Pieces per Box, Total Pieces
         
         # 定义格式
@@ -916,7 +916,7 @@ def export_bins():
         # 应用格式到整列
         worksheet.set_column('A:A', 15, bin_format)    # Bin Location
         worksheet.set_column('B:B', 20, item_format)   # Item Code
-        worksheet.set_column('C:C', 18, container_format) # Container Number
+        worksheet.set_column('C:C', 18, container_format) # BT
         worksheet.set_column('D:F', 12, number_format) # Box Count, Pieces per Box, Total Pieces
         
         # 合并相同库位的单元格
@@ -1391,7 +1391,7 @@ def export_history():
     
     # 创建DataFrame
     df = pd.DataFrame(history_data, columns=[
-        'Time', 'Bin Code', 'Item Code', 'Container Number', 
+        'Time', 'Bin Code', 'Item Code', 'BT', 
         'Box Count', 'Pieces per Box', 'Total Pieces'
     ])
     
@@ -1407,7 +1407,7 @@ def export_history():
         worksheet.set_column('A:A', 20)  # Time
         worksheet.set_column('B:B', 15)  # Bin Code
         worksheet.set_column('C:C', 15)  # Item Code
-        worksheet.set_column('D:D', 15)  # Container Number
+        worksheet.set_column('D:D', 15)  # BT
         worksheet.set_column('E:E', 12)  # Box Count
         worksheet.set_column('F:F', 15)  # Pieces per Box
         worksheet.set_column('G:G', 12)  # Total Pieces
