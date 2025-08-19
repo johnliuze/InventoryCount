@@ -627,12 +627,16 @@ function searchItemTotal() {
                     ${locations.map(loc => `
                         <div class="item-card">
                             <div class="item-header">
-                                <span class="lang-zh">
-                                    库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> 件
-                                </span>
-                                <span class="lang-en">
-                                    Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> pcs
-                                </span>
+                                <div class="location-info">
+                                    <span class="lang-zh">
+                                        库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> 件
+                                        ${loc.container_number ? ` (集装箱: <span class="container-number">${loc.container_number}</span>)` : ''}
+                                    </span>
+                                    <span class="lang-en">
+                                        Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> pcs
+                                        ${loc.container_number ? ` (Container: <span class="container-number">${loc.container_number}</span>)` : ''}
+                                    </span>
+                                </div>
                             </div>
                             <div class="box-details-container">
                                 ${loc.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box).map(detail => `

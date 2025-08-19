@@ -406,6 +406,10 @@
         .clear-item-button:hover {
             background-color: #c0392b;
         }
+        
+        .location-info {
+            flex: 1;
+        }
 
         /* 导出按钮组样式 */
         .export-buttons {
@@ -1047,8 +1051,8 @@
             <!-- 查询类型标签页 -->
             <div class="query-tab-buttons">
                 <button class="query-tab-button active" onclick="switchQueryTab('item-total')" data-tab="item-total">
-                    <span class="lang-zh">按商品查询</span>
-                    <span class="lang-en">Query by Item</span>
+                    <span class="lang-zh">搜索商品</span>
+                    <span class="lang-en">Search Item</span>
                 </button>
                 <button class="query-tab-button" onclick="switchQueryTab('bin-contents')" data-tab="bin-contents">
                     <span class="lang-zh">搜索库位</span>
@@ -1056,11 +1060,11 @@
                 </button>
             </div>
             
-            <!-- 按商品查询 -->
+            <!-- 搜索商品 -->
             <div id="item-total-tab" class="query-content active">
                 <h3>
-                    <span class="lang-zh">按商品查询总数量和所在库位</span>
-                    <span class="lang-en">Query Item Total Quantity and Locations</span>
+                    <span class="lang-zh">搜索商品总数量和所在库位</span>
+                    <span class="lang-en">Search Item Total Quantity and Locations</span>
                 </h3>
                 <div class="search-input-group">
                     <input type="text" id="itemSearch">

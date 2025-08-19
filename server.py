@@ -596,40 +596,44 @@ def get_item_locations(item_id):
         # 商品不存在，返回空结果
         return jsonify({'locations': []})
     
-    # 查询商品在各库位的库存
+    # 查询商品在各库位的库存，包含container number
     cursor.execute('''
         WITH merged_inventory AS (
             SELECT 
                 b.bin_code,
+                inv.container_number,
                 inv.pieces_per_box,
                 SUM(inv.box_count) as merged_box_count,
                 SUM(inv.total_pieces) as pieces_for_box_size
             FROM inventory inv
             JOIN bins b ON inv.bin_id = b.bin_id
             WHERE inv.item_id = ?
-            GROUP BY b.bin_code, inv.pieces_per_box
+            GROUP BY b.bin_code, inv.container_number, inv.pieces_per_box
         ),
         total_by_bin AS (
             SELECT
                 bin_code,
+                container_number,
                 SUM(pieces_for_box_size) as total_pieces
             FROM merged_inventory
-            GROUP BY bin_code
+            GROUP BY bin_code, container_number
         )
         SELECT 
             m.bin_code,
+            m.container_number,
             t.total_pieces,
             GROUP_CONCAT(m.merged_box_count || 'x' || m.pieces_per_box) as box_details
         FROM merged_inventory m
-        JOIN total_by_bin t ON m.bin_code = t.bin_code
-        GROUP BY m.bin_code
-        ORDER BY m.bin_code
+        JOIN total_by_bin t ON m.bin_code = t.bin_code AND m.container_number = t.container_number
+        GROUP BY m.bin_code, m.container_number
+        ORDER BY m.bin_code, m.container_number
     ''', (item_result['item_id'],))
     
     locations = []
     for row in cursor.fetchall():
         location_info = {
             'bin_code': row['bin_code'],
+            'container_number': row['container_number'],
             'total_pieces': row['total_pieces'],
             'box_details': []
         }
