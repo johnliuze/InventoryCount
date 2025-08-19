@@ -96,8 +96,8 @@ function formatHistoryRecord(record, timestamp, lang) {
     
     // 构建container number显示部分
     const containerDisplay = record.container_number ? 
-        (isZh ? ` 集装箱号: <span class="container-number">${record.container_number}</span>` : 
-                 ` Container: <span class="container-number">${record.container_number}</span>`) : '';
+                (isZh ? ` BT号: <span class="container-number">${record.container_number}</span>` :
+         ` BT: <span class="container-number">${record.container_number}</span>`) : '';
     
     const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${containerDisplay} <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
     const mergedEn = `🗑️ Cleared then added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${containerDisplay} <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
@@ -214,7 +214,7 @@ $(document).ready(function() {
         autoFocus: true
     });
 
-    // 集装箱输入自动完成
+    // BT输入自动完成
     $("#containerSearch").autocomplete({
         source: function(request, response) {
             $.get(`${API_URL}/api/containers`, { search: request.term })
@@ -396,8 +396,8 @@ function showBinChoiceDialog(binCode, itemCode, containerNumber, boxCount, piece
         </div>
         <div class="confirm-row">
             <span class="label">
-                <span class="lang-zh">集装箱：</span>
-                <span class="lang-en">Container:</span>
+                <span class="lang-zh">BT：</span>
+                <span class="lang-en">BT:</span>
             </span>
             <span class="container-number">${containerNumber || '-'}</span>
         </div>
@@ -494,8 +494,8 @@ function showConfirmDialog(binCode, itemCode, containerNumber, boxCount, piecesP
         </div>
         <div class="confirm-row">
             <span class="label">
-                <span class="lang-zh">集装箱：</span>
-                <span class="lang-en">Container:</span>
+                <span class="lang-zh">BT：</span>
+                <span class="lang-en">BT:</span>
             </span>
             <span id="confirm-container" class="container-number">${containerNumber || '-'}</span>
         </div>
@@ -675,7 +675,7 @@ function searchItemTotal() {
                                 <div class="location-info">
                                     <span class="lang-zh">
                                         库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> 件
-                                        ${loc.container_number ? ` (集装箱: <span class="container-number">${loc.container_number}</span>)` : ''}
+                                        ${loc.container_number ? ` (BT: <span class="container-number">${loc.container_number}</span>)` : ''}
                                     </span>
                                     <span class="lang-en">
                                         Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> pcs
@@ -911,13 +911,13 @@ function exportAllHistory() {
     window.open(`${API_URL}/api/export/history`, '_blank');
 }
 
-// 搜索集装箱
+    // 搜索BT
 function searchContainer() {
     const containerNumber = $("#containerSearch").val();
     if (!containerNumber) {
         $("#containerSearchResult").html(`
-            <span class="lang-zh">请输入集装箱号！</span>
-            <span class="lang-en">Please enter container number!</span>
+            <span class="lang-zh">请输入BT号！</span>
+            <span class="lang-en">Please enter BT number!</span>
         `);
         return;
     }
@@ -930,10 +930,10 @@ function searchContainer() {
                 $("#containerSearchResult").html(`
                     <div class="result-item">
                         <span class="lang-zh">
-                            集装箱 <span class="container-number">${containerNumber}</span> 中暂无商品
+                            BT <span class="container-number">${containerNumber}</span> 中暂无商品
                         </span>
                         <span class="lang-en">
-                            Container <span class="container-number">${containerNumber}</span> has no items
+                            BT <span class="container-number">${containerNumber}</span> has no items
                         </span>
                     </div>
                 `);
@@ -945,12 +945,12 @@ function searchContainer() {
                 <div class="result-item">
                     <div class="total-summary">
                         <span class="lang-zh">
-                            集装箱 <span class="container-number">${containerNumber}</span> 
+                            BT <span class="container-number">${containerNumber}</span> 
                             总商品数：<span class="quantity">${data.total_items}</span> 种
                             总数量：<span class="quantity">${data.total_pieces}</span> 件
                         </span>
                         <span class="lang-en">
-                            Container <span class="container-number">${containerNumber}</span> 
+                            BT <span class="container-number">${containerNumber}</span> 
                             total items: <span class="quantity">${data.total_items}</span> types
                             total quantity: <span class="quantity">${data.total_pieces}</span> pcs
                         </span>
@@ -1037,18 +1037,18 @@ function switchLanguage(lang) {
 
 // 更新搜索框占位符
 function updateSearchPlaceholders(lang) {
-    const placeholders = {
-        zh: {
-            binSearch: '输入库位编号',
-            containerSearch: '输入集装箱号',
-            itemSearch: '输入商品编号'
-        },
-        en: {
-            binSearch: 'Enter bin location',
-            containerSearch: 'Enter container number',
-            itemSearch: 'Enter item code'
-        }
-    };
+            const placeholders = {
+            zh: {
+                binSearch: '输入库位编号',
+                containerSearch: '输入BT号',
+                itemSearch: '输入商品编号'
+            },
+            en: {
+                binSearch: 'Enter bin location',
+                containerSearch: 'Enter BT number',
+                itemSearch: 'Enter item code'
+            }
+        };
     
     const texts = placeholders[lang];
     $('#binSearch').attr('placeholder', texts.binSearch);
