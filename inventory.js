@@ -108,6 +108,12 @@ function formatHistoryRecord(record, timestamp, lang) {
         lineHtml = isZh ? mergedZh : mergedEn;
     } else if (record.item_code === '清空库位' || record.item_code === 'Clear Bin') {
         lineHtml = isZh ? clearZh : clearEn;
+    } else if (record.item_code && record.item_code.startsWith('清空商品')) {
+        // 处理清空商品操作
+        const itemCode = record.item_code.replace('清空商品', '');
+        const clearItemZh = `🗑️ 清空商品: 库位 <span class="bin-code">${record.bin_code}</span> 中的商品 <span class="item-code">${itemCode}</span> (<span class="quantity">${record.total_pieces}</span> 件)`;
+        const clearItemEn = `🗑️ Cleared item: Item <span class="item-code">${itemCode}</span> from bin <span class="bin-code">${record.bin_code}</span> (<span class="quantity">${record.total_pieces}</span> pcs)`;
+        lineHtml = isZh ? clearItemZh : clearItemEn;
     } else {
         lineHtml = isZh ? normalZh : normalEn;
     }
