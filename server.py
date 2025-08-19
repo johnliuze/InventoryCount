@@ -1339,6 +1339,11 @@ def export_history():
 if __name__ == '__main__':
     try:
         init_db()
+        # 关闭Flask的访问日志
+        import logging
+        log = logging.getLogger('werkzeug')
+        log.setLevel(logging.ERROR)
+        
         app.run(host=host, port=port, debug=not is_production)
     except Exception as e:
         print("Error starting server:", str(e))
