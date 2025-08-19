@@ -120,12 +120,28 @@ function formatHistoryRecord(record, timestamp, lang) {
     } else {
         lineHtml = isZh ? normalZh : normalEn;
     }
-
+    
     return `
-    <div class="history-item">
-        <div class="time">${timestamp}</div>
-        <div class="details">${lineHtml}</div>
-    </div>`;
+        <div class="history-item">
+            <div class="time">${timestamp}</div>
+            <div class="content">${lineHtml}</div>
+        </div>
+    `;
+}
+
+// 格式化时间戳为本地时间
+function formatTimestamp(timestamp) {
+    // 将UTC时间戳转换为本地时间
+    const date = new Date(timestamp + ' UTC');
+    return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).replace(/\//g, '-');
 }
 
 // 更新历史记录显示
@@ -879,15 +895,7 @@ function renderFilteredHistory(logs, date) {
     const mergedLogs = mergeClearAndAddLogs(logs);
     
     const html = mergedLogs.map(record => {
-        const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        }).replace(/\//g, '-');
+        const timestamp = formatTimestamp(record.timestamp);
         return formatHistoryRecord(record, timestamp, lang);
     }).join('');
     
@@ -1070,15 +1078,15 @@ function updateRecentHistory(logsFromCache) {
     const render = (logs) => {
         const mergedLogs = mergeClearAndAddLogs(logs);
         
-        // 获取今日日期（使用本地时区）
+        // Get today's date (using local timezone)
         const today = new Date();
         const todayStr = today.getFullYear() + '-' + 
                         String(today.getMonth() + 1).padStart(2, '0') + '-' + 
                         String(today.getDate()).padStart(2, '0');
         
-        // 过滤出今日的记录（使用本地时区）
+        // Filter today's records (using local timezone)
         const todayLogs = mergedLogs.filter(record => {
-            const recordDate = new Date(record.timestamp);
+            const recordDate = new Date(record.timestamp + ' UTC');
             const recordDateStr = recordDate.getFullYear() + '-' + 
                                  String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
                                  String(recordDate.getDate()).padStart(2, '0');
@@ -1086,15 +1094,7 @@ function updateRecentHistory(logsFromCache) {
         });
         
         const html = todayLogs.map(record => {
-            const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            }).replace(/\//g, '-');
+            const timestamp = formatTimestamp(record.timestamp);
             return formatHistoryRecord(record, timestamp, document.body.className.includes('lang-en') ? 'en' : 'zh');
         }).join('');
         
@@ -1126,15 +1126,7 @@ function updateFullHistory(logsFromCache) {
     const render = (logs) => {
         const mergedLogs = mergeClearAndAddLogs(logs);
         const html = mergedLogs.map(record => {
-            const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            }).replace(/\//g, '-');
+            const timestamp = formatTimestamp(record.timestamp);
             return formatHistoryRecord(record, timestamp, document.body.className.includes('lang-en') ? 'en' : 'zh');
         }).join('');
         
