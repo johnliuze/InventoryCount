@@ -356,19 +356,17 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            gap: 15px;
         }
 
         /* 库位信息部分样式 */
         .bin-section {
-            flex: 0 0 auto;
-            align-self: flex-start; /* 对齐到顶部 */
+            flex: 1;
         }
 
         /* 提交按钮部分样式 */
         .submit-section {
-            flex: 0 0 auto;
-            align-self: flex-end; /* 对齐到底部 */
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -391,16 +389,7 @@
             }
 
             .right-column {
-                justify-content: flex-start;
-                gap: 15px;
-            }
-
-            .bin-section {
-                align-self: auto;
-            }
-
-            .submit-section {
-                align-self: auto;
+                gap: 10px;
             }
         }
         
@@ -1101,8 +1090,8 @@
         <!-- 盘点录入标签页 -->
         <div id="input-tab" class="tab-content active">
             <h2>
-                <span class="lang-zh">库存盘点</span>
-                <span class="lang-en">Inventory Count</span>
+                <span class="lang-zh">库存录入</span>
+                <span class="lang-en">Inventory Input</span>
             </h2>
             <form id="inventoryForm">
                 <!-- 集装箱信息部分 - 单独一行 -->
@@ -1114,7 +1103,7 @@
                     <div>
                         <label>
                             <span class="lang-zh">集装箱号：</span>
-                            <span class="lang-en">Container Number:</span>
+                            <span class="lang-en">Container No.:</span>
                         </label>
                         <input type="text" id="containerInput" required>
                     </div>
@@ -1334,7 +1323,7 @@
                     <span class="lang-en">📦 Search Bin</span>
                 </h3>
                 <div class="search-input-group">
-                    <input type="text" id="binSearch" placeholder="输入库位编号">
+                    <input type="text" id="binSearch">
                     <button onclick="searchBinContents()">
                         <span class="lang-zh">查询</span>
                         <span class="lang-en">Search</span>
@@ -1350,7 +1339,7 @@
                     <span class="lang-en">🚢 Search Container</span>
                 </h3>
                 <div class="search-input-group">
-                    <input type="text" id="containerSearch" placeholder="输入集装箱号">
+                    <input type="text" id="containerSearch">
                     <button onclick="searchContainer()">
                         <span class="lang-zh">搜索</span>
                         <span class="lang-en">Search</span>
@@ -1366,7 +1355,7 @@
                     <span class="lang-en">📋 Search Item Total Quantity and Locations</span>
                 </h3>
                 <div class="search-input-group">
-                    <input type="text" id="itemSearch" placeholder="输入商品编号">
+                    <input type="text" id="itemSearch">
                     <button onclick="searchItemTotal()">
                         <span class="lang-zh">查询</span>
                         <span class="lang-en">Search</span>

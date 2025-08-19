@@ -275,6 +275,10 @@ $(document).ready(function() {
             }
         });
     });
+
+    // 初始化搜索框占位符
+    const savedLang = localStorage.getItem('preferred-language') || 'zh';
+    updateSearchPlaceholders(savedLang);
 });
 
 // 提交盘点表单
@@ -1019,10 +1023,35 @@ function switchLanguage(lang) {
     // 更新按钮状态
     $('.language-switch button').removeClass('active');
     $(`.language-switch button[onclick="switchLanguage('${lang}')"]`).addClass('active');
+    
+    // 更新搜索框占位符
+    updateSearchPlaceholders(lang);
+    
     // 使用缓存立即重渲染，避免重复请求
     updateHistoryDisplay(cachedLogs);
     updateRecentHistory(cachedLogs);
     updateFullHistory(cachedLogs);
+}
+
+// 更新搜索框占位符
+function updateSearchPlaceholders(lang) {
+    const placeholders = {
+        zh: {
+            binSearch: '输入库位编号',
+            containerSearch: '输入集装箱号',
+            itemSearch: '输入商品编号'
+        },
+        en: {
+            binSearch: 'Enter bin location',
+            containerSearch: 'Enter container number',
+            itemSearch: 'Enter item code'
+        }
+    };
+    
+    const texts = placeholders[lang];
+    $('#binSearch').attr('placeholder', texts.binSearch);
+    $('#containerSearch').attr('placeholder', texts.containerSearch);
+    $('#itemSearch').attr('placeholder', texts.itemSearch);
 }
 
 // 查询标签页切换
