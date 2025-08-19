@@ -1299,14 +1299,25 @@ def clear_bin_inventory(bin_code):
         if not bin_result:
             return jsonify({'error': '库位不存在'}), 404
         
+        # 获取该库位的所有库存记录用于历史记录
+        cursor.execute('''
+            SELECT i.item_code, inv.box_count, inv.pieces_per_box, inv.total_pieces, inv.BT
+            FROM inventory inv
+            JOIN items i ON inv.item_id = i.item_id
+            WHERE inv.bin_id = ?
+        ''', (bin_result['bin_id'],))
+        
+        inventory_records = cursor.fetchall()
+        
         # 删除该库位的所有库存记录
         cursor.execute('DELETE FROM inventory WHERE bin_id = ?', (bin_result['bin_id'],))
         
-        # 记录清除操作到历史记录
-        cursor.execute('''
-            INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces)
-            VALUES (?, '清空库位', 0, 0, 0)
-        ''', (bin_code,))
+        # 为每个被清空的物品记录历史记录
+        for record in inventory_records:
+            cursor.execute('''
+                INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces, BT)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (bin_code, record['item_code'], record['box_count'], record['pieces_per_box'], record['total_pieces'], record['BT']))
         
         db.commit()
         return jsonify({'success': True, 'message': f'已清空库位 {bin_code} 的所有库存'})
