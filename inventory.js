@@ -584,17 +584,11 @@ function addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
             pieces_per_box: piecesPerBox
         }),
         success: function(response) {
-            // 成功后再更新显示并重置表单（保留BT）
+            // 成功后再更新显示并重置表单
             setTimeout(updateHistoryDisplay, 100);
             
-            // 保存BT的值
-            const BTValue = $("#BTInput").val();
-            
-            // 重置表单
+            // 重置表单（包括BT输入框）
             $("#inventoryForm")[0].reset();
-            
-            // 恢复BT的值
-            $("#BTInput").val(BTValue);
         },
         error: function(xhr, status, error) {
             let errorMsg = "添加失败，请检查输入！";
