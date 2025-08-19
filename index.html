@@ -886,7 +886,12 @@
         }
         
         #recent-history-list {
-            max-height: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #eee;
+            padding: 10px;
         }
         
         .history-item:hover {
@@ -1180,8 +1185,8 @@
             
             <div class="input-history">
                 <h3>
-                    <span class="lang-zh">最近录入记录</span>
-                    <span class="lang-en">Recent Input History</span>
+                    <span class="lang-zh">今日录入</span>
+                    <span class="lang-en">Today's Input</span>
                 </h3>
                 <div id="recent-history-list" class="history-list"></div>
             </div>

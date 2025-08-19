@@ -1058,12 +1058,22 @@ function switchQueryTab(tabId) {
     $(`.query-tab-button[data-tab="${tabId}"]`).addClass('active');
 }
 
-// 更新最近5条历史记录
+// 更新今日录入记录
 function updateRecentHistory(logsFromCache) {
     const render = (logs) => {
         const mergedLogs = mergeClearAndAddLogs(logs);
-        const recentLogs = mergedLogs.slice(0, 5);  // 只取最近5条
-        const html = recentLogs.map(record => {
+        
+        // 获取今日日期
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD格式
+        
+        // 过滤出今日的记录
+        const todayLogs = mergedLogs.filter(record => {
+            const recordDate = new Date(record.timestamp).toISOString().split('T')[0];
+            return recordDate === todayStr;
+        });
+        
+        const html = todayLogs.map(record => {
             const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',
@@ -1078,7 +1088,13 @@ function updateRecentHistory(logsFromCache) {
         
         const recentHistoryList = document.getElementById('recent-history-list');
         if (recentHistoryList) {
-            recentHistoryList.innerHTML = html;
+            if (todayLogs.length === 0) {
+                const lang = document.body.className.includes('lang-en') ? 'en' : 'zh';
+                const noDataText = lang === 'zh' ? '今日暂无录入记录' : 'No input records today';
+                recentHistoryList.innerHTML = `<div style="text-align: center; color: #666; padding: 20px;">${noDataText}</div>`;
+            } else {
+                recentHistoryList.innerHTML = html;
+            }
         }
     };
 
