@@ -914,7 +914,7 @@ def export_bins():
         BT_format = workbook.add_format({
             'align': 'center',
             'valign': 'vcenter',
-            'font_color': '#3498db'  # 浅蓝色
+            'font_color': '#9c27b0'  # 紫色
         })
         
         number_format = workbook.add_format({
@@ -1090,6 +1090,7 @@ def export_item_details():
             SELECT 
                 i.item_code,
                 b.bin_code,
+                inv.BT,
                 inv.pieces_per_box,
                 inv.box_count,
                 inv.total_pieces as box_total,
@@ -1111,6 +1112,7 @@ def export_item_details():
         SELECT DISTINCT
             ild.item_code,
             ild.bin_code,
+            ild.BT,
             ild.pieces_per_box,
             ild.box_count,
             ild.box_total,
@@ -1160,21 +1162,26 @@ def export_item_details():
         item_format = workbook.add_format({
             'align': 'center',
             'valign': 'vcenter',
-            'font_color': '#2962ff'
+            'font_color': '#2962ff'  # 蓝色
         })
         bin_format = workbook.add_format({
             'align': 'center',
             'valign': 'vcenter',
-            'font_color': '#e67e22'
+            'font_color': '#e67e22'  # 橙色
+        })
+        bt_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#9c27b0'  # 紫色
         })
         number_format = workbook.add_format({
             'align': 'center',
             'valign': 'vcenter',
-            'font_color': '#27ae60'
+            'font_color': '#27ae60'  # 绿色
         })
         
         # 写入标题
-        headers = ['Item Code', 'Bin Location', 'Box Count', 'Pieces/Box', 
+        headers = ['Item Code', 'Bin Location', 'BT', 'Box Count', 'Pieces/Box', 
                   'Total in Box', 'Bin Total', 'Item Total']
         for col, header in enumerate(headers):
             worksheet.write(0, col, header, header_format)
@@ -1182,7 +1189,8 @@ def export_item_details():
         # 设置列宽
         worksheet.set_column('A:A', 20)  # Item Code
         worksheet.set_column('B:B', 15)  # Bin Location
-        worksheet.set_column('C:G', 12)  # Numeric columns
+        worksheet.set_column('C:C', 15)  # BT
+        worksheet.set_column('D:H', 12)  # Numeric columns
         
         # 写入数据
         row_num = 1
@@ -1195,42 +1203,43 @@ def export_item_details():
             for data in group:
                 worksheet.write(row_num, 0, data['item_code'], item_format)
                 worksheet.write(row_num, 1, data['bin_code'], bin_format)
-                worksheet.write(row_num, 2, data['box_count'], number_format)
-                worksheet.write(row_num, 3, data['pieces_per_box'], number_format)
-                worksheet.write(row_num, 4, data['box_total'], number_format)
+                worksheet.write(row_num, 2, data['BT'], bt_format)
+                worksheet.write(row_num, 3, data['box_count'], number_format)
+                worksheet.write(row_num, 4, data['pieces_per_box'], number_format)
+                worksheet.write(row_num, 5, data['box_total'], number_format)
                 
                 # 处理bin_total和bin_code的写入和合并
                 if current_bin != data['bin_code']:
                     if current_bin is not None and row_num - bin_start > 1:
                         # 合并前一个bin的单元格
-                        worksheet.merge_range(f'F{bin_start+1}:F{row_num}', 
+                        worksheet.merge_range(f'G{bin_start+1}:G{row_num}', 
                                               current_bin_total, number_format)
                         worksheet.merge_range(f'B{bin_start+1}:B{row_num}',
                                               current_bin, bin_format)
                     current_bin = data['bin_code']
                     current_bin_total = data['bin_total']
                     bin_start = row_num
-                    worksheet.write(row_num, 5, current_bin_total, number_format)
+                    worksheet.write(row_num, 6, current_bin_total, number_format)
                     worksheet.write(row_num, 1, data['bin_code'], bin_format)
                 else:
                     # 对于同一个bin的后续行，使用相同的bin_total
-                    worksheet.write(row_num, 5, current_bin_total, number_format)
+                    worksheet.write(row_num, 6, current_bin_total, number_format)
                 
                 row_num += 1
             
             # 处理最后一个bin的合并
             if row_num - bin_start > 1:
-                worksheet.merge_range(f'F{bin_start+1}:F{row_num}', 
+                worksheet.merge_range(f'G{bin_start+1}:G{row_num}', 
                                       current_bin_total, number_format)
                 worksheet.merge_range(f'B{bin_start+1}:B{row_num}',
                                       data['bin_code'], bin_format)
             elif row_num == bin_start + 1:
                 # 如果只有一行，直接写入而不合并
                 worksheet.write(bin_start, 1, data['bin_code'], bin_format)
-                worksheet.write(bin_start, 5, current_bin_total, number_format)
+                worksheet.write(bin_start, 6, current_bin_total, number_format)
             
             # 合并item_total - 确保总是显示商品总数量
-            worksheet.merge_range(f'G{start_row+1}:G{row_num}', 
+            worksheet.merge_range(f'H{start_row+1}:H{row_num}', 
                                   data['item_total'], number_format)
             
             # 合并item_code - 确保总是显示商品编码
@@ -1240,7 +1249,7 @@ def export_item_details():
             else:
                 # 如果只有一行，确保item_code和item_total都正确显示
                 worksheet.write(start_row, 0, data['item_code'], item_format)
-                worksheet.write(start_row, 6, data['item_total'], number_format)
+                worksheet.write(start_row, 7, data['item_total'], number_format)
     
     output.seek(0)
     return send_file(
@@ -1427,20 +1436,39 @@ def export_history():
             'bold': True,
             'align': 'center',
             'valign': 'vcenter',
-            'bg_color': '#4CAF50',
-            'font_color': 'white'
+            'bg_color': '#f8f9fa'
         })
         
         time_format = workbook.add_format({
             'align': 'center',
             'valign': 'vcenter',
-            'num_format': 'yyyy-mm-dd hh:mm:ss'
+            'num_format': 'yyyy-mm-dd hh:mm:ss',
+            'font_color': '#666666'  # 灰色
+        })
+        
+        bin_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#e67e22'  # 橙色
+        })
+        
+        item_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#2962ff'  # 蓝色
+        })
+        
+        bt_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#9c27b0'  # 紫色
         })
         
         number_format = workbook.add_format({
             'align': 'center',
             'valign': 'vcenter',
-            'num_format': '#,##0'
+            'num_format': '#,##0',
+            'font_color': '#27ae60'  # 绿色
         })
         
         # 应用格式到表头
@@ -1448,8 +1476,11 @@ def export_history():
             worksheet.write(0, col_num, value, header_format)
         
         # 应用格式到数据
-        worksheet.set_column('A:A', 20, time_format)  # Time column
-        worksheet.set_column('E:G', None, number_format)  # Number columns
+        worksheet.set_column('A:A', 20, time_format)    # Time column
+        worksheet.set_column('B:B', 15, bin_format)     # Bin Code column
+        worksheet.set_column('C:C', 15, item_format)    # Item Code column
+        worksheet.set_column('D:D', 15, bt_format)      # BT Number column
+        worksheet.set_column('E:G', None, number_format) # Number columns
     
     output.seek(0)
     return send_file(
