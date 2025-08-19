@@ -309,24 +309,6 @@
         #input-tab form div {
             margin: 8px 0;
             text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        
-        #input-tab label {
-            font-size: 1.2em;
-            min-width: 120px;
-            font-weight: bold;
-            text-align: right;
-        }
-        
-        #input-tab input {
-            font-size: 1.2em;
-            padding: 12px 16px;
-            width: 200px;
-            text-align: center;
         }
 
         /* 输入部分样式 */
@@ -356,11 +338,6 @@
 
         /* 响应式设计 */
         @media (max-width: 768px) {
-            #input-tab form div {
-                flex-direction: column;
-                gap: 5px;
-            }
-            
             #input-tab input {
                 width: 90%;
                 max-width: 300px;
@@ -371,8 +348,14 @@
             #input-tab label {
                 font-size: 1em;
                 min-width: auto;
+                display: block;
+                margin-bottom: 5px;
                 text-align: center;
-                margin-bottom: 0;
+            }
+            
+            #input-tab form div {
+                margin: 10px 0;
+                text-align: center;
             }
             
             .input-section {
