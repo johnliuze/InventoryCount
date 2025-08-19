@@ -288,22 +288,18 @@
             margin-right: auto;
         }
 
-        /* 提交按钮容器和样式 */
-        .submit-container {
-            text-align: center;
-            margin-top: 20px;
-        }
-
+        /* 提交按钮样式 */
         .submit-button {
             font-size: 1.2em;
-            padding: 12px 40px;
+            padding: 15px 30px;
             background-color: #28a745;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             transition: background-color 0.3s;
-            min-width: 150px;
+            width: 100%;
+            max-width: 200px;
         }
 
         .submit-button:hover {
@@ -355,6 +351,27 @@
             min-width: 0; /* 防止flex项目溢出 */
         }
 
+        /* 右侧列样式 */
+        .right-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* 库位信息部分样式 */
+        .bin-section {
+            flex: 1;
+        }
+
+        /* 提交按钮部分样式 */
+        .submit-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         /* 集装箱部分特殊样式 */
         .container-section {
             margin-bottom: 25px;
@@ -369,6 +386,10 @@
             
             .input-section {
                 margin-bottom: 10px;
+            }
+
+            .right-column {
+                gap: 10px;
             }
         }
         
@@ -1088,7 +1109,7 @@
                     </div>
                 </div>
 
-                <!-- 商品信息和库位信息并排显示 -->
+                <!-- 商品信息和右侧列并排显示 -->
                 <div class="input-sections-container">
                     <!-- 商品信息部分 -->
                     <div class="input-section">
@@ -1129,28 +1150,31 @@
                         </div>
                     </div>
 
-                    <!-- 库位信息部分 -->
-                    <div class="input-section">
-                        <h3 class="section-title">
-                            <span class="lang-zh">📦 库位信息</span>
-                            <span class="lang-en">📦 Bin Information</span>
-                        </h3>
-                        <div>
-                            <label>
-                                <span class="lang-zh">库位编号：</span>
-                                <span class="lang-en">Bin Location:</span>
-                            </label>
-                            <input type="text" id="binInput" required>
+                    <!-- 右侧列：库位信息 + 提交按钮 -->
+                    <div class="right-column">
+                        <!-- 库位信息部分 -->
+                        <div class="input-section bin-section">
+                            <h3 class="section-title">
+                                <span class="lang-zh">📦 库位信息</span>
+                                <span class="lang-en">📦 Bin Information</span>
+                            </h3>
+                            <div>
+                                <label>
+                                    <span class="lang-zh">库位编号：</span>
+                                    <span class="lang-en">Bin Location:</span>
+                                </label>
+                                <input type="text" id="binInput" required>
+                            </div>
+                        </div>
+
+                        <!-- 提交按钮部分 -->
+                        <div class="input-section submit-section">
+                            <button type="submit" class="submit-button">
+                                <span class="lang-zh">提交</span>
+                                <span class="lang-en">Submit</span>
+                            </button>
                         </div>
                     </div>
-                </div>
-
-                <!-- 提交按钮独立放置 -->
-                <div class="submit-container">
-                    <button type="submit" class="submit-button">
-                        <span class="lang-zh">提交</span>
-                        <span class="lang-en">Submit</span>
-                    </button>
                 </div>
             </form>
             
