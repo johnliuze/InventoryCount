@@ -1511,7 +1511,8 @@ if __name__ == '__main__':
         log = logging.getLogger('werkzeug')
         log.setLevel(logging.ERROR)
         
-        app.run(host=host, port=port, debug=not is_production)
+        # 关闭调试模式，避免重复启动信息
+        app.run(host=host, port=port, debug=False)
     except Exception as e:
         print("Error starting server:", str(e))
         print(traceback.format_exc()) 
