@@ -351,28 +351,24 @@
             min-width: 0; /* 防止flex项目溢出 */
         }
 
-        /* 左侧商品信息列样式 */
-        .input-section:first-child {
-            height: 280px; /* 设置固定高度 */
-        }
-
         /* 右侧列样式 */
         .right-column {
             flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            height: 280px; /* 与左侧列高度一致 */
         }
 
         /* 库位信息部分样式 */
         .bin-section {
             flex: 0 0 auto;
+            align-self: flex-start; /* 对齐到顶部 */
         }
 
         /* 提交按钮部分样式 */
         .submit-section {
             flex: 0 0 auto;
+            align-self: flex-end; /* 对齐到底部 */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -395,7 +391,16 @@
             }
 
             .right-column {
-                gap: 10px;
+                justify-content: flex-start;
+                gap: 15px;
+            }
+
+            .bin-section {
+                align-self: auto;
+            }
+
+            .submit-section {
+                align-self: auto;
             }
         }
         
