@@ -371,18 +371,6 @@
             transition: all 0.3s ease;
         }
 
-        /* 水平布局容器 */
-        .input-sections-container {
-            display: flex;
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-
-        .input-section {
-            flex: 1;
-            min-width: 0; /* 防止flex项目溢出 */
-        }
-
         /* BT部分特殊样式 */
         .container-section {
             margin-bottom: 25px;
@@ -390,11 +378,6 @@
 
         /* 响应式设计 */
         @media (max-width: 768px) {
-            .input-sections-container {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
             .input-section {
                 margin-bottom: 10px;
             }
@@ -1107,7 +1090,22 @@
                 </button>
             </div>
             <form id="inventoryForm">
-                <!-- BT信息部分 - 单独一行 -->
+                <!-- 库位信息部分 - 最上面 -->
+                <div class="input-section container-section">
+                    <h3 class="section-title">
+                        <span class="lang-zh">📦 库位信息</span>
+                        <span class="lang-en">📦 Bin Information</span>
+                    </h3>
+                    <div>
+                        <label>
+                            <span class="lang-zh">库位编号：</span>
+                            <span class="lang-en">Bin Location:</span>
+                        </label>
+                        <input type="text" id="binInput" required>
+                    </div>
+                </div>
+
+                <!-- BT信息部分 -->
                 <div class="input-section container-section">
                     <h3 class="section-title">
                         <span class="lang-zh">🚢 BT号</span>
@@ -1122,60 +1120,42 @@
                     </div>
                 </div>
 
-                <!-- 商品信息和库位信息并排显示 -->
-                <div class="input-sections-container">
-                    <!-- 商品信息部分 -->
-                    <div class="input-section">
-                        <h3 class="section-title">
-                            <span class="lang-zh">📋 商品信息</span>
-                            <span class="lang-en">📋 Item Information</span>
-                        </h3>
-                        <div>
-                            <label>
-                                <span class="lang-zh">商品编号：</span>
-                                <span class="lang-en">Item Code:</span>
-                            </label>
-                            <input type="text" id="itemInput" required>
-                        </div>
-                        <div>
-                            <label>
-                                <span class="lang-zh">箱数：</span>
-                                <span class="lang-en">Box Count:</span>
-                            </label>
-                            <input type="number" 
-                                   id="boxCount" 
-                                   required 
-                                   min="1" 
-                                   step="1" 
-                                   oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
-                        </div>
-                        <div>
-                            <label>
-                                <span class="lang-zh">每箱数量：</span>
-                                <span class="lang-en">Pieces per Box:</span>
-                            </label>
-                            <input type="number" 
-                                   id="piecesPerBox" 
-                                   required 
-                                   min="1" 
-                                   step="1" 
-                                   oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
-                        </div>
+                <!-- 商品信息部分 -->
+                <div class="input-section">
+                    <h3 class="section-title">
+                        <span class="lang-zh">📋 商品信息</span>
+                        <span class="lang-en">📋 Item Information</span>
+                    </h3>
+                    <div>
+                        <label>
+                            <span class="lang-zh">商品编号：</span>
+                            <span class="lang-en">Item Code:</span>
+                        </label>
+                        <input type="text" id="itemInput" required>
                     </div>
-
-                    <!-- 库位信息部分 -->
-                    <div class="input-section">
-                        <h3 class="section-title">
-                            <span class="lang-zh">📦 库位信息</span>
-                            <span class="lang-en">📦 Bin Information</span>
-                        </h3>
-                        <div>
-                            <label>
-                                <span class="lang-zh">库位编号：</span>
-                                <span class="lang-en">Bin Location:</span>
-                            </label>
-                            <input type="text" id="binInput" required>
-                        </div>
+                    <div>
+                        <label>
+                            <span class="lang-zh">箱数：</span>
+                            <span class="lang-en">Box Count:</span>
+                        </label>
+                        <input type="number" 
+                               id="boxCount" 
+                               required 
+                               min="1" 
+                               step="1" 
+                               oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
+                    </div>
+                    <div>
+                        <label>
+                            <span class="lang-zh">每箱数量：</span>
+                            <span class="lang-en">Pieces per Box:</span>
+                        </label>
+                        <input type="number" 
+                               id="piecesPerBox" 
+                               required 
+                               min="1" 
+                               step="1" 
+                               oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
                     </div>
                 </div>
             </form>
