@@ -361,6 +361,24 @@
             display: block;
             margin-top: 5px;
         }
+        
+        .total-summary {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .locations-details {
+            margin-top: 15px;
+        }
+        
+        .locations-details h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
 
         /* 导出按钮组样式 */
         .export-buttons {
@@ -851,8 +869,8 @@
             <form id="inventoryForm">
                 <div>
                     <label>
-                        <span class="lang-zh">集装箱号：</span>
-                        <span class="lang-en">Container Number:</span>
+                        <span class="lang-zh">集装箱：</span>
+                        <span class="lang-en">Container:</span>
                     </label>
                     <input type="text" id="containerInput" required>
                 </div>
@@ -1002,24 +1020,20 @@
             <!-- 查询类型标签页 -->
             <div class="query-tab-buttons">
                 <button class="query-tab-button active" onclick="switchQueryTab('item-total')" data-tab="item-total">
-                    <span class="lang-zh">按商品查询总数量</span>
-                    <span class="lang-en">Query Total by Item</span>
+                    <span class="lang-zh">按商品查询</span>
+                    <span class="lang-en">Query by Item</span>
                 </button>
                 <button class="query-tab-button" onclick="switchQueryTab('bin-contents')" data-tab="bin-contents">
                     <span class="lang-zh">按库位查询商品</span>
                     <span class="lang-en">Query Items by Bin</span>
                 </button>
-                <button class="query-tab-button" onclick="switchQueryTab('item-locations')" data-tab="item-locations">
-                    <span class="lang-zh">查询商品所在库位</span>
-                    <span class="lang-en">Query Item Locations</span>
-                </button>
             </div>
             
-            <!-- 按商品查询总数量 -->
+            <!-- 按商品查询 -->
             <div id="item-total-tab" class="query-content active">
                 <h3>
-                    <span class="lang-zh">按商品查询总数量</span>
-                    <span class="lang-en">Query Total Quantity by Item</span>
+                    <span class="lang-zh">按商品查询总数量和所在库位</span>
+                    <span class="lang-en">Query Item Total Quantity and Locations</span>
                 </h3>
                 <div class="search-input-group">
                     <input type="text" id="itemSearch">
@@ -1047,21 +1061,7 @@
                 <div id="binContentsResult" class="result-div"></div>
             </div>
 
-            <!-- 查询商品所在库位 -->
-            <div id="item-locations-tab" class="query-content">
-                <h3>
-                    <span class="lang-zh">查询商品所在库位</span>
-                    <span class="lang-en">Query Item Locations</span>
-                </h3>
-                <div class="search-input-group">
-                    <input type="text" id="itemLocationSearch">
-                    <button onclick="searchItemLocations()">
-                        <span class="lang-zh">查询</span>
-                        <span class="lang-en">Search</span>
-                    </button>
-                </div>
-                <div id="itemLocationsResult" class="result-div"></div>
-            </div>
+
         </div>
     </div>
 

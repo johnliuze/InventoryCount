@@ -561,7 +561,7 @@ function addInventory(binCode, itemCode, containerNumber, boxCount, piecesPerBox
     });
 }
 
-// 查询商品总数量
+// 查询商品总数量和所在库位
 function searchItemTotal() {
     const itemCode = $("#itemSearch").val();
     if (!itemCode) {
@@ -575,58 +575,103 @@ function searchItemTotal() {
     const encodedItemCode = itemCode.trim()
         .replace(/\//g, '___SLASH___')
         .replace(/\s/g, '___SPACE___');
-    const url = `${API_URL}/api/inventory/item/${encodedItemCode}`;
     
-    $.ajax({
-        url: url,
-        type: 'GET',
-        success: function(data) {
-            // 如果总数为0，显示无库存信息
-            if (data.total === 0) {
-                $("#itemTotalResult").html(`
-                    <div class="result-item">
-                        <span class="lang-zh">
-                            商品 <span class="item-code">${itemCode}</span> 当前无库存
-                        </span>
-                        <span class="lang-en">
-                            Item <span class="item-code">${itemCode}</span> currently has no inventory
-                        </span>
-                    </div>
-                `);
-                return;
-            }
-            
+    // 同时获取总数量和库位信息
+    $.when(
+        $.get(`${API_URL}/api/inventory/item/${encodedItemCode}`),
+        $.get(`${API_URL}/api/inventory/locations/${encodedItemCode}`)
+    ).done(function(totalData, locationsData) {
+        const total = totalData[0];
+        const locations = locationsData[0];
+        
+        // 如果总数为0，显示无库存信息
+        if (total.total === 0) {
             $("#itemTotalResult").html(`
                 <div class="result-item">
                     <span class="lang-zh">
-                        商品 <span class="item-code">${itemCode}</span> 
-                        总数量：<span class="quantity">${data.total}</span> 件
-                        （<span class="quantity">${data.total_boxes}</span> 箱）
+                        商品 <span class="item-code">${itemCode}</span> 当前无库存
                     </span>
                     <span class="lang-en">
-                        Item <span class="item-code">${itemCode}</span> 
-                        total quantity: <span class="quantity">${data.total}</span> pcs
-                        (<span class="quantity">${data.total_boxes}</span> boxes)
+                        Item <span class="item-code">${itemCode}</span> currently has no inventory
                     </span>
                 </div>
             `);
-        },
-        error: function(xhr, status, error) {
-            let errorMsg = {
-                zh: "查询失败！",
-                en: "Query failed!"
-            };
-            if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMsg = {
-                    zh: xhr.responseJSON.error,
-                    en: xhr.responseJSON.error_en || xhr.responseJSON.error
-                };
-            }
-            $("#itemTotalResult").html(`
-                <span class="lang-zh">${errorMsg.zh}</span>
-                <span class="lang-en">${errorMsg.en}</span>
-            `);
+            return;
         }
+        
+        // 构建总数量信息
+        let html = `
+            <div class="result-item">
+                <div class="total-summary">
+                    <span class="lang-zh">
+                        商品 <span class="item-code">${itemCode}</span> 
+                        总数量：<span class="quantity">${total.total}</span> 件
+                        （<span class="quantity">${total.total_boxes}</span> 箱）
+                    </span>
+                    <span class="lang-en">
+                        Item <span class="item-code">${itemCode}</span> 
+                        total quantity: <span class="quantity">${total.total}</span> pcs
+                        (<span class="quantity">${total.total_boxes}</span> boxes)
+                    </span>
+                </div>
+        `;
+        
+        // 添加库位详细信息
+        if (locations && locations.length > 0) {
+            html += `
+                <div class="locations-details">
+                    <h4>
+                        <span class="lang-zh">所在库位：</span>
+                        <span class="lang-en">Locations:</span>
+                    </h4>
+                    ${locations.map(loc => `
+                        <div class="item-card">
+                            <div class="item-header">
+                                <span class="lang-zh">
+                                    库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> 件
+                                </span>
+                                <span class="lang-en">
+                                    Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> pcs
+                                </span>
+                            </div>
+                            <div class="box-details-container">
+                                ${loc.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box).map(detail => `
+                                    <div class="box-detail-line">
+                                        <span class="lang-zh">
+                                            <span class="quantity">${detail.box_count}</span> 箱 × 
+                                            <span class="quantity">${detail.pieces_per_box}</span> 件/箱
+                                        </span>
+                                        <span class="lang-en">
+                                            <span class="quantity">${detail.box_count}</span> boxes × 
+                                            <span class="quantity">${detail.pieces_per_box}</span> pcs/box
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join("")}
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        $("#itemTotalResult").html(html);
+        
+    }).fail(function(xhr, status, error) {
+        let errorMsg = {
+            zh: "查询失败！",
+            en: "Query failed!"
+        };
+        if (xhr.responseJSON && xhr.responseJSON.error) {
+            errorMsg = {
+                zh: xhr.responseJSON.error,
+                en: xhr.responseJSON.error_en || xhr.responseJSON.error
+            };
+        }
+        $("#itemTotalResult").html(`
+            <span class="lang-zh">${errorMsg.zh}</span>
+            <span class="lang-en">${errorMsg.en}</span>
+        `);
     });
 }
 
@@ -713,70 +758,7 @@ function searchBinContents() {
     });
 }
 
-// 查询商品库位
-function searchItemLocations() {
-    const itemCode = $("#itemLocationSearch").val();
-    if (!itemCode) {
-        $("#itemLocationsResult").html(`
-            <span class="lang-zh">请输入商品编号！</span>
-            <span class="lang-en">Please enter item code!</span>
-        `);
-        return;
-    }
-    
-    const encodedItemCode = itemCode.trim()
-        .replace(/\//g, '___SLASH___')
-        .replace(/\s/g, '___SPACE___');
-    
-    $.ajax({
-        url: `${API_URL}/api/inventory/locations/${encodedItemCode}`,
-        type: 'GET',
-        success: function(locations) {
-            if (!locations || locations.length === 0) {
-                $("#itemLocationsResult").html(`
-                    <span class="lang-zh">未找到该商品</span>
-                    <span class="lang-en">Item not found</span>
-                `);
-                return;
-            }
-            const html = locations.map(loc => `
-                <div class="item-card">
-                    <div class="item-header">
-                        <span class="lang-zh">
-                            库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> 件
-                        </span>
-                        <span class="lang-en">
-                            Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> pcs
-                        </span>
-                    </div>
-                    <div class="box-details-container">
-                        ${loc.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box).map(detail => `
-                            <div class="box-detail-line">
-                                <span class="lang-zh">
-                                    <span class="quantity">${detail.box_count}</span> 箱 × 
-                                    <span class="quantity">${detail.pieces_per_box}</span> 件/箱
-                                </span>
-                                <span class="lang-en">
-                                    <span class="quantity">${detail.box_count}</span> boxes × 
-                                    <span class="quantity">${detail.pieces_per_box}</span> pcs/box
-                                </span>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `).join("");
-            $("#itemLocationsResult").html(html);
-        },
-        error: function(xhr, status, error) {
-            let errorMsg = "查询失败！";
-            if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMsg = xhr.responseJSON.error;
-            }
-            $("#itemLocationsResult").text(errorMsg);
-            console.error("查询失败:", error, xhr.responseText);
-        }
-    });
-}
+
 
 // 导出商品库存
 function exportItems() {
