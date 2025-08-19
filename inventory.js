@@ -244,7 +244,10 @@ $(document).ready(function() {
 
     // 当切换到历史记录标签页时开始更新
     $('.tab-button[data-tab="history"]').on('click', function() {
-        updateFullHistory();
+        // 设置今天日期为默认值
+        const today = new Date().toISOString().split('T')[0];
+        $("#historyDate").val(today);
+        showTodayHistory();
         if (fullHistoryUpdateInterval) {
             clearInterval(fullHistoryUpdateInterval);
         }
@@ -807,6 +810,82 @@ function exportBins() {
 // 导出商品明细
 function exportItemDetails() {
     window.location.href = `${API_URL}/api/export/item-details`;
+}
+
+// 显示今天的历史记录
+function showTodayHistory() {
+    const today = new Date().toISOString().split('T')[0];
+    $("#historyDate").val(today);
+    filterHistoryByDate();
+}
+
+// 根据日期过滤历史记录
+function filterHistoryByDate() {
+    const selectedDate = $("#historyDate").val();
+    if (!selectedDate) {
+        updateFullHistory();
+        return;
+    }
+    
+    $.ajax({
+        url: `${API_URL}/api/logs`,
+        type: 'GET',
+        data: { date: selectedDate },
+        success: function(logs) {
+            cachedLogs = logs;
+            renderFilteredHistory(logs, selectedDate);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching filtered history:', error);
+            $("#full-history-list").html(`
+                <span class="lang-zh">获取历史记录失败！</span>
+                <span class="lang-en">Failed to fetch history!</span>
+            `);
+        }
+    });
+}
+
+// 渲染过滤后的历史记录
+function renderFilteredHistory(logs, date) {
+    const isZh = document.body.className.includes('lang-zh');
+    const lang = isZh ? 'zh' : 'en';
+    
+    if (!logs || logs.length === 0) {
+        const noDataMsg = isZh ? 
+            `没有找到 ${date} 的历史记录` : 
+            `No history records found for ${date}`;
+        $("#full-history-list").html(`<div class="no-data">${noDataMsg}</div>`);
+        return;
+    }
+    
+    // 合并清空并添加的记录
+    const mergedLogs = mergeClearAndAddLogs(logs);
+    
+    let html = '';
+    mergedLogs.forEach(record => {
+        const timestamp = new Date(record.timestamp).toLocaleString(isZh ? 'zh-CN' : 'en-US');
+        html += formatHistoryRecord(record, timestamp, lang);
+    });
+    
+    $("#full-history-list").html(html);
+}
+
+// 导出指定日期的历史记录
+function exportHistoryByDate() {
+    const selectedDate = $("#historyDate").val();
+    if (!selectedDate) {
+        alert(document.body.className.includes('lang-en') ? 
+            "Please select a date first!" : 
+            "请先选择日期！");
+        return;
+    }
+    
+    window.open(`${API_URL}/api/export/history?date=${selectedDate}`, '_blank');
+}
+
+// 导出全部历史记录
+function exportAllHistory() {
+    window.open(`${API_URL}/api/export/history`, '_blank');
 }
 
 // 搜索集装箱

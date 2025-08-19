@@ -432,6 +432,80 @@
             color: #666;
         }
 
+        /* 历史记录控制样式 */
+        .history-controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+        }
+
+        .date-filter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .date-filter label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .date-filter input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .today-btn {
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .today-btn:hover {
+            background-color: #138496;
+        }
+
+        .export-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .export-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .export-btn:hover {
+            background-color: #218838;
+        }
+
+        @media (max-width: 768px) {
+            .date-filter {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .export-controls {
+                flex-direction: column;
+            }
+        }
+
         /* 导出按钮组样式 */
         .export-buttons {
             display: flex;
@@ -985,6 +1059,29 @@
                 <span class="lang-zh">输入历史记录</span>
                 <span class="lang-en">Input History</span>
             </h2>
+            <div class="history-controls">
+                <div class="date-filter">
+                    <label>
+                        <span class="lang-zh">选择日期：</span>
+                        <span class="lang-en">Select Date:</span>
+                    </label>
+                    <input type="date" id="historyDate" onchange="filterHistoryByDate()">
+                    <button onclick="showTodayHistory()" class="today-btn">
+                        <span class="lang-zh">今天</span>
+                        <span class="lang-en">Today</span>
+                    </button>
+                </div>
+                <div class="export-controls">
+                    <button onclick="exportHistoryByDate()" class="export-btn">
+                        <span class="lang-zh">导出选中日期</span>
+                        <span class="lang-en">Export Selected Date</span>
+                    </button>
+                    <button onclick="exportAllHistory()" class="export-btn">
+                        <span class="lang-zh">导出全部记录</span>
+                        <span class="lang-en">Export All Records</span>
+                    </button>
+                </div>
+            </div>
             <div class="full-history-list" id="full-history-list">
                 <!-- 所有历史记录将在这里动态显示 -->
             </div>

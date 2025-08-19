@@ -959,19 +959,38 @@ def get_logs():
     db = get_db()
     cursor = db.cursor()
     
-    # 获取所有记录
-    cursor.execute('''
-        SELECT 
-            bin_code,
-            item_code,
-            container_number,
-            box_count,
-            pieces_per_box,
-            total_pieces,
-            input_time
-        FROM input_history
-        ORDER BY input_time DESC
-    ''')
+    # 检查是否有日期过滤参数
+    date_filter = request.args.get('date', '').strip()
+    
+    if date_filter:
+        # 如果有日期过滤，只返回指定日期的记录
+        cursor.execute('''
+            SELECT 
+                bin_code,
+                item_code,
+                container_number,
+                box_count,
+                pieces_per_box,
+                total_pieces,
+                input_time
+            FROM input_history
+            WHERE DATE(input_time) = ?
+            ORDER BY input_time DESC
+        ''', (date_filter,))
+    else:
+        # 否则返回所有记录
+        cursor.execute('''
+            SELECT 
+                bin_code,
+                item_code,
+                container_number,
+                box_count,
+                pieces_per_box,
+                total_pieces,
+                input_time
+            FROM input_history
+            ORDER BY input_time DESC
+        ''')
     
     logs = []
     for row in cursor.fetchall():
@@ -1328,6 +1347,107 @@ def clear_item_at_bin(bin_code, item_code):
         print(f"Error clearing item at bin: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/export/history', methods=['GET'])
+def export_history():
+    db = get_db()
+    cursor = db.cursor()
+    
+    # 检查是否有日期过滤参数
+    date_filter = request.args.get('date', '').strip()
+    
+    if date_filter:
+        # 导出指定日期的历史记录
+        cursor.execute('''
+            SELECT 
+                input_time,
+                bin_code,
+                item_code,
+                container_number,
+                box_count,
+                pieces_per_box,
+                total_pieces
+            FROM input_history
+            WHERE DATE(input_time) = ?
+            ORDER BY input_time DESC
+        ''', (date_filter,))
+        filename = f'history_{date_filter}.xlsx'
+    else:
+        # 导出所有历史记录
+        cursor.execute('''
+            SELECT 
+                input_time,
+                bin_code,
+                item_code,
+                container_number,
+                box_count,
+                pieces_per_box,
+                total_pieces
+            FROM input_history
+            ORDER BY input_time DESC
+        ''')
+        filename = 'history_all.xlsx'
+    
+    history_data = cursor.fetchall()
+    
+    # 创建DataFrame
+    df = pd.DataFrame(history_data, columns=[
+        'Time', 'Bin Code', 'Item Code', 'Container Number', 
+        'Box Count', 'Pieces per Box', 'Total Pieces'
+    ])
+    
+    # 创建Excel文件
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name='History', index=False)
+        
+        workbook = writer.book
+        worksheet = writer.sheets['History']
+        
+        # 设置列宽
+        worksheet.set_column('A:A', 20)  # Time
+        worksheet.set_column('B:B', 15)  # Bin Code
+        worksheet.set_column('C:C', 15)  # Item Code
+        worksheet.set_column('D:D', 15)  # Container Number
+        worksheet.set_column('E:E', 12)  # Box Count
+        worksheet.set_column('F:F', 15)  # Pieces per Box
+        worksheet.set_column('G:G', 12)  # Total Pieces
+        
+        # 定义格式
+        header_format = workbook.add_format({
+            'bold': True,
+            'align': 'center',
+            'valign': 'vcenter',
+            'bg_color': '#4CAF50',
+            'font_color': 'white'
+        })
+        
+        time_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'num_format': 'yyyy-mm-dd hh:mm:ss'
+        })
+        
+        number_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'num_format': '#,##0'
+        })
+        
+        # 应用格式到表头
+        for col_num, value in enumerate(df.columns.values):
+            worksheet.write(0, col_num, value, header_format)
+        
+        # 应用格式到数据
+        worksheet.set_column('A:A', 20, time_format)  # Time column
+        worksheet.set_column('E:G', None, number_format)  # Number columns
+    
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
 
 
 if __name__ == '__main__':
