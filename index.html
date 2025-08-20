@@ -492,17 +492,11 @@
             border: 1px solid #e9ecef;
         }
 
-        .history-controls-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-        }
-
         .date-filter {
             display: flex;
             align-items: center;
             gap: 10px;
+            margin-bottom: 15px;
         }
 
         .date-filter label {
@@ -515,6 +509,7 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 14px;
+            width: 150px; /* 设置固定宽度 */
         }
 
         .today-btn {
@@ -553,12 +548,6 @@
         }
 
         @media (max-width: 768px) {
-            .history-controls-row {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 15px;
-            }
-            
             .date-filter {
                 flex-direction: column;
                 align-items: flex-start;
@@ -1103,10 +1092,8 @@
             <button onclick="switchLanguage('en')">English</button>
         </div>
         
-        <h1>
-            <span class="lang-zh">库存盘点系统</span>
-            <span class="lang-en">Inventory System</span>
-        </h1>
+        <h1 class="lang-zh">库存盘点系统</h1>
+        <h1 class="lang-en">Inventory System</h1>
         
         <div class="tab-buttons">
             <button class="tab-button active" onclick="switchTab('input')" data-tab="input">
@@ -1213,28 +1200,26 @@
                 <span class="lang-en">Input History</span>
             </h2>
             <div class="history-controls">
-                <div class="history-controls-row">
-                    <div class="date-filter">
-                        <label>
-                            <span class="lang-zh">选择日期：</span>
-                            <span class="lang-en">Select Date:</span>
-                        </label>
-                        <input type="date" id="historyDate" onchange="filterHistoryByDate()">
-                        <button onclick="showTodayHistory()" class="today-btn">
-                            <span class="lang-zh">今天</span>
-                            <span class="lang-en">Today</span>
-                        </button>
-                    </div>
-                    <div class="export-controls">
-                        <button onclick="exportHistoryByDate()" class="export-btn">
-                            <span class="lang-zh">导出选中日期</span>
-                            <span class="lang-en">Export Selected Date</span>
-                        </button>
-                        <button onclick="exportAllHistory()" class="export-btn">
-                            <span class="lang-zh">导出全部记录</span>
-                            <span class="lang-en">Export All Records</span>
-                        </button>
-                    </div>
+                <div class="date-filter">
+                    <label>
+                        <span class="lang-zh">选择日期：</span>
+                        <span class="lang-en">Select Date:</span>
+                    </label>
+                    <input type="date" id="historyDate" onchange="filterHistoryByDate()">
+                    <button onclick="showTodayHistory()" class="today-btn">
+                        <span class="lang-zh">今天</span>
+                        <span class="lang-en">Today</span>
+                    </button>
+                </div>
+                <div class="export-controls">
+                    <button onclick="exportHistoryByDate()" class="export-btn">
+                        <span class="lang-zh">导出选中日期</span>
+                        <span class="lang-en">Export Selected Date</span>
+                    </button>
+                    <button onclick="exportAllHistory()" class="export-btn">
+                        <span class="lang-zh">导出全部记录</span>
+                        <span class="lang-en">Export All Records</span>
+                    </button>
                 </div>
             </div>
             <div class="full-history-list" id="full-history-list">
