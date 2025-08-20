@@ -496,7 +496,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .date-filter label {
@@ -527,16 +527,11 @@
             background-color: #138496;
         }
 
-        .export-controls {
-            display: flex;
-            gap: 10px;
-        }
-
         .export-btn {
             background-color: #28a745;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
@@ -551,10 +546,6 @@
             .date-filter {
                 flex-direction: column;
                 align-items: flex-start;
-            }
-            
-            .export-controls {
-                flex-direction: column;
             }
         }
 
@@ -728,11 +719,6 @@
             .date-filter {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 10px;
-            }
-            
-            .export-controls {
-                flex-direction: column;
                 gap: 10px;
             }
             
@@ -1210,8 +1196,6 @@
                         <span class="lang-zh">今天</span>
                         <span class="lang-en">Today</span>
                     </button>
-                </div>
-                <div class="export-controls">
                     <button onclick="exportHistoryByDate()" class="export-btn">
                         <span class="lang-zh">导出选中日期</span>
                         <span class="lang-en">Export Selected Date</span>
