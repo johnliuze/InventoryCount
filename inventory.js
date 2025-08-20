@@ -45,9 +45,9 @@ function mergeClearAndAddLogs(logs) {
         if (j < logs.length && !usedIndexSet.has(j)) {
             const next = logs[j];
             const sameBin = current.bin_code === next.bin_code;
-            // 后端已经返回本地时间，直接使用
-            const timeA = new Date(current.timestamp).getTime();
-            const timeB = new Date(next.timestamp).getTime();
+            // 确保按UTC时间进行比较
+            const timeA = new Date(current.timestamp + 'Z').getTime();
+            const timeB = new Date(next.timestamp + 'Z').getTime();
             const closeInTime = Math.abs(timeA - timeB) <= withinMs;
 
             // 情况1：按时间倒序常见，先看到添加，后一条是清空
@@ -849,13 +849,22 @@ function filterHistoryByDate() {
     // 设置用户选择的日期
     userSelectedDate = selectedDate;
     
+    // 获取所有记录，然后在客户端进行过滤
     $.ajax({
         url: `${API_URL}/api/logs`,
         type: 'GET',
-        data: { date: selectedDate },
         success: function(logs) {
             cachedLogs = logs;
-            renderFilteredHistory(logs, selectedDate);
+            // 在客户端过滤指定日期的记录
+            const filteredLogs = logs.filter(record => {
+                // 将UTC时间转换为本地时间进行比较
+                const recordDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
+                const recordDateStr = recordDate.getFullYear() + '-' + 
+                                     String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                                     String(recordDate.getDate()).padStart(2, '0');
+                return recordDateStr === selectedDate;
+            });
+            renderFilteredHistory(filteredLogs, selectedDate);
         },
         error: function(xhr, status, error) {
             console.error('Error fetching filtered history:', error);
@@ -885,8 +894,9 @@ function renderFilteredHistory(logs, date) {
     
     let html = '';
     mergedLogs.forEach(record => {
-        // 后端已经返回本地时间，直接格式化显示
-        const timestamp = new Date(record.timestamp).toLocaleString(isZh ? 'zh-CN' : 'en-US', {
+        // 将UTC时间转换为本地时间显示
+        const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
+        const timestamp = utcDate.toLocaleString(isZh ? 'zh-CN' : 'en-US', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -911,7 +921,67 @@ function exportHistoryByDate() {
         return;
     }
     
-    window.open(`${API_URL}/api/export/history?date=${selectedDate}`, '_blank');
+    // 如果有缓存的记录，使用客户端过滤
+    if (cachedLogs && cachedLogs.length > 0) {
+        const filteredLogs = cachedLogs.filter(record => {
+            // 将UTC时间转换为本地时间进行比较
+            const recordDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
+            const recordDateStr = recordDate.getFullYear() + '-' + 
+                                 String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                                 String(recordDate.getDate()).padStart(2, '0');
+            return recordDateStr === selectedDate;
+        });
+        
+        // 创建CSV内容
+        const csvContent = createCSVFromLogs(filteredLogs);
+        downloadCSV(csvContent, `history_${selectedDate}.csv`);
+    } else {
+        // 如果没有缓存，回退到服务器端过滤
+        window.open(`${API_URL}/api/export/history?date=${selectedDate}`, '_blank');
+    }
+}
+
+// 创建CSV内容
+function createCSVFromLogs(logs) {
+    const headers = ['Time', 'Bin Code', 'Item Code', 'BT Number', 'Box Count', 'Pieces per Box', 'Total Pieces'];
+    const rows = logs.map(record => {
+        // 将UTC时间转换为本地时间显示
+        const utcDate = new Date(record.timestamp + 'Z');
+        const timestamp = utcDate.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).replace(/\//g, '-');
+        
+        return [
+            timestamp,
+            record.bin_code || '',
+            record.item_code || '',
+            record.BT || '',
+            record.box_count || 0,
+            record.pieces_per_box || 0,
+            record.total_pieces || 0
+        ];
+    });
+    
+    return [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+}
+
+// 下载CSV文件
+function downloadCSV(csvContent, filename) {
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 // 导出全部历史记录
@@ -1083,10 +1153,10 @@ function updateRecentHistory(logsFromCache) {
                         String(today.getMonth() + 1).padStart(2, '0') + '-' + 
                         String(today.getDate()).padStart(2, '0');
         
-        // 过滤出今日的记录（后端已返回本地时间）
+        // 过滤出今日的记录（将UTC时间转换为本地时间进行比较）
         const todayLogs = mergedLogs.filter(record => {
-            // 后端已经返回本地时间，直接使用
-            const recordDate = new Date(record.timestamp);
+            // 将UTC时间转换为本地时间
+            const recordDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
             const recordDateStr = recordDate.getFullYear() + '-' + 
                                  String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
                                  String(recordDate.getDate()).padStart(2, '0');
@@ -1094,8 +1164,9 @@ function updateRecentHistory(logsFromCache) {
         });
         
         const html = todayLogs.map(record => {
-            // 后端已经返回本地时间，直接格式化显示
-            const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
+            // 将UTC时间转换为本地时间显示
+            const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
+            const timestamp = utcDate.toLocaleString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
@@ -1135,8 +1206,9 @@ function updateFullHistory(logsFromCache) {
     const render = (logs) => {
         const mergedLogs = mergeClearAndAddLogs(logs);
         const html = mergedLogs.map(record => {
-            // 后端已经返回本地时间，直接格式化显示
-            const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
+            // 将UTC时间转换为本地时间显示
+            const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
+            const timestamp = utcDate.toLocaleString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
