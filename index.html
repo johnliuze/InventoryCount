@@ -343,21 +343,12 @@
             }
         }
         
-        /* 搜索标题样式 */
-        .query-content h3 {
-            font-size: 1.4em;
-            font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 15px;
-            margin-top: 10px;
-        }
-
         /* 查询结果样式改进 */
         .result-item {
-            padding: 15px;
+            padding: 12px; /* 减少内边距 */
             border-bottom: 1px solid #eee;
-            font-size: 1.0em;
-            margin-bottom: 10px;
+            font-size: 1.1em;
+            margin-bottom: 10px; /* 减少底部边距 */
             background-color: white;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -367,25 +358,25 @@
         .item-card {
             background-color: white;
             border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 10px;
+            padding: 10px; /* 减少内边距 */
+            margin-bottom: 10px; /* 减少底部边距 */
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         
         .item-header {
-            font-size: 1.1em;
-            margin-bottom: 8px;
+            font-size: 1.2em;
+            margin-bottom: 8px; /* 减少底部边距 */
             border-bottom: 2px solid #f0f0f0;
-            padding-bottom: 8px;
+            padding-bottom: 8px; /* 减少底部内边距 */
         }
         
         .box-details-container {
-            margin-top: 8px;
-            margin-left: 15px;
+            margin-top: 10px;
+            margin-left: 20px;
         }
         
         .box-detail-line {
-            margin: 3px 0;
+            margin: 5px 0;
             color: #666;
         }
         
@@ -420,35 +411,35 @@
         
         .box-details {
             font-size: 0.9em;
-            margin-left: 15px;
+            margin-left: 20px;
             color: #666;
             display: block;
-            margin-top: 3px;
+            margin-top: 5px;
         }
         
         .total-summary {
             background-color: #f8f9fa;
-            padding: 12px;
+            padding: 10px; /* 减少内边距 */
             border-radius: 5px;
-            margin-bottom: 12px;
+            margin-bottom: 10px; /* 减少底部边距 */
             border-left: 4px solid #4CAF50;
         }
         
         .locations-details {
-            margin-top: 12px;
+            margin-top: 15px;
         }
         
         .locations-details h4 {
             color: #2c3e50;
-            margin-bottom: 8px;
-            font-size: 1.0em;
+            margin-bottom: 10px;
+            font-size: 1.1em;
         }
         
         .item-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
         
         .item-info {
@@ -476,18 +467,18 @@
         }
         
         .items-details {
-            margin-top: 12px;
+            margin-top: 15px;
         }
         
         .items-details h4 {
             color: #2c3e50;
-            margin-bottom: 8px;
-            font-size: 1.0em;
+            margin-bottom: 10px;
+            font-size: 1.1em;
         }
         
         .location-item {
-            margin-left: 15px;
-            margin-top: 3px;
+            margin-left: 20px;
+            margin-top: 5px;
             font-size: 0.9em;
             color: #666;
         }
@@ -836,7 +827,8 @@
             min-width: 200px;
             transition: all 0.3s;
             color: #495057;
-            font-weight: 500;
+            font-weight: bold; /* 加粗 */
+            font-size: 16px; /* 增大字体 */
         }
         
         .query-tab-button.active {
@@ -863,13 +855,13 @@
         
         .result-div {
             margin-top: 20px;
-            padding: 15px;
+            padding: 10px; /* 减少内边距 */
             background-color: #f8f9fa;
             border-radius: 4px;
-            min-height: 50px;
+            min-height: 30px; /* 减少最小高度 */
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 10px; /* 减少间距 */
         }
 
         /* 历史记录样式 */
