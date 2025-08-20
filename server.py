@@ -875,7 +875,7 @@ def get_logs():
                 box_count,
                 pieces_per_box,
                 total_pieces,
-                input_time
+                datetime(input_time, 'localtime') as input_time
             FROM input_history
             WHERE DATE(datetime(input_time, 'localtime')) = ?
             ORDER BY input_time DESC
@@ -890,23 +890,13 @@ def get_logs():
                 box_count,
                 pieces_per_box,
                 total_pieces,
-                input_time
+                datetime(input_time, 'localtime') as input_time
             FROM input_history
             ORDER BY input_time DESC
         ''')
     
     logs = []
     for row in cursor.fetchall():
-        # 将UTC时间转换为本地时间
-        utc_time = row['input_time']
-        if utc_time:
-            # 使用SQLite的datetime函数将UTC时间转换为本地时间
-            cursor.execute('SELECT datetime(?, \'localtime\') as local_time', (utc_time,))
-            local_time_result = cursor.fetchone()
-            local_time = local_time_result['local_time'] if local_time_result else utc_time
-        else:
-            local_time = utc_time
-            
         log_entry = {
             'bin_code': row['bin_code'],
             'item_code': row['item_code'],
@@ -914,7 +904,7 @@ def get_logs():
             'box_count': row['box_count'],
             'pieces_per_box': row['pieces_per_box'],
             'total_pieces': row['total_pieces'],
-            'timestamp': local_time
+            'timestamp': row['input_time']
         }
         logs.append(log_entry)
     
