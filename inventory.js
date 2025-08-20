@@ -148,7 +148,7 @@ function updateHistoryDisplay(logsFromCache) {
         const html = mergedLogs.map(record => {
             // 将UTC时间转换为本地时间显示
             const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
-            const timestamp = utcDate.toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', {
+            const timestamp = utcDate.toLocaleString('en-US', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
@@ -898,7 +898,7 @@ function renderFilteredHistory(logs, date) {
     mergedLogs.forEach(record => {
         // 将UTC时间转换为本地时间显示
         const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
-        const timestamp = utcDate.toLocaleString(isZh ? 'zh-CN' : 'en-US', {
+        const timestamp = utcDate.toLocaleString('en-US', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -949,7 +949,7 @@ function createCSVFromLogs(logs) {
     const rows = logs.map(record => {
         // 将UTC时间转换为本地时间显示
         const utcDate = new Date(record.timestamp + 'Z');
-        const timestamp = utcDate.toLocaleString('zh-CN', {
+        const timestamp = utcDate.toLocaleString('en-US', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -1168,7 +1168,7 @@ function updateRecentHistory(logsFromCache) {
         const html = todayLogs.map(record => {
             // 将UTC时间转换为本地时间显示
             const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
-            const timestamp = utcDate.toLocaleString('zh-CN', {
+            const timestamp = utcDate.toLocaleString('en-US', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
@@ -1210,7 +1210,7 @@ function updateFullHistory(logsFromCache) {
         const html = mergedLogs.map(record => {
             // 将UTC时间转换为本地时间显示
             const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
-            const timestamp = utcDate.toLocaleString('zh-CN', {
+            const timestamp = utcDate.toLocaleString('en-US', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
