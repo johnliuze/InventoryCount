@@ -877,7 +877,7 @@ def get_logs():
                 total_pieces,
                 input_time
             FROM input_history
-            WHERE DATE(input_time) = ?
+            WHERE DATE(datetime(input_time, 'localtime')) = ?
             ORDER BY input_time DESC
         ''', (date_filter,))
     else:
@@ -1279,7 +1279,7 @@ def export_history():
                 pieces_per_box,
                 total_pieces
             FROM input_history
-            WHERE DATE(input_time) = ?
+            WHERE DATE(datetime(input_time, 'localtime')) = ?
             ORDER BY input_time DESC
         ''', (date_filter,))
         filename = f'history_{date_filter}.xlsx'

@@ -1,13 +1,3 @@
-// 获取用户时区字符串
-function getUserTimezoneString() {
-    const timezoneOffset = new Date().getTimezoneOffset();
-    const timezoneOffsetHours = Math.abs(Math.floor(timezoneOffset / 60));
-    const timezoneOffsetMinutes = Math.abs(timezoneOffset % 60);
-    return (timezoneOffset <= 0 ? '+' : '-') + 
-           String(timezoneOffsetHours).padStart(2, '0') + ':' + 
-           String(timezoneOffsetMinutes).padStart(2, '0');
-}
-
 // 模拟数据库连接
 function getApiUrl() {
     const hostname = window.location.hostname;
@@ -859,15 +849,10 @@ function filterHistoryByDate() {
     // 设置用户选择的日期
     userSelectedDate = selectedDate;
     
-    const timezoneString = getUserTimezoneString();
-    
     $.ajax({
         url: `${API_URL}/api/logs`,
         type: 'GET',
-        data: { 
-            date: selectedDate,
-            timezone: timezoneString
-        },
+        data: { date: selectedDate },
         success: function(logs) {
             cachedLogs = logs;
             renderFilteredHistory(logs, selectedDate);
@@ -927,16 +912,12 @@ function exportHistoryByDate() {
         return;
     }
     
-    const timezoneString = getUserTimezoneString();
-    
-    window.open(`${API_URL}/api/export/history?date=${selectedDate}&timezone=${timezoneString}`, '_blank');
+    window.open(`${API_URL}/api/export/history?date=${selectedDate}`, '_blank');
 }
 
 // 导出全部历史记录
 function exportAllHistory() {
-    const timezoneString = getUserTimezoneString();
-    
-    window.open(`${API_URL}/api/export/history?timezone=${timezoneString}`, '_blank');
+    window.open(`${API_URL}/api/export/history`, '_blank');
 }
 
     // 搜索BT
@@ -1145,9 +1126,7 @@ function updateRecentHistory(logsFromCache) {
         return;
     }
 
-    const timezoneString = getUserTimezoneString();
-
-    $.get(`${API_URL}/api/logs?timezone=${timezoneString}`, function(logs) {
+    $.get(`${API_URL}/api/logs`, function(logs) {
         cachedLogs = logs;
         render(logs);
     });
@@ -1183,9 +1162,7 @@ function updateFullHistory(logsFromCache) {
         return;
     }
 
-    const timezoneString = getUserTimezoneString();
-
-    $.get(`${API_URL}/api/logs?timezone=${timezoneString}`, function(logs) {
+    $.get(`${API_URL}/api/logs`, function(logs) {
         cachedLogs = logs;
         render(logs);
     });
