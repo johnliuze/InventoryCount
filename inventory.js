@@ -146,9 +146,7 @@ function updateHistoryDisplay(logsFromCache) {
         
         const mergedLogs = mergeClearAndAddLogs(logs);
         const html = mergedLogs.map(record => {
-            // 将UTC时间转换为本地时间显示
-            const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
-            const timestamp = utcDate.toLocaleString('en-US', {
+            const timestamp = new Date(record.timestamp).toLocaleString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
@@ -898,7 +896,7 @@ function renderFilteredHistory(logs, date) {
     mergedLogs.forEach(record => {
         // 将UTC时间转换为本地时间显示
         const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
-        const timestamp = utcDate.toLocaleString('en-US', {
+        const timestamp = utcDate.toLocaleString(isZh ? 'zh-CN' : 'en-US', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -923,67 +921,8 @@ function exportHistoryByDate() {
         return;
     }
     
-    // 如果有缓存的记录，使用客户端过滤
-    if (cachedLogs && cachedLogs.length > 0) {
-        const filteredLogs = cachedLogs.filter(record => {
-            // 将UTC时间转换为本地时间进行比较
-            const recordDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
-            const recordDateStr = recordDate.getFullYear() + '-' + 
-                                 String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                                 String(recordDate.getDate()).padStart(2, '0');
-            return recordDateStr === selectedDate;
-        });
-        
-        // 创建CSV内容
-        const csvContent = createCSVFromLogs(filteredLogs);
-        downloadCSV(csvContent, `history_${selectedDate}.csv`);
-    } else {
-        // 如果没有缓存，回退到服务器端过滤
-        window.open(`${API_URL}/api/export/history?date=${selectedDate}`, '_blank');
-    }
-}
-
-// 创建CSV内容
-function createCSVFromLogs(logs) {
-    const headers = ['Time', 'Bin Code', 'Item Code', 'BT Number', 'Box Count', 'Pieces per Box', 'Total Pieces'];
-    const rows = logs.map(record => {
-        // 将UTC时间转换为本地时间显示
-        const utcDate = new Date(record.timestamp + 'Z');
-        const timestamp = utcDate.toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        }).replace(/\//g, '-');
-        
-        return [
-            timestamp,
-            record.bin_code || '',
-            record.item_code || '',
-            record.BT || '',
-            record.box_count || 0,
-            record.pieces_per_box || 0,
-            record.total_pieces || 0
-        ];
-    });
-    
-    return [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-}
-
-// 下载CSV文件
-function downloadCSV(csvContent, filename) {
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // 使用后端Excel导出功能以保持颜色格式
+    window.open(`${API_URL}/api/export/history?date=${selectedDate}`, '_blank');
 }
 
 // 导出全部历史记录
@@ -1168,7 +1107,7 @@ function updateRecentHistory(logsFromCache) {
         const html = todayLogs.map(record => {
             // 将UTC时间转换为本地时间显示
             const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
-            const timestamp = utcDate.toLocaleString('en-US', {
+            const timestamp = utcDate.toLocaleString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
@@ -1210,7 +1149,7 @@ function updateFullHistory(logsFromCache) {
         const html = mergedLogs.map(record => {
             // 将UTC时间转换为本地时间显示
             const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
-            const timestamp = utcDate.toLocaleString('en-US', {
+            const timestamp = utcDate.toLocaleString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',

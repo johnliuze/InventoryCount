@@ -875,7 +875,7 @@ def get_logs():
                 box_count,
                 pieces_per_box,
                 total_pieces,
-                datetime(input_time, 'localtime') as input_time
+                input_time
             FROM input_history
             WHERE DATE(datetime(input_time, 'localtime')) = ?
             ORDER BY input_time DESC
@@ -890,7 +890,7 @@ def get_logs():
                 box_count,
                 pieces_per_box,
                 total_pieces,
-                datetime(input_time, 'localtime') as input_time
+                input_time
             FROM input_history
             ORDER BY input_time DESC
         ''')
