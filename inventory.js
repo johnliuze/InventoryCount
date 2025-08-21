@@ -74,26 +74,31 @@ function formatDateSafely(date, locale = 'zh-CN') {
             return 'Invalid Date';
         }
         
-        // 手动转换为本地时间，确保在所有设备上都正确
-        const timezoneOffset = date.getTimezoneOffset() * 60000; // 获取时区偏移（毫秒）
-        const localDate = new Date(date.getTime() - timezoneOffset);
-        
-        // 格式化本地时间
-        const year = localDate.getFullYear();
-        const month = String(localDate.getMonth() + 1).padStart(2, '0');
-        const day = String(localDate.getDate()).padStart(2, '0');
-        const hours = String(localDate.getHours()).padStart(2, '0');
-        const minutes = String(localDate.getMinutes()).padStart(2, '0');
-        const seconds = String(localDate.getSeconds()).padStart(2, '0');
-        
-        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        // 正确的方法：直接使用toLocaleString，它会自动处理时区转换
+        // 因为date对象已经包含了UTC时间信息，toLocaleString会自动转换为本地时间
+        return date.toLocaleString(locale, {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).replace(/\//g, '-');
     } catch (error) {
         console.error('Date formatting error:', error);
         // 返回简单的本地时间字符串作为后备
         try {
-            const timezoneOffset = date.getTimezoneOffset() * 60000;
-            const localDate = new Date(date.getTime() - timezoneOffset);
-            return localDate.toISOString().replace('T', ' ').substring(0, 19);
+            // 如果toLocaleString失败，使用简单的本地时间转换
+            const localDate = new Date(date.getTime());
+            const year = localDate.getFullYear();
+            const month = String(localDate.getMonth() + 1).padStart(2, '0');
+            const day = String(localDate.getDate()).padStart(2, '0');
+            const hours = String(localDate.getHours()).padStart(2, '0');
+            const minutes = String(localDate.getMinutes()).padStart(2, '0');
+            const seconds = String(localDate.getSeconds()).padStart(2, '0');
+            
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
         } catch (fallbackError) {
             return date.toISOString().replace('T', ' ').substring(0, 19);
         }
