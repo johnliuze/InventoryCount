@@ -111,6 +111,7 @@
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             border-radius: 8px;
             margin-top: 20px;
+            position: relative; /* 添加相对定位 */
         }
         .tab-content {
             margin: 20px 0;
@@ -256,8 +257,10 @@
             display: block;
         }
         .language-switch {
-            text-align: right;
-            margin: 10px 0 20px 0;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
         }
         .language-switch button {
             padding: 5px 10px;
@@ -589,10 +592,10 @@
             
             /* 语言切换按钮在移动设备上的样式 */
             .language-switch {
-                text-align: right;
-                margin: 10px 0 15px 0;
-                display: flex;
-                justify-content: flex-end;
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                z-index: 10;
             }
             
             .language-switch button {
