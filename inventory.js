@@ -73,7 +73,7 @@ function isIOSDevice() {
            (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
 }
 
-// 安全的日期格式化函数 - 使用更可靠的时区转换
+// 安全的日期格式化函数 - 使用正确的时区转换
 function formatDateSafely(date, locale = 'zh-CN') {
     try {
         if (!date || isNaN(date.getTime())) {
@@ -83,11 +83,12 @@ function formatDateSafely(date, locale = 'zh-CN') {
         // 获取当前时区偏移（分钟）
         const timezoneOffsetMinutes = new Date().getTimezoneOffset();
         
-        // 计算本地时间：UTC时间 + 时区偏移
-        // 注意：getTimezoneOffset()返回的是本地时间与UTC的分钟差
+        // 正确的时区转换：
+        // getTimezoneOffset()返回的是本地时间与UTC的分钟差
         // 正值表示本地时间比UTC早，负值表示本地时间比UTC晚
-        // 所以要从UTC时间减去偏移量来得到本地时间
-        const localTime = date.getTime() - (timezoneOffsetMinutes * 60000);
+        // 例如：东八区返回-480，西五区返回+300
+        // 所以要从UTC时间加上偏移量来得到本地时间
+        const localTime = date.getTime() + (timezoneOffsetMinutes * 60000);
         const localDate = new Date(localTime);
         
         // 格式化本地时间
