@@ -31,20 +31,15 @@ let userSelectedDate = null;
 // 兼容iPad的日期解析函数
 function parseDateSafely(timestamp) {
     try {
-        // 添加调试信息
-        console.log('Parsing timestamp:', timestamp);
-        
         // 首先尝试标准格式
         if (timestamp && typeof timestamp === 'string') {
             // 确保时间戳格式正确
             let cleanTimestamp = timestamp.trim();
-            console.log('Clean timestamp:', cleanTimestamp);
             
             // 如果已经是ISO格式，直接解析
             if (cleanTimestamp.includes('T') && cleanTimestamp.includes('Z')) {
                 const date = new Date(cleanTimestamp);
                 if (!isNaN(date.getTime())) {
-                    console.log('Parsed ISO date:', date);
                     return date;
                 }
             }
@@ -55,7 +50,6 @@ function parseDateSafely(timestamp) {
             }
             
             const date = new Date(cleanTimestamp);
-            console.log('Parsed date:', date);
             
             // 检查日期是否有效
             if (isNaN(date.getTime())) {
@@ -73,36 +67,83 @@ function parseDateSafely(timestamp) {
     }
 }
 
-// 安全的日期格式化函数 - 确保转换为本地时间
+// 获取用户时区偏移
+let userTimezoneOffset = null;
+let timezoneOffsetPromise = null;
+
+function getUserTimezoneOffset() {
+    if (timezoneOffsetPromise) {
+        return timezoneOffsetPromise;
+    }
+    
+    timezoneOffsetPromise = new Promise((resolve) => {
+        if (userTimezoneOffset !== null) {
+            resolve(userTimezoneOffset);
+            return;
+        }
+        
+        // 首先尝试从当前时间获取时区偏移
+        try {
+            userTimezoneOffset = new Date().getTimezoneOffset() * 60000; // 转换为毫秒
+            resolve(userTimezoneOffset);
+            return;
+        } catch (error) {
+            console.log('Failed to get timezone offset from current time');
+        }
+        
+        // 如果失败，使用地理位置API
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    
+                    // 使用简单的时区估算（基于经度）
+                    // 每15度经度约等于1小时时差
+                    const estimatedOffset = Math.round(longitude / 15) * 60 * 60 * 1000; // 转换为毫秒
+                    userTimezoneOffset = -estimatedOffset; // 注意符号
+                    resolve(userTimezoneOffset);
+                },
+                (error) => {
+                    console.log('Geolocation failed:', error);
+                    userTimezoneOffset = 0; // 默认UTC
+                    resolve(userTimezoneOffset);
+                }
+            );
+        } else {
+            userTimezoneOffset = 0; // 默认UTC
+            resolve(userTimezoneOffset);
+        }
+    });
+    
+    return timezoneOffsetPromise;
+}
+
+// 预加载时区偏移
+getUserTimezoneOffset();
+
+// 安全的日期格式化函数 - 同步版本
 function formatDateSafely(date, locale = 'zh-CN') {
     try {
         if (!date || isNaN(date.getTime())) {
             return 'Invalid Date';
         }
         
-        console.log('Formatting date:', date);
-        console.log('Date UTC time:', date.toISOString());
-        console.log('Date local time methods:', {
-            year: date.getFullYear(),
-            month: date.getMonth(),
-            day: date.getDate(),
-            hours: date.getHours(),
-            minutes: date.getMinutes(),
-            seconds: date.getSeconds()
-        });
+        // 使用预加载的时区偏移
+        const timezoneOffset = userTimezoneOffset !== null ? userTimezoneOffset : 0;
         
-        // 最简单的方法：直接使用Date对象的本地时间方法
-        // Date对象在解析UTC时间戳时会自动转换为本地时间
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
+        // 手动进行时区转换
+        const localTime = date.getTime() - timezoneOffset;
+        const localDate = new Date(localTime);
         
-        const result = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-        console.log('Formatted result:', result);
-        return result;
+        // 格式化本地时间
+        const year = localDate.getFullYear();
+        const month = String(localDate.getMonth() + 1).padStart(2, '0');
+        const day = String(localDate.getDate()).padStart(2, '0');
+        const hours = String(localDate.getHours()).padStart(2, '0');
+        const minutes = String(localDate.getMinutes()).padStart(2, '0');
+        const seconds = String(localDate.getSeconds()).padStart(2, '0');
+        
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     } catch (error) {
         console.error('Date formatting error:', error);
         // 返回简单的本地时间字符串作为后备
