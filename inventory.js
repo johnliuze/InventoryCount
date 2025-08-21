@@ -31,15 +31,20 @@ let userSelectedDate = null;
 // 兼容iPad的日期解析函数
 function parseDateSafely(timestamp) {
     try {
+        // 添加调试信息
+        console.log('Parsing timestamp:', timestamp);
+        
         // 首先尝试标准格式
         if (timestamp && typeof timestamp === 'string') {
             // 确保时间戳格式正确
             let cleanTimestamp = timestamp.trim();
+            console.log('Clean timestamp:', cleanTimestamp);
             
             // 如果已经是ISO格式，直接解析
             if (cleanTimestamp.includes('T') && cleanTimestamp.includes('Z')) {
                 const date = new Date(cleanTimestamp);
                 if (!isNaN(date.getTime())) {
+                    console.log('Parsed ISO date:', date);
                     return date;
                 }
             }
@@ -50,6 +55,7 @@ function parseDateSafely(timestamp) {
             }
             
             const date = new Date(cleanTimestamp);
+            console.log('Parsed date:', date);
             
             // 检查日期是否有效
             if (isNaN(date.getTime())) {
@@ -74,21 +80,29 @@ function formatDateSafely(date, locale = 'zh-CN') {
             return 'Invalid Date';
         }
         
-        // 手动计算本地时间：从UTC时间减去时区偏移
-        const utcTime = date.getTime(); // 获取UTC时间戳
-        const timezoneOffset = date.getTimezoneOffset() * 60000; // 时区偏移（毫秒）
-        const localTime = utcTime - timezoneOffset; // 计算本地时间
-        const localDate = new Date(localTime);
+        console.log('Formatting date:', date);
+        console.log('Date UTC time:', date.toISOString());
+        console.log('Date local time methods:', {
+            year: date.getFullYear(),
+            month: date.getMonth(),
+            day: date.getDate(),
+            hours: date.getHours(),
+            minutes: date.getMinutes(),
+            seconds: date.getSeconds()
+        });
         
-        // 格式化本地时间
-        const year = localDate.getFullYear();
-        const month = String(localDate.getMonth() + 1).padStart(2, '0');
-        const day = String(localDate.getDate()).padStart(2, '0');
-        const hours = String(localDate.getHours()).padStart(2, '0');
-        const minutes = String(localDate.getMinutes()).padStart(2, '0');
-        const seconds = String(localDate.getSeconds()).padStart(2, '0');
+        // 最简单的方法：直接使用Date对象的本地时间方法
+        // Date对象在解析UTC时间戳时会自动转换为本地时间
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
         
-        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        const result = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        console.log('Formatted result:', result);
+        return result;
     } catch (error) {
         console.error('Date formatting error:', error);
         // 返回简单的本地时间字符串作为后备
