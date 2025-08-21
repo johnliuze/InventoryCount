@@ -394,6 +394,9 @@ def get_bin_inventory(bin_id):
     db = get_db()
     cursor = db.cursor()
     
+    # 解码bin_id
+    bin_id = bin_id.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+    
     # 先通过库位编号获取库位ID
     cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (bin_id,))
     bin_result = cursor.fetchone()
@@ -1167,15 +1170,20 @@ def clear_bin_inventory(bin_code):
     if request.method == 'OPTIONS':
         return jsonify({}), 200
     try:
+        print(f"DEBUG: Received bin_code: {bin_code}")
         db = get_db()
         cursor = db.cursor()
         
         # 解码bin_code
+        original_bin_code = bin_code
         bin_code = bin_code.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+        print(f"DEBUG: Decoded bin_code: {bin_code}")
         
         # 先检查库位是否存在
         cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (bin_code,))
         bin_result = cursor.fetchone()
+        print(f"DEBUG: Database query result: {bin_result}")
+        
         if not bin_result:
             return jsonify({'error': '库位不存在', 'error_en': 'Bin location does not exist'}), 404
         
