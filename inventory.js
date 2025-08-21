@@ -384,6 +384,15 @@ $(document).ready(function() {
         const savedLang = localStorage.getItem('preferred-language') || 'zh';
         updateSearchPlaceholders(savedLang);
     }, 100);
+    
+    // 恢复搜索子标签页状态
+    setTimeout(() => {
+        const currentTab = localStorage.getItem('current-tab');
+        if (currentTab === 'query') {
+            const lastQueryTab = localStorage.getItem('current-query-tab') || 'bin-contents';
+            switchQueryTab(lastQueryTab);
+        }
+    }, 200);
 });
 
 // 提交盘点表单
@@ -1184,6 +1193,9 @@ function switchQueryTab(tabId) {
     $('.query-tab-button').removeClass('active');
     $(`#${tabId}-tab`).addClass('active');
     $(`.query-tab-button[data-tab="${tabId}"]`).addClass('active');
+    
+    // 保存当前搜索子标签页到localStorage
+    localStorage.setItem('current-query-tab', tabId);
     
     // 清除其他子标签页的搜索结果
     if (tabId !== 'bin-contents') {
