@@ -9,7 +9,14 @@ from io import BytesIO
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)
+# 配置CORS，允许所有方法和头部
+CORS(app, resources={
+    r"/api/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 
 # 获取环境变量
 is_production = os.getenv('RAILWAY_ENVIRONMENT') == 'production'
@@ -26,41 +33,6 @@ def not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     return jsonify(error="Server error", error_en="Internal server error"), 500
-
-@app.after_request
-def after_request(response):
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS')
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    return response
-
-# 处理OPTIONS预检请求
-@app.route('/api/inventory/bin/<bin_code>/clear', methods=['OPTIONS'])
-@app.route('/api/inventory/bin/<bin_code>/item/<item_code>/clear', methods=['OPTIONS'])
-def handle_options(bin_code, item_code=None):
-    response = jsonify({})
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS')
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    return response
-
-# 添加路由来提供前端文件
-@app.route('/')
-def index():
-    try:
-        return send_file('index.html')
-    except Exception as e:
-        print(f"Error serving index.html: {str(e)}")
-        print(traceback.format_exc())
-        return str(e), 500
-
-@app.route('/inventory.js')
-def inventory_js():
-    try:
-        return send_file('inventory.js')
-    except Exception as e:
-        print(f"Error serving inventory.js: {str(e)}")
-        return str(e), 500
 
 # 数据库连接
 def get_db():
@@ -1190,8 +1162,10 @@ def export_database():
         print(f"Error exporting database: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/inventory/bin/<bin_code>/clear', methods=['DELETE'])
+@app.route('/api/inventory/bin/<bin_code>/clear', methods=['DELETE', 'OPTIONS'])
 def clear_bin_inventory(bin_code):
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
     try:
         db = get_db()
         cursor = db.cursor()
@@ -1218,8 +1192,10 @@ def clear_bin_inventory(bin_code):
         print(f"Error clearing bin inventory: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/inventory/bin/<bin_code>/item/<item_code>/clear', methods=['DELETE'])
+@app.route('/api/inventory/bin/<bin_code>/item/<item_code>/clear', methods=['DELETE', 'OPTIONS'])
 def clear_item_at_bin(bin_code, item_code):
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
     try:
         db = get_db()
         cursor = db.cursor()
