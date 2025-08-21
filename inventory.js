@@ -666,9 +666,18 @@ function clearBinAndAdd(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
             addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
         },
         error: function(xhr, status, error) {
-            alert(document.body.className.includes('lang-en')
-                ? "Failed to clear bin, please try again"
-                : "清空库位失败，请重试");
+            let errorMsg = {
+                zh: "清空库位失败，请重试",
+                en: "Failed to clear bin, please try again"
+            };
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = {
+                    zh: xhr.responseJSON.error,
+                    en: xhr.responseJSON.error_en || xhr.responseJSON.error
+                };
+            }
+            const isZh = document.body.className.includes('lang-zh');
+            alert(isZh ? errorMsg.zh : errorMsg.en);
         }
     });
 }
@@ -1354,9 +1363,18 @@ function clearItemAtBin(binCode, itemCode) {
                 setTimeout(updateHistoryDisplay, 100);
             },
             error: function(xhr, status, error) {
-                alert(document.body.className.includes('lang-en')
-                    ? "Failed to clear item, please try again"
-                    : "清空商品失败，请重试");
+                let errorMsg = {
+                    zh: "清空商品失败，请重试",
+                    en: "Failed to clear item, please try again"
+                };
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = {
+                        zh: xhr.responseJSON.error,
+                        en: xhr.responseJSON.error_en || xhr.responseJSON.error
+                    };
+                }
+                const isZh = document.body.className.includes('lang-zh');
+                alert(isZh ? errorMsg.zh : errorMsg.en);
             }
         });
     });
@@ -1482,6 +1500,18 @@ function clearBinInventory(binCode) {
                     },
                     error: function(xhr, status, error) {
                         console.error("Error clearing bin:", error);
+                        let errorMsg = {
+                            zh: "清空库位失败，请重试",
+                            en: "Failed to clear bin, please try again"
+                        };
+                        if (xhr.responseJSON && xhr.responseJSON.error) {
+                            errorMsg = {
+                                zh: xhr.responseJSON.error,
+                                en: xhr.responseJSON.error_en || xhr.responseJSON.error
+                            };
+                        }
+                        const isZh = document.body.className.includes('lang-zh');
+                        alert(isZh ? errorMsg.zh : errorMsg.en);
                         searchBinContents();  // 刷新显示以反映当前状态
                         updateRecentHistory();  // 更新最近历史记录
                         updateFullHistory();    // 更新完整历史记录
