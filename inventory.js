@@ -4,7 +4,7 @@ function getApiUrl() {
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
         return 'http://localhost:5001';
     } else if (hostname.includes('railway.app')) {
-        return 'https://sohoapparelwarehouse-databse.up.railway.app';
+        return 'https://sohoapparelwarehouse-database.up.railway.app';
     } else {
         return 'https://inventorycount-production.up.railway.app';
     }
@@ -694,11 +694,18 @@ function addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
                 $("#inventoryForm")[0].reset();
             },
             error: function(xhr, status, error) {
-                let errorMsg = "添加失败，请检查输入！";
+                let errorMsg = {
+                    zh: "添加失败，请检查输入！",
+                    en: "Add failed, please check input!"
+                };
                 if (xhr.responseJSON && xhr.responseJSON.error) {
-                    errorMsg = xhr.responseJSON.error;
+                    errorMsg = {
+                        zh: xhr.responseJSON.error,
+                        en: xhr.responseJSON.error_en || xhr.responseJSON.error
+                    };
                 }
-                alert(errorMsg);
+                const isZh = document.body.className.includes('lang-zh');
+                alert(isZh ? errorMsg.zh : errorMsg.en);
             }
         });
 }
@@ -900,11 +907,20 @@ function searchBinContents() {
             $("#binContentsResult").html(html);
         },
         error: function(xhr, status, error) {
-            let errorMsg = "查询失败！";
+            let errorMsg = {
+                zh: "查询失败！",
+                en: "Query failed!"
+            };
             if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMsg = xhr.responseJSON.error;
+                errorMsg = {
+                    zh: xhr.responseJSON.error,
+                    en: xhr.responseJSON.error_en || xhr.responseJSON.error
+                };
             }
-            $("#binContentsResult").text(errorMsg);
+            $("#binContentsResult").html(`
+                <span class="lang-zh">${errorMsg.zh}</span>
+                <span class="lang-en">${errorMsg.en}</span>
+            `);
             console.error("查询失败:", error, xhr.responseText);
         }
     });
@@ -1052,10 +1068,10 @@ function searchBT() {
                 $("#BTSearchResult").html(`
                     <div class="result-item">
                         <span class="lang-zh">
-                            BT <span class="BT-number">${BTNumber}</span> 中暂无商品
+                            <span class="BT-number">${BTNumber}</span> 不存在
                         </span>
                         <span class="lang-en">
-                            BT <span class="BT-number">${BTNumber}</span> has no items
+                            <span class="BT-number">${BTNumber}</span> does not exist
                         </span>
                     </div>
                 `);
@@ -1482,13 +1498,18 @@ function clearBinInventory(binCode) {
             });
         },
         error: function(xhr, status, error) {
-            let errorMsg = document.body.className.includes('lang-en')
-                ? "Failed to get bin contents!"
-                : "获取库位内容失败！";
+            let errorMsg = {
+                zh: "获取库位内容失败！",
+                en: "Failed to get bin contents!"
+            };
             if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMsg = xhr.responseJSON.error;
+                errorMsg = {
+                    zh: xhr.responseJSON.error,
+                    en: xhr.responseJSON.error_en || xhr.responseJSON.error
+                };
             }
-            alert(errorMsg);
+            const isZh = document.body.className.includes('lang-zh');
+            alert(isZh ? errorMsg.zh : errorMsg.en);
         }
     });
 }
