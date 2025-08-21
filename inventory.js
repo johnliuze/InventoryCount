@@ -73,31 +73,22 @@ function isIOSDevice() {
            (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
 }
 
-// 安全的日期格式化函数 - 使用正确的时区转换
+// 安全的日期格式化函数 - 最简单可靠的方法
 function formatDateSafely(date, locale = 'zh-CN') {
     try {
         if (!date || isNaN(date.getTime())) {
             return 'Invalid Date';
         }
         
-        // 获取当前时区偏移（分钟）
-        const timezoneOffsetMinutes = new Date().getTimezoneOffset();
-        
-        // 正确的时区转换：
-        // getTimezoneOffset()返回的是本地时间与UTC的分钟差
-        // 正值表示本地时间比UTC早，负值表示本地时间比UTC晚
-        // 例如：东八区返回-480，西五区返回+300
-        // 所以要从UTC时间加上偏移量来得到本地时间
-        const localTime = date.getTime() + (timezoneOffsetMinutes * 60000);
-        const localDate = new Date(localTime);
-        
-        // 格式化本地时间
-        const year = localDate.getFullYear();
-        const month = String(localDate.getMonth() + 1).padStart(2, '0');
-        const day = String(localDate.getDate()).padStart(2, '0');
-        const hours = String(localDate.getHours()).padStart(2, '0');
-        const minutes = String(localDate.getMinutes()).padStart(2, '0');
-        const seconds = String(localDate.getSeconds()).padStart(2, '0');
+        // 最简单可靠的方法：直接使用Date对象的本地时间方法
+        // Date对象在解析UTC时间戳时会自动转换为本地时间
+        // 所有getter方法都返回本地时间
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
         
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     } catch (error) {
