@@ -1170,6 +1170,9 @@ def clear_bin_inventory(bin_code):
         db = get_db()
         cursor = db.cursor()
         
+        # 解码bin_code
+        bin_code = bin_code.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+        
         # 先检查库位是否存在
         cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (bin_code,))
         bin_result = cursor.fetchone()
@@ -1199,6 +1202,10 @@ def clear_item_at_bin(bin_code, item_code):
     try:
         db = get_db()
         cursor = db.cursor()
+        
+        # 解码bin_code和item_code
+        bin_code = bin_code.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+        item_code = item_code.replace('___SLASH___', '/').replace('___SPACE___', ' ')
         
         # 先检查库位是否存在
         cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (bin_code,))
