@@ -67,13 +67,14 @@ function parseDateSafely(timestamp) {
     }
 }
 
-// 安全的日期格式化函数
+// 安全的日期格式化函数 - 确保转换为本地时间
 function formatDateSafely(date, locale = 'zh-CN') {
     try {
         if (!date || isNaN(date.getTime())) {
             return 'Invalid Date';
         }
         
+        // 确保使用本地时间格式化
         return date.toLocaleString(locale, {
             year: 'numeric',
             month: '2-digit',
@@ -81,12 +82,18 @@ function formatDateSafely(date, locale = 'zh-CN') {
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit',
-            hour12: false
+            hour12: false,
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone // 使用本地时区
         }).replace(/\//g, '-');
     } catch (error) {
         console.error('Date formatting error:', error);
-        // 返回简单的日期字符串作为后备
-        return date.toISOString().replace('T', ' ').substring(0, 19);
+        // 返回简单的本地时间字符串作为后备
+        try {
+            const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+            return localDate.toISOString().replace('T', ' ').substring(0, 19);
+        } catch (fallbackError) {
+            return date.toISOString().replace('T', ' ').substring(0, 19);
+        }
     }
 }
 
