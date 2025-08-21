@@ -73,39 +73,32 @@ function isIOSDevice() {
            (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
 }
 
-// 安全的日期格式化函数 - 针对iPad的特殊处理
+// 安全的日期格式化函数 - 使用更可靠的时区转换
 function formatDateSafely(date, locale = 'zh-CN') {
     try {
         if (!date || isNaN(date.getTime())) {
             return 'Invalid Date';
         }
         
-        if (isIOSDevice()) {
-            // iPad特殊处理：手动进行时区转换
-            const timezoneOffset = new Date().getTimezoneOffset() * 60000; // 获取时区偏移（毫秒）
-            const localTime = date.getTime() - timezoneOffset; // 转换为本地时间
-            const localDate = new Date(localTime);
-            
-            // 格式化本地时间
-            const year = localDate.getFullYear();
-            const month = String(localDate.getMonth() + 1).padStart(2, '0');
-            const day = String(localDate.getDate()).padStart(2, '0');
-            const hours = String(localDate.getHours()).padStart(2, '0');
-            const minutes = String(localDate.getMinutes()).padStart(2, '0');
-            const seconds = String(localDate.getSeconds()).padStart(2, '0');
-            
-            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-        } else {
-            // 其他设备使用标准方法
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const seconds = String(date.getSeconds()).padStart(2, '0');
-            
-            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-        }
+        // 获取当前时区偏移（分钟）
+        const timezoneOffsetMinutes = new Date().getTimezoneOffset();
+        
+        // 计算本地时间：UTC时间 + 时区偏移
+        // 注意：getTimezoneOffset()返回的是本地时间与UTC的分钟差
+        // 正值表示本地时间比UTC早，负值表示本地时间比UTC晚
+        // 所以要从UTC时间减去偏移量来得到本地时间
+        const localTime = date.getTime() - (timezoneOffsetMinutes * 60000);
+        const localDate = new Date(localTime);
+        
+        // 格式化本地时间
+        const year = localDate.getFullYear();
+        const month = String(localDate.getMonth() + 1).padStart(2, '0');
+        const day = String(localDate.getDate()).padStart(2, '0');
+        const hours = String(localDate.getHours()).padStart(2, '0');
+        const minutes = String(localDate.getMinutes()).padStart(2, '0');
+        const seconds = String(localDate.getSeconds()).padStart(2, '0');
+        
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     } catch (error) {
         console.error('Date formatting error:', error);
         // 返回简单的本地时间字符串作为后备
