@@ -4,7 +4,7 @@ function getApiUrl() {
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
         return 'http://localhost:5001';
     } else if (hostname.includes('railway.app')) {
-        return 'https://sohoapparelwarehouse-database.up.railway.app';
+        return 'https://sohoapparelwarehouse.up.railway.app';
     } else {
         return 'https://inventorycount-production.up.railway.app';
     }
@@ -666,18 +666,9 @@ function clearBinAndAdd(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
             addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
         },
         error: function(xhr, status, error) {
-            let errorMsg = {
-                zh: "清空库位失败，请重试",
-                en: "Failed to clear bin, please try again"
-            };
-            if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMsg = {
-                    zh: xhr.responseJSON.error,
-                    en: xhr.responseJSON.error_en || xhr.responseJSON.error
-                };
-            }
-            const isZh = document.body.className.includes('lang-zh');
-            alert(isZh ? errorMsg.zh : errorMsg.en);
+            alert(document.body.className.includes('lang-en')
+                ? "Failed to clear bin, please try again"
+                : "清空库位失败，请重试");
         }
     });
 }
@@ -703,18 +694,11 @@ function addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
                 $("#inventoryForm")[0].reset();
             },
             error: function(xhr, status, error) {
-                let errorMsg = {
-                    zh: "添加失败，请检查输入！",
-                    en: "Add failed, please check input!"
-                };
+                let errorMsg = "添加失败，请检查输入！";
                 if (xhr.responseJSON && xhr.responseJSON.error) {
-                    errorMsg = {
-                        zh: xhr.responseJSON.error,
-                        en: xhr.responseJSON.error_en || xhr.responseJSON.error
-                    };
+                    errorMsg = xhr.responseJSON.error;
                 }
-                const isZh = document.body.className.includes('lang-zh');
-                alert(isZh ? errorMsg.zh : errorMsg.en);
+                alert(errorMsg);
             }
         });
 }
@@ -916,20 +900,11 @@ function searchBinContents() {
             $("#binContentsResult").html(html);
         },
         error: function(xhr, status, error) {
-            let errorMsg = {
-                zh: "查询失败！",
-                en: "Query failed!"
-            };
+            let errorMsg = "查询失败！";
             if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMsg = {
-                    zh: xhr.responseJSON.error,
-                    en: xhr.responseJSON.error_en || xhr.responseJSON.error
-                };
+                errorMsg = xhr.responseJSON.error;
             }
-            $("#binContentsResult").html(`
-                <span class="lang-zh">${errorMsg.zh}</span>
-                <span class="lang-en">${errorMsg.en}</span>
-            `);
+            $("#binContentsResult").text(errorMsg);
             console.error("查询失败:", error, xhr.responseText);
         }
     });
@@ -1209,6 +1184,20 @@ function switchQueryTab(tabId) {
     $('.query-tab-button').removeClass('active');
     $(`#${tabId}-tab`).addClass('active');
     $(`.query-tab-button[data-tab="${tabId}"]`).addClass('active');
+    
+    // 清除其他子标签页的搜索结果
+    if (tabId !== 'bin-contents') {
+        $('#binContentsResult').empty();
+        $('#binSearch').val('');
+    }
+    if (tabId !== 'container-search') {
+        $('#containerSearchResult').empty();
+        $('#BTSearch').val('');
+    }
+    if (tabId !== 'item-total') {
+        $('#itemTotalResult').empty();
+        $('#itemSearch').val('');
+    }
 }
 
 // 更新今日录入记录
@@ -1363,18 +1352,9 @@ function clearItemAtBin(binCode, itemCode) {
                 setTimeout(updateHistoryDisplay, 100);
             },
             error: function(xhr, status, error) {
-                let errorMsg = {
-                    zh: "清空商品失败，请重试",
-                    en: "Failed to clear item, please try again"
-                };
-                if (xhr.responseJSON && xhr.responseJSON.error) {
-                    errorMsg = {
-                        zh: xhr.responseJSON.error,
-                        en: xhr.responseJSON.error_en || xhr.responseJSON.error
-                    };
-                }
-                const isZh = document.body.className.includes('lang-zh');
-                alert(isZh ? errorMsg.zh : errorMsg.en);
+                alert(document.body.className.includes('lang-en')
+                    ? "Failed to clear item, please try again"
+                    : "清空商品失败，请重试");
             }
         });
     });
@@ -1500,18 +1480,6 @@ function clearBinInventory(binCode) {
                     },
                     error: function(xhr, status, error) {
                         console.error("Error clearing bin:", error);
-                        let errorMsg = {
-                            zh: "清空库位失败，请重试",
-                            en: "Failed to clear bin, please try again"
-                        };
-                        if (xhr.responseJSON && xhr.responseJSON.error) {
-                            errorMsg = {
-                                zh: xhr.responseJSON.error,
-                                en: xhr.responseJSON.error_en || xhr.responseJSON.error
-                            };
-                        }
-                        const isZh = document.body.className.includes('lang-zh');
-                        alert(isZh ? errorMsg.zh : errorMsg.en);
                         searchBinContents();  // 刷新显示以反映当前状态
                         updateRecentHistory();  // 更新最近历史记录
                         updateFullHistory();    // 更新完整历史记录
@@ -1528,18 +1496,13 @@ function clearBinInventory(binCode) {
             });
         },
         error: function(xhr, status, error) {
-            let errorMsg = {
-                zh: "获取库位内容失败！",
-                en: "Failed to get bin contents!"
-            };
+            let errorMsg = document.body.className.includes('lang-en')
+                ? "Failed to get bin contents!"
+                : "获取库位内容失败！";
             if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMsg = {
-                    zh: xhr.responseJSON.error,
-                    en: xhr.responseJSON.error_en || xhr.responseJSON.error
-                };
+                errorMsg = xhr.responseJSON.error;
             }
-            const isZh = document.body.className.includes('lang-zh');
-            alert(isZh ? errorMsg.zh : errorMsg.en);
+            alert(errorMsg);
         }
     });
 }
