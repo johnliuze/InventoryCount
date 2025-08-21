@@ -74,47 +74,22 @@ function formatDateSafely(date, locale = 'zh-CN') {
             return 'Invalid Date';
         }
         
-        // 检测是否为iPad或iOS设备
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                     (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
+        // 最简单的方法：直接使用Date对象的本地时间方法
+        // Date对象在解析UTC时间戳时会自动转换为本地时间
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
         
-        if (isIOS) {
-            // iOS设备使用更简单的方法：直接使用Date对象的本地时间方法
-            // 因为Date对象已经正确解析了UTC时间，直接使用本地时间方法即可
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const seconds = String(date.getSeconds()).padStart(2, '0');
-            
-            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-        } else {
-            // 其他设备使用toLocaleString
-            return date.toLocaleString(locale, {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            }).replace(/\//g, '-');
-        }
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     } catch (error) {
         console.error('Date formatting error:', error);
         // 返回简单的本地时间字符串作为后备
         try {
-            // 如果所有方法都失败，使用简单的本地时间转换
             const localDate = new Date(date.getTime());
-            const year = localDate.getFullYear();
-            const month = String(localDate.getMonth() + 1).padStart(2, '0');
-            const day = String(localDate.getDate()).padStart(2, '0');
-            const hours = String(localDate.getHours()).padStart(2, '0');
-            const minutes = String(localDate.getMinutes()).padStart(2, '0');
-            const seconds = String(localDate.getSeconds()).padStart(2, '0');
-            
-            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            return localDate.toISOString().replace('T', ' ').substring(0, 19);
         } catch (fallbackError) {
             return date.toISOString().replace('T', ' ').substring(0, 19);
         }
