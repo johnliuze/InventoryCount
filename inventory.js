@@ -44,37 +44,25 @@ function parseDateSafely(timestamp) {
                 }
             }
             
-            // 尝试不同的解析方法
-            let date;
-            
-            // 方法1：直接解析
-            date = new Date(cleanTimestamp);
-            if (!isNaN(date.getTime())) {
-                return date;
-            }
-            
-            // 方法2：添加Z后缀
+            // 如果是其他格式，尝试添加Z后缀
             if (!cleanTimestamp.endsWith('Z')) {
-                date = new Date(cleanTimestamp + 'Z');
-                if (!isNaN(date.getTime())) {
-                    return date;
-                }
+                cleanTimestamp += 'Z';
             }
             
-            // 方法3：尝试解析为UTC时间
-            date = new Date(cleanTimestamp.replace(' ', 'T') + 'Z');
-            if (!isNaN(date.getTime())) {
-                return date;
+            const date = new Date(cleanTimestamp);
+            
+            // 检查日期是否有效
+            if (isNaN(date.getTime())) {
+                throw new Error('Invalid date');
             }
             
-            // 如果所有方法都失败，抛出错误
-            throw new Error('Unable to parse timestamp');
+            return date;
         }
         
         throw new Error('Invalid timestamp format');
     } catch (error) {
         console.error('Date parsing error:', error, 'Timestamp:', timestamp);
-        // 返回null而不是当前时间
+        // 返回null而不是当前时间，让调用方处理
         return null;
     }
 }
@@ -133,7 +121,7 @@ function mergeClearAndAddLogs(logs) {
                     box_count: current.box_count,
                     pieces_per_box: current.pieces_per_box,
                     total_pieces: current.total_pieces,
-                    timestamp: timeA >= timeB ? current.timestamp : next.timestamp
+                    timestamp: current.timestamp
                 });
                 usedIndexSet.add(i);
                 usedIndexSet.add(j);
@@ -195,12 +183,12 @@ function formatHistoryRecord(record, timestamp, lang) {
     } else {
         lineHtml = isZh ? normalZh : normalEn;
     }
-
-    return `
-    <div class="history-item">
-        <div class="time">${timestamp}</div>
+            
+            return `
+            <div class="history-item">
+                <div class="time">${timestamp}</div>
         <div class="details">${lineHtml}</div>
-    </div>`;
+            </div>`;
 }
 
 // 更新历史记录显示
@@ -601,7 +589,7 @@ function showConfirmDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox) 
     
     // 显示确认对话框
     $("#confirm-dialog").fadeIn(200);
-    
+
     // 确认按钮事件
     $("#confirm-yes").on('click', function() {
         $("#confirm-yes").off('click');
@@ -645,32 +633,32 @@ function clearBinAndAdd(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
 
 // 添加库存
 function addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
-    $.ajax({
-        url: `${API_URL}/api/inventory`,
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            bin_code: binCode,
-            item_code: itemCode,
+        $.ajax({
+            url: `${API_URL}/api/inventory`,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                bin_code: binCode,
+                item_code: itemCode,
             BT: BTNumber,
-            box_count: boxCount,
-            pieces_per_box: piecesPerBox
-        }),
-        success: function(response) {
-            // 成功后再更新显示并重置表单
-            setTimeout(updateHistoryDisplay, 100);
+                box_count: boxCount,
+                pieces_per_box: piecesPerBox
+            }),
+            success: function(response) {
+                // 成功后再更新显示并重置表单
+                setTimeout(updateHistoryDisplay, 100);
             
             // 重置表单（包括BT输入框）
-            $("#inventoryForm")[0].reset();
-        },
-        error: function(xhr, status, error) {
-            let errorMsg = "添加失败，请检查输入！";
-            if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMsg = xhr.responseJSON.error;
+                $("#inventoryForm")[0].reset();
+            },
+            error: function(xhr, status, error) {
+                let errorMsg = "添加失败，请检查输入！";
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                alert(errorMsg);
             }
-            alert(errorMsg);
-        }
-    });
+        });
 }
 
 // 查询商品总数量和所在库位
@@ -696,24 +684,24 @@ function searchItemTotal() {
         const total = totalData[0];
         const locations = locationsData[0];
         
-        // 如果总数为0，显示无库存信息
+            // 如果总数为0，显示无库存信息
         if (total.total === 0) {
-            $("#itemTotalResult").html(`
-                <div class="result-item">
-                    <span class="lang-zh">
-                        商品 <span class="item-code">${itemCode}</span> 当前无库存
-                    </span>
-                    <span class="lang-en">
-                        Item <span class="item-code">${itemCode}</span> currently has no inventory
-                    </span>
-                </div>
-            `);
-            return;
-        }
-        
+                $("#itemTotalResult").html(`
+                    <div class="result-item">
+                        <span class="lang-zh">
+                            商品 <span class="item-code">${itemCode}</span> 当前无库存
+                        </span>
+                        <span class="lang-en">
+                            Item <span class="item-code">${itemCode}</span> currently has no inventory
+                        </span>
+                    </div>
+                `);
+                return;
+            }
+            
         // 构建总数量信息
         let html = `
-            <div class="result-item">
+                <div class="result-item">
                 <div class="total-summary">
                     <span class="lang-zh">
                         商品 <span class="item-code">${itemCode}</span> 
@@ -774,20 +762,20 @@ function searchItemTotal() {
         $("#itemTotalResult").html(html);
         
     }).fail(function(xhr, status, error) {
-        let errorMsg = {
-            zh: "查询失败！",
-            en: "Query failed!"
-        };
-        if (xhr.responseJSON && xhr.responseJSON.error) {
-            errorMsg = {
-                zh: xhr.responseJSON.error,
-                en: xhr.responseJSON.error_en || xhr.responseJSON.error
+            let errorMsg = {
+                zh: "查询失败！",
+                en: "Query failed!"
             };
-        }
-        $("#itemTotalResult").html(`
-            <span class="lang-zh">${errorMsg.zh}</span>
-            <span class="lang-en">${errorMsg.en}</span>
-        `);
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = {
+                    zh: xhr.responseJSON.error,
+                    en: xhr.responseJSON.error_en || xhr.responseJSON.error
+                };
+            }
+            $("#itemTotalResult").html(`
+                <span class="lang-zh">${errorMsg.zh}</span>
+                <span class="lang-en">${errorMsg.en}</span>
+            `);
     });
 }
 
@@ -838,13 +826,13 @@ function searchBinContents() {
                 <div class="item-card">
                     <div class="item-header">
                         <div class="item-info">
-                            <span class="lang-zh">
-                                商品 <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> 件
-                            </span>
-                            <span class="lang-en">
-                                Item <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> pcs
-                            </span>
-                        </div>
+                        <span class="lang-zh">
+                            商品 <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> 件
+                        </span>
+                        <span class="lang-en">
+                            Item <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> pcs
+                        </span>
+                    </div>
                         <button class="clear-item-button" onclick="clearItemAtBin('${binCode}', '${inv.item_code}')">
                             <span class="lang-zh">清空此商品</span>
                             <span class="lang-en">Clear Item</span>
@@ -1049,32 +1037,32 @@ function searchBT() {
                             <span class="lang-en">Item Details:</span>
                         </h4>
                         ${data.items.map(item => `
-                            <div class="item-card">
-                                <div class="item-header">
+                <div class="item-card">
+                    <div class="item-header">
                                     <div class="item-info">
-                                        <span class="lang-zh">
+                        <span class="lang-zh">
                                             商品 <span class="item-code">${item.item_code}</span>: <span class="quantity">${item.total_pieces}</span> 件
-                                        </span>
-                                        <span class="lang-en">
+                        </span>
+                        <span class="lang-en">
                                             Item <span class="item-code">${item.item_code}</span>: <span class="quantity">${item.total_pieces}</span> pcs
-                                        </span>
-                                    </div>
+                        </span>
+                    </div>
                                 </div>
                                 <div class="locations-details">
                                     <span class="lang-zh">所在库位：</span>
                                     <span class="lang-en">Locations:</span>
                                     ${item.locations.map(loc => `
                                         <div class="location-item">
-                                            <span class="lang-zh">
+                                <span class="lang-zh">
                                                 库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.pieces}</span> 件
-                                            </span>
-                                            <span class="lang-en">
+                                </span>
+                                <span class="lang-en">
                                                 Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.pieces}</span> pcs
-                                            </span>
-                                        </div>
-                                    `).join('')}
-                                </div>
+                                </span>
                             </div>
+                        `).join('')}
+                    </div>
+                </div>
                         `).join("")}
                     </div>
                 </div>
@@ -1191,8 +1179,8 @@ function updateRecentHistory(logsFromCache) {
                 const noDataText = lang === 'zh' ? '今日暂无录入记录' : 'No input records today';
                 recentHistoryList.innerHTML = `<div style="text-align: center; color: #666; padding: 20px;">${noDataText}</div>`;
             } else {
-                recentHistoryList.innerHTML = html;
-            }
+            recentHistoryList.innerHTML = html;
+        }
         }
     };
 
