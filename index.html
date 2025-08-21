@@ -118,6 +118,10 @@
             border: 1px solid #ccc;
             border-radius: 5px;
             background-color: white;
+            display: none; /* 默认隐藏所有标签页内容 */
+        }
+        .tab-content.active {
+            display: block; /* 只显示active的标签页内容 */
         }
         form div {
             margin: 10px 0;
@@ -1090,7 +1094,7 @@
         <h1 class="lang-en">Inventory System</h1>
         
         <div class="tab-buttons">
-            <button class="tab-button active" onclick="switchTab('input')" data-tab="input">
+            <button class="tab-button" onclick="switchTab('input')" data-tab="input">
                 <span class="lang-zh">库存录入</span>
                 <span class="lang-en">Input</span>
             </button>
@@ -1110,7 +1114,7 @@
         </div>
         
         <!-- 盘点录入标签页 -->
-        <div id="input-tab" class="tab-content active">
+        <div id="input-tab" class="tab-content">
             <form id="inventoryForm">
                 <!-- 库位信息部分 - 最上面 -->
                 <div class="input-section container-section">
@@ -1300,7 +1304,7 @@
             
             <!-- 查询类型标签页 -->
             <div class="query-tab-buttons">
-                <button class="query-tab-button active" onclick="switchQueryTab('bin-contents')" data-tab="bin-contents">
+                <button class="query-tab-button" onclick="switchQueryTab('bin-contents')" data-tab="bin-contents">
                     <span class="lang-zh">📦 搜索库位</span>
                     <span class="lang-en">📦 Search Bin</span>
                 </button>
@@ -1315,7 +1319,7 @@
             </div>
             
             <!-- 搜索库位 -->
-            <div id="bin-contents-tab" class="query-content active">
+            <div id="bin-contents-tab" class="query-content">
                 <h3>
                     <span class="lang-zh">📦 搜索库位</span>
                     <span class="lang-en">📦 Search Bin</span>
