@@ -67,55 +67,21 @@ function parseDateSafely(timestamp) {
     }
 }
 
-// 获取用户时区偏移
-let userTimezoneOffset = null;
-let timezoneOffsetPromise = null;
-
-function getUserTimezoneOffset() {
-    if (timezoneOffsetPromise) {
-        return timezoneOffsetPromise;
-    }
-    
-    timezoneOffsetPromise = new Promise((resolve) => {
-        if (userTimezoneOffset !== null) {
-            resolve(userTimezoneOffset);
-            return;
-        }
-        
-        // 直接使用当前时间的时区偏移，这是最准确的方法
-        userTimezoneOffset = new Date().getTimezoneOffset() * 60000; // 转换为毫秒
-        resolve(userTimezoneOffset);
-    });
-    
-    return timezoneOffsetPromise;
-}
-
-// 预加载时区偏移
-getUserTimezoneOffset();
-
-// 安全的日期格式化函数 - 同步版本
+// 安全的日期格式化函数 - 最简单的方案
 function formatDateSafely(date, locale = 'zh-CN') {
     try {
         if (!date || isNaN(date.getTime())) {
             return 'Invalid Date';
         }
         
-        // 使用预加载的时区偏移
-        const timezoneOffset = userTimezoneOffset !== null ? userTimezoneOffset : 0;
-        
-        // 正确的时区转换：从UTC时间减去时区偏移得到本地时间
-        // getTimezoneOffset()返回的是本地时间与UTC的分钟差
-        // 正值表示本地时间比UTC早，负值表示本地时间比UTC晚
-        const localTime = date.getTime() - timezoneOffset;
-        const localDate = new Date(localTime);
-        
-        // 格式化本地时间
-        const year = localDate.getFullYear();
-        const month = String(localDate.getMonth() + 1).padStart(2, '0');
-        const day = String(localDate.getDate()).padStart(2, '0');
-        const hours = String(localDate.getHours()).padStart(2, '0');
-        const minutes = String(localDate.getMinutes()).padStart(2, '0');
-        const seconds = String(localDate.getSeconds()).padStart(2, '0');
+        // 最简单的方法：直接使用Date对象的本地时间方法
+        // 因为Date对象在解析UTC时间戳时已经自动转换为本地时间
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
         
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     } catch (error) {
