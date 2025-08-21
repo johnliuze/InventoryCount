@@ -919,9 +919,13 @@ function filterHistoryByDate() {
             const filteredLogs = logs.filter(record => {
                 // 使用安全的日期解析
                 const recordDate = parseDateSafely(record.timestamp);
-                const recordDateStr = recordDate ? recordDate.getFullYear() + '-' + 
+                if (!recordDate) {
+                    // 如果日期解析失败，仍然显示该记录（不过滤掉）
+                    return true;
+                }
+                const recordDateStr = recordDate.getFullYear() + '-' + 
                                      String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                                     String(recordDate.getDate()).padStart(2, '0') : null;
+                                     String(recordDate.getDate()).padStart(2, '0');
                 return recordDateStr === selectedDate;
             });
             renderFilteredHistory(filteredLogs, selectedDate);
@@ -1155,9 +1159,13 @@ function updateRecentHistory(logsFromCache) {
         const todayLogs = mergedLogs.filter(record => {
             // 使用安全的日期解析
             const recordDate = parseDateSafely(record.timestamp);
-            const recordDateStr = recordDate ? recordDate.getFullYear() + '-' + 
+            if (!recordDate) {
+                // 如果日期解析失败，仍然显示该记录（不过滤掉）
+                return true;
+            }
+            const recordDateStr = recordDate.getFullYear() + '-' + 
                                  String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                                 String(recordDate.getDate()).padStart(2, '0') : null;
+                                 String(recordDate.getDate()).padStart(2, '0');
             return recordDateStr === todayStr;
         });
         
@@ -1200,17 +1208,13 @@ function updateFullHistory(logsFromCache) {
     const render = (logs) => {
         const mergedLogs = mergeClearAndAddLogs(logs);
         const html = mergedLogs.map(record => {
-            // 将UTC时间转换为本地时间显示
-            const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
-            const timestamp = utcDate.toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            }).replace(/\//g, '-');
+            // 使用安全的日期解析和格式化
+            const utcDate = parseDateSafely(record.timestamp);
+            if (!utcDate) {
+                // 如果日期解析失败，显示原始时间戳
+                return formatHistoryRecord(record, record.timestamp || 'Invalid Date', document.body.className.includes('lang-en') ? 'en' : 'zh');
+            }
+            const timestamp = formatDateSafely(utcDate, 'zh-CN');
             return formatHistoryRecord(record, timestamp, document.body.className.includes('lang-en') ? 'en' : 'zh');
         }).join('');
         
