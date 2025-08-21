@@ -82,37 +82,9 @@ function getUserTimezoneOffset() {
             return;
         }
         
-        // 首先尝试从当前时间获取时区偏移
-        try {
-            userTimezoneOffset = new Date().getTimezoneOffset() * 60000; // 转换为毫秒
-            resolve(userTimezoneOffset);
-            return;
-        } catch (error) {
-            console.log('Failed to get timezone offset from current time');
-        }
-        
-        // 如果失败，使用地理位置API
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const { latitude, longitude } = position.coords;
-                    
-                    // 使用简单的时区估算（基于经度）
-                    // 每15度经度约等于1小时时差
-                    const estimatedOffset = Math.round(longitude / 15) * 60 * 60 * 1000; // 转换为毫秒
-                    userTimezoneOffset = -estimatedOffset; // 注意符号
-                    resolve(userTimezoneOffset);
-                },
-                (error) => {
-                    console.log('Geolocation failed:', error);
-                    userTimezoneOffset = 0; // 默认UTC
-                    resolve(userTimezoneOffset);
-                }
-            );
-        } else {
-            userTimezoneOffset = 0; // 默认UTC
-            resolve(userTimezoneOffset);
-        }
+        // 直接使用当前时间的时区偏移，这是最准确的方法
+        userTimezoneOffset = new Date().getTimezoneOffset() * 60000; // 转换为毫秒
+        resolve(userTimezoneOffset);
     });
     
     return timezoneOffsetPromise;
@@ -131,7 +103,9 @@ function formatDateSafely(date, locale = 'zh-CN') {
         // 使用预加载的时区偏移
         const timezoneOffset = userTimezoneOffset !== null ? userTimezoneOffset : 0;
         
-        // 手动进行时区转换
+        // 正确的时区转换：从UTC时间减去时区偏移得到本地时间
+        // getTimezoneOffset()返回的是本地时间与UTC的分钟差
+        // 正值表示本地时间比UTC早，负值表示本地时间比UTC晚
         const localTime = date.getTime() - timezoneOffset;
         const localDate = new Date(localTime);
         
