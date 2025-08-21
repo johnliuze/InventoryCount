@@ -74,19 +74,35 @@ function formatDateSafely(date, locale = 'zh-CN') {
             return 'Invalid Date';
         }
         
-        // 手动计算本地时间偏移，确保在iPad上正确工作
-        const timezoneOffset = date.getTimezoneOffset() * 60000; // 转换为毫秒
-        const localTime = new Date(date.getTime() - timezoneOffset);
+        // 检查时区偏移，如果为0说明可能是UTC时间，需要手动转换
+        const timezoneOffset = date.getTimezoneOffset();
         
-        // 格式化本地时间
-        const year = localTime.getFullYear();
-        const month = String(localTime.getMonth() + 1).padStart(2, '0');
-        const day = String(localTime.getDate()).padStart(2, '0');
-        const hours = String(localTime.getHours()).padStart(2, '0');
-        const minutes = String(localTime.getMinutes()).padStart(2, '0');
-        const seconds = String(localTime.getSeconds()).padStart(2, '0');
-        
-        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        // 如果时区偏移为0，说明可能是UTC时间，需要手动转换
+        if (timezoneOffset === 0) {
+            // 手动计算本地时间偏移
+            const localTime = new Date(date.getTime() - (new Date().getTimezoneOffset() * 60000));
+            
+            // 格式化本地时间
+            const year = localTime.getFullYear();
+            const month = String(localTime.getMonth() + 1).padStart(2, '0');
+            const day = String(localTime.getDate()).padStart(2, '0');
+            const hours = String(localTime.getHours()).padStart(2, '0');
+            const minutes = String(localTime.getMinutes()).padStart(2, '0');
+            const seconds = String(localTime.getSeconds()).padStart(2, '0');
+            
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        } else {
+            // 正常情况使用toLocaleString
+            return date.toLocaleString(locale, {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(/\//g, '-');
+        }
     } catch (error) {
         console.error('Date formatting error:', error);
         // 返回简单的本地时间字符串作为后备
