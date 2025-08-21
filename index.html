@@ -1407,6 +1407,15 @@
                 $('#BTSearch').val('');
                 $('#itemSearch').val('');
             }
+            
+            // 如果切换到Input标签页，清空所有输入框
+            if (tabId === 'input') {
+                $('#binInput').val('');
+                $('#BTInput').val('');
+                $('#itemInput').val('');
+                $('#boxCount').val('');
+                $('#piecesPerBox').val('');
+            }
         }
         
         // 初始化
