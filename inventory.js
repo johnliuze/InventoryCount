@@ -74,14 +74,19 @@ function formatDateSafely(date, locale = 'zh-CN') {
             return 'Invalid Date';
         }
         
-        // 最简单的方法：直接使用Date对象的本地时间方法
-        // Date对象在解析UTC时间戳时会自动转换为本地时间
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
+        // 手动计算本地时间：从UTC时间减去时区偏移
+        const utcTime = date.getTime(); // 获取UTC时间戳
+        const timezoneOffset = date.getTimezoneOffset() * 60000; // 时区偏移（毫秒）
+        const localTime = utcTime - timezoneOffset; // 计算本地时间
+        const localDate = new Date(localTime);
+        
+        // 格式化本地时间
+        const year = localDate.getFullYear();
+        const month = String(localDate.getMonth() + 1).padStart(2, '0');
+        const day = String(localDate.getDate()).padStart(2, '0');
+        const hours = String(localDate.getHours()).padStart(2, '0');
+        const minutes = String(localDate.getMinutes()).padStart(2, '0');
+        const seconds = String(localDate.getSeconds()).padStart(2, '0');
         
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     } catch (error) {
