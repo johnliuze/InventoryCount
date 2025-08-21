@@ -30,7 +30,17 @@ def server_error(e):
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
+
+# 处理OPTIONS预检请求
+@app.route('/api/inventory/bin/<bin_code>/clear', methods=['OPTIONS'])
+@app.route('/api/inventory/bin/<bin_code>/item/<item_code>/clear', methods=['OPTIONS'])
+def handle_options(bin_code, item_code=None):
+    response = jsonify({})
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS')
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
@@ -1186,9 +1196,6 @@ def clear_bin_inventory(bin_code):
         db = get_db()
         cursor = db.cursor()
         
-        # 解码参数
-        bin_code = bin_code.replace('___SLASH___', '/').replace('___SPACE___', ' ')
-        
         # 先检查库位是否存在
         cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (bin_code,))
         bin_result = cursor.fetchone()
@@ -1216,10 +1223,6 @@ def clear_item_at_bin(bin_code, item_code):
     try:
         db = get_db()
         cursor = db.cursor()
-        
-        # 解码参数
-        bin_code = bin_code.replace('___SLASH___', '/').replace('___SPACE___', ' ')
-        item_code = item_code.replace('___SLASH___', '/').replace('___SPACE___', ' ')
         
         # 先检查库位是否存在
         cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (bin_code,))
