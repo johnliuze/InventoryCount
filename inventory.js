@@ -28,6 +28,65 @@ let fullHistoryUpdateInterval = null;
 // 跟踪用户选择的日期
 let userSelectedDate = null;
 
+// 兼容iPad的日期解析函数
+function parseDateSafely(timestamp) {
+    try {
+        // 首先尝试标准格式
+        if (timestamp && typeof timestamp === 'string') {
+            // 确保时间戳格式正确
+            let cleanTimestamp = timestamp.trim();
+            
+            // 如果已经是ISO格式，直接解析
+            if (cleanTimestamp.includes('T') && cleanTimestamp.includes('Z')) {
+                return new Date(cleanTimestamp);
+            }
+            
+            // 如果是其他格式，尝试添加Z后缀
+            if (!cleanTimestamp.endsWith('Z')) {
+                cleanTimestamp += 'Z';
+            }
+            
+            const date = new Date(cleanTimestamp);
+            
+            // 检查日期是否有效
+            if (isNaN(date.getTime())) {
+                throw new Error('Invalid date');
+            }
+            
+            return date;
+        }
+        
+        throw new Error('Invalid timestamp format');
+    } catch (error) {
+        console.error('Date parsing error:', error, 'Timestamp:', timestamp);
+        // 返回当前时间作为后备
+        return new Date();
+    }
+}
+
+// 安全的日期格式化函数
+function formatDateSafely(date, locale = 'zh-CN') {
+    try {
+        if (!date || isNaN(date.getTime())) {
+            return 'Invalid Date';
+        }
+        
+        return date.toLocaleString(locale, {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).replace(/\//g, '-');
+    } catch (error) {
+        console.error('Date formatting error:', error);
+        // 返回简单的日期字符串作为后备
+        return date.toISOString().replace('T', ' ').substring(0, 19);
+    }
+}
+
 // 合并“清空并添加”的历史记录（将紧邻的 清空库位 + 添加 组合为一条）
 function mergeClearAndAddLogs(logs) {
     if (!Array.isArray(logs) || logs.length === 0) return [];
@@ -45,9 +104,9 @@ function mergeClearAndAddLogs(logs) {
         if (j < logs.length && !usedIndexSet.has(j)) {
             const next = logs[j];
             const sameBin = current.bin_code === next.bin_code;
-            // 确保按UTC时间进行比较
-            const timeA = new Date(current.timestamp + 'Z').getTime();
-            const timeB = new Date(next.timestamp + 'Z').getTime();
+            // 使用安全的日期解析
+            const timeA = parseDateSafely(current.timestamp).getTime();
+            const timeB = parseDateSafely(next.timestamp).getTime();
             const closeInTime = Math.abs(timeA - timeB) <= withinMs;
 
             // 情况1：按时间倒序常见，先看到添加，后一条是清空
@@ -146,17 +205,9 @@ function updateHistoryDisplay(logsFromCache) {
         
         const mergedLogs = mergeClearAndAddLogs(logs);
         const html = mergedLogs.map(record => {
-            // 将UTC时间转换为本地时间显示
-            const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
-            const timestamp = utcDate.toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            }).replace(/\//g, '-');
+            // 使用安全的日期解析和格式化
+            const utcDate = parseDateSafely(record.timestamp);
+            const timestamp = formatDateSafely(utcDate, 'zh-CN');
             return formatHistoryRecord(record, timestamp, lang);
         }).join('');
         
@@ -859,8 +910,8 @@ function filterHistoryByDate() {
             cachedLogs = logs;
             // 在客户端过滤指定日期的记录
             const filteredLogs = logs.filter(record => {
-                // 将UTC时间转换为本地时间进行比较
-                const recordDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
+                // 使用安全的日期解析
+                const recordDate = parseDateSafely(record.timestamp);
                 const recordDateStr = recordDate.getFullYear() + '-' + 
                                      String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
                                      String(recordDate.getDate()).padStart(2, '0');
@@ -896,17 +947,9 @@ function renderFilteredHistory(logs, date) {
     
     let html = '';
     mergedLogs.forEach(record => {
-        // 将UTC时间转换为本地时间显示
-        const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
-        const timestamp = utcDate.toLocaleString(isZh ? 'zh-CN' : 'en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        }).replace(/\//g, '-');
+        // 使用安全的日期解析和格式化
+        const utcDate = parseDateSafely(record.timestamp);
+        const timestamp = formatDateSafely(utcDate, isZh ? 'zh-CN' : 'en-US');
         html += formatHistoryRecord(record, timestamp, lang);
     });
     
@@ -1096,10 +1139,10 @@ function updateRecentHistory(logsFromCache) {
                         String(today.getMonth() + 1).padStart(2, '0') + '-' + 
                         String(today.getDate()).padStart(2, '0');
         
-        // 过滤出今日的记录（将UTC时间转换为本地时间进行比较）
+        // 过滤出今日的记录（使用安全的日期解析）
         const todayLogs = mergedLogs.filter(record => {
-            // 将UTC时间转换为本地时间
-            const recordDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
+            // 使用安全的日期解析
+            const recordDate = parseDateSafely(record.timestamp);
             const recordDateStr = recordDate.getFullYear() + '-' + 
                                  String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
                                  String(recordDate.getDate()).padStart(2, '0');
@@ -1107,17 +1150,9 @@ function updateRecentHistory(logsFromCache) {
         });
         
         const html = todayLogs.map(record => {
-            // 将UTC时间转换为本地时间显示
-            const utcDate = new Date(record.timestamp + 'Z'); // 确保按UTC解析
-            const timestamp = utcDate.toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            }).replace(/\//g, '-');
+            // 使用安全的日期解析和格式化
+            const utcDate = parseDateSafely(record.timestamp);
+            const timestamp = formatDateSafely(utcDate, 'zh-CN');
             return formatHistoryRecord(record, timestamp, document.body.className.includes('lang-en') ? 'en' : 'zh');
         }).join('');
         
