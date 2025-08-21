@@ -256,9 +256,8 @@
             display: block;
         }
         .language-switch {
-            position: absolute;
-            top: 20px;
-            right: 20px;
+            text-align: right;
+            margin: 10px 0 20px 0;
         }
         .language-switch button {
             padding: 5px 10px;
@@ -590,13 +589,10 @@
             
             /* 语言切换按钮在移动设备上的样式 */
             .language-switch {
-                position: absolute;
-                top: 10px;
-                right: 10px;
+                text-align: right;
+                margin: 10px 0 15px 0;
                 display: flex;
                 justify-content: flex-end;
-                margin-bottom: 0;
-                margin-top: 0;
             }
             
             .language-switch button {
@@ -1085,13 +1081,13 @@
 </head>
 <body>
     <div class="container">
+        <h1 class="lang-zh">库存盘点系统</h1>
+        <h1 class="lang-en">Inventory System</h1>
+        
         <div class="language-switch">
             <button onclick="switchLanguage('zh')">中文</button>
             <button onclick="switchLanguage('en')">English</button>
         </div>
-        
-        <h1 class="lang-zh">库存盘点系统</h1>
-        <h1 class="lang-en">Inventory System</h1>
         
         <div class="tab-buttons">
             <button class="tab-button" onclick="switchTab('input')" data-tab="input">
