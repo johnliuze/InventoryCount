@@ -319,7 +319,7 @@ def add_inventory():
         cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (data['bin_code'],))
         bin_result = cursor.fetchone()
         if not bin_result:
-            return jsonify({'error': '库位不存在'}), 400
+            return jsonify({'error': '库位不存在', 'error_en': 'Bin location does not exist'}), 400
         bin_id = bin_result['bin_id']
 
         # 检查商品是否存在，如果不存在则自动添加
@@ -417,7 +417,7 @@ def get_bin_inventory(bin_id):
     bin_result = cursor.fetchone()
     
     if not bin_result:
-        return jsonify({'error': '库位不存在', 'inventory': []}), 404
+        return jsonify({'error': '库位不存在', 'error_en': 'Bin location does not exist', 'inventory': []}), 404
     
     # 先获取每个商品的总数和合并后的箱规
     cursor.execute('''
@@ -921,13 +921,13 @@ def input_inventory():
         cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (data['bin_code'],))
         bin_result = cursor.fetchone()
         if not bin_result:
-            return jsonify({'error': '库位不存在'}), 404
+            return jsonify({'error': '库位不存在', 'error_en': 'Bin location does not exist'}), 404
         
         # 获取商品ID
         cursor.execute('SELECT item_id FROM items WHERE item_code = ?', (data['item_code'],))
         item_result = cursor.fetchone()
         if not item_result:
-            return jsonify({'error': '商品不存在'}), 404
+            return jsonify({'error': '商品不存在', 'error_en': 'Item does not exist'}), 404
         
         # 计算总件数
         total_pieces = data['box_count'] * data['pieces_per_box']
@@ -1186,11 +1186,14 @@ def clear_bin_inventory(bin_code):
         db = get_db()
         cursor = db.cursor()
         
+        # 解码参数
+        bin_code = bin_code.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+        
         # 先检查库位是否存在
         cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (bin_code,))
         bin_result = cursor.fetchone()
         if not bin_result:
-            return jsonify({'error': '库位不存在'}), 404
+            return jsonify({'error': '库位不存在', 'error_en': 'Bin location does not exist'}), 404
         
         # 删除该库位的所有库存记录
         cursor.execute('DELETE FROM inventory WHERE bin_id = ?', (bin_result['bin_id'],))
@@ -1214,17 +1217,21 @@ def clear_item_at_bin(bin_code, item_code):
         db = get_db()
         cursor = db.cursor()
         
+        # 解码参数
+        bin_code = bin_code.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+        item_code = item_code.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+        
         # 先检查库位是否存在
         cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (bin_code,))
         bin_result = cursor.fetchone()
         if not bin_result:
-            return jsonify({'error': '库位不存在'}), 404
+            return jsonify({'error': '库位不存在', 'error_en': 'Bin location does not exist'}), 404
         
         # 检查商品是否存在
         cursor.execute('SELECT item_id FROM items WHERE item_code = ?', (item_code,))
         item_result = cursor.fetchone()
         if not item_result:
-            return jsonify({'error': '商品不存在'}), 404
+            return jsonify({'error': '商品不存在', 'error_en': 'Item does not exist'}), 404
         
         # 获取要删除的库存信息用于历史记录
         cursor.execute('''
@@ -1303,8 +1310,8 @@ def export_history():
     
     # 创建DataFrame
     df = pd.DataFrame(history_data, columns=[
-        'Time', 'Bin Code', 'Item Code', 'BT Number', 
-        'Box Count', 'Pieces per Box', 'Total Pieces'
+        'Time (UTC)', 'Bin Location', 'Item (SKU)', 'BT Number', 
+        'Box Count', 'PCs/Box', 'Total Pieces'
     ])
     
     # 创建Excel文件
@@ -1314,15 +1321,6 @@ def export_history():
         
         workbook = writer.book
         worksheet = writer.sheets['History']
-        
-        # 设置列宽
-        worksheet.set_column('A:A', 20)  # Time
-        worksheet.set_column('B:B', 15)  # Bin Code
-        worksheet.set_column('C:C', 15)  # Item Code
-        worksheet.set_column('D:D', 15)  # BT Number
-        worksheet.set_column('E:E', 12)  # Box Count
-        worksheet.set_column('F:F', 15)  # Pieces per Box
-        worksheet.set_column('G:G', 12)  # Total Pieces
         
         # 定义格式
         header_format = workbook.add_format({
@@ -1368,11 +1366,11 @@ def export_history():
         for col_num, value in enumerate(df.columns.values):
             worksheet.write(0, col_num, value, header_format)
         
-        # 应用格式到数据
+        # 设置列宽并应用格式
         worksheet.set_column('A:A', 20, time_format)    # Time column
-        worksheet.set_column('B:B', 15, bin_format)     # Bin Code column
-        worksheet.set_column('C:C', 15, item_format)    # Item Code column
-        worksheet.set_column('D:D', 15, bt_format)      # BT Number column
+        worksheet.set_column('B:B', 15 , bin_format)     # Bin Code column
+        worksheet.set_column('C:C', 20, item_format)    # Item Code column
+        worksheet.set_column('D:D', 10, bt_format)      # BT Number column
         worksheet.set_column('E:G', None, number_format) # Number columns
     
     output.seek(0)
