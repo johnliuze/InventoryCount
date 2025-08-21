@@ -44,6 +44,16 @@ function parseDateSafely(timestamp) {
                 }
             }
             
+            // 处理后端返回的格式：2025-08-21 19:38:48
+            if (cleanTimestamp.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+                // 将空格替换为T，并添加Z表示UTC
+                const isoFormat = cleanTimestamp.replace(' ', 'T') + 'Z';
+                const date = new Date(isoFormat);
+                if (!isNaN(date.getTime())) {
+                    return date;
+                }
+            }
+            
             // 如果是其他格式，尝试添加Z后缀
             if (!cleanTimestamp.endsWith('Z')) {
                 cleanTimestamp += 'Z';
