@@ -4,7 +4,7 @@ function getApiUrl() {
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
         return 'http://localhost:5001';
     } else if (hostname.includes('railway.app')) {
-        return 'https://sohoapparelwarehouse.up.railway.app';
+        return 'https://sohoapparelwarehouse-databse.up.railway.app';
     } else {
         return 'https://inventorycount-production.up.railway.app';
     }
@@ -261,10 +261,22 @@ function updateHistoryDisplay(logsFromCache) {
 // 初始化自动完成功能
 $(document).ready(function() {
     console.log("初始化自动完成功能");
+    console.log("API_URL:", API_URL);
+    
+    // 测试API连接
+    $.get(`${API_URL}/api/items`)
+        .done(data => {
+            console.log('API连接测试成功:', data);
+        })
+        .fail(error => {
+            console.error('API连接测试失败:', error);
+        });
+    
     // 商品输入自动完成（仅搜索功能）
     $("#itemSearch, #itemLocationSearch").autocomplete({
         source: function(request, response) {
             console.log("搜索商品:", request.term);
+            console.log("请求URL:", `${API_URL}/api/items`);
             $.get(`${API_URL}/api/items`, { search: request.term })
                 .done(items => {
                     console.log('Items response:', items);
@@ -272,6 +284,7 @@ $(document).ready(function() {
                 })
                 .fail(error => {
                     console.error('Items search error:', error);
+                    console.error('错误详情:', error.responseText);
                     response([]);  // 返回空数组而不是什么都不做
                 });
         },
@@ -283,6 +296,8 @@ $(document).ready(function() {
     // 库位输入自动完成
     $("#binInput, #binSearch").autocomplete({
         source: function(request, response) {
+            console.log("搜索库位:", request.term);
+            console.log("请求URL:", `${API_URL}/api/bins`);
             $.get(`${API_URL}/api/bins`, { search: request.term })
                 .done(bins => {
                     console.log('Bins response:', bins);
@@ -290,6 +305,7 @@ $(document).ready(function() {
                 })
                 .fail(error => {
                     console.error('Bins search error:', error);
+                    console.error('错误详情:', error.responseText);
                     response([]);  // 添加这行
                 });
         },
@@ -301,6 +317,8 @@ $(document).ready(function() {
     // BT输入自动完成
     $("#BTSearch").autocomplete({
         source: function(request, response) {
+            console.log("搜索BT:", request.term);
+            console.log("请求URL:", `${API_URL}/api/BTs`);
             $.get(`${API_URL}/api/BTs`, { search: request.term })
                 .done(BTs => {
                     console.log('BTs response:', BTs);
@@ -308,6 +326,7 @@ $(document).ready(function() {
                 })
                 .fail(error => {
                     console.error('BTs search error:', error);
+                    console.error('错误详情:', error.responseText);
                     response([]);
                 });
         },
