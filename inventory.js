@@ -38,29 +38,44 @@ function parseDateSafely(timestamp) {
             
             // 如果已经是ISO格式，直接解析
             if (cleanTimestamp.includes('T') && cleanTimestamp.includes('Z')) {
-                return new Date(cleanTimestamp);
+                const date = new Date(cleanTimestamp);
+                if (!isNaN(date.getTime())) {
+                    return date;
+                }
             }
             
-            // 如果是其他格式，尝试添加Z后缀
+            // 尝试不同的解析方法
+            let date;
+            
+            // 方法1：直接解析
+            date = new Date(cleanTimestamp);
+            if (!isNaN(date.getTime())) {
+                return date;
+            }
+            
+            // 方法2：添加Z后缀
             if (!cleanTimestamp.endsWith('Z')) {
-                cleanTimestamp += 'Z';
+                date = new Date(cleanTimestamp + 'Z');
+                if (!isNaN(date.getTime())) {
+                    return date;
+                }
             }
             
-            const date = new Date(cleanTimestamp);
-            
-            // 检查日期是否有效
-            if (isNaN(date.getTime())) {
-                throw new Error('Invalid date');
+            // 方法3：尝试解析为UTC时间
+            date = new Date(cleanTimestamp.replace(' ', 'T') + 'Z');
+            if (!isNaN(date.getTime())) {
+                return date;
             }
             
-            return date;
+            // 如果所有方法都失败，抛出错误
+            throw new Error('Unable to parse timestamp');
         }
         
         throw new Error('Invalid timestamp format');
     } catch (error) {
         console.error('Date parsing error:', error, 'Timestamp:', timestamp);
-        // 返回当前时间作为后备
-        return new Date();
+        // 返回null而不是当前时间
+        return null;
     }
 }
 
@@ -105,9 +120,9 @@ function mergeClearAndAddLogs(logs) {
             const next = logs[j];
             const sameBin = current.bin_code === next.bin_code;
             // 使用安全的日期解析
-            const timeA = parseDateSafely(current.timestamp).getTime();
-            const timeB = parseDateSafely(next.timestamp).getTime();
-            const closeInTime = Math.abs(timeA - timeB) <= withinMs;
+            const timeA = parseDateSafely(current.timestamp);
+            const timeB = parseDateSafely(next.timestamp);
+            const closeInTime = timeA && timeB && Math.abs(timeA.getTime() - timeB.getTime()) <= withinMs;
 
             // 情况1：按时间倒序常见，先看到添加，后一条是清空
             if (!isClear(current.item_code) && isClear(next.item_code) && sameBin && closeInTime) {
@@ -118,7 +133,7 @@ function mergeClearAndAddLogs(logs) {
                     box_count: current.box_count,
                     pieces_per_box: current.pieces_per_box,
                     total_pieces: current.total_pieces,
-                    timestamp: current.timestamp
+                    timestamp: timeA >= timeB ? current.timestamp : next.timestamp
                 });
                 usedIndexSet.add(i);
                 usedIndexSet.add(j);
@@ -207,6 +222,10 @@ function updateHistoryDisplay(logsFromCache) {
         const html = mergedLogs.map(record => {
             // 使用安全的日期解析和格式化
             const utcDate = parseDateSafely(record.timestamp);
+            if (!utcDate) {
+                // 如果日期解析失败，显示原始时间戳
+                return formatHistoryRecord(record, record.timestamp || 'Invalid Date', lang);
+            }
             const timestamp = formatDateSafely(utcDate, 'zh-CN');
             return formatHistoryRecord(record, timestamp, lang);
         }).join('');
@@ -912,9 +931,9 @@ function filterHistoryByDate() {
             const filteredLogs = logs.filter(record => {
                 // 使用安全的日期解析
                 const recordDate = parseDateSafely(record.timestamp);
-                const recordDateStr = recordDate.getFullYear() + '-' + 
+                const recordDateStr = recordDate ? recordDate.getFullYear() + '-' + 
                                      String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                                     String(recordDate.getDate()).padStart(2, '0');
+                                     String(recordDate.getDate()).padStart(2, '0') : null;
                 return recordDateStr === selectedDate;
             });
             renderFilteredHistory(filteredLogs, selectedDate);
@@ -949,8 +968,13 @@ function renderFilteredHistory(logs, date) {
     mergedLogs.forEach(record => {
         // 使用安全的日期解析和格式化
         const utcDate = parseDateSafely(record.timestamp);
-        const timestamp = formatDateSafely(utcDate, isZh ? 'zh-CN' : 'en-US');
-        html += formatHistoryRecord(record, timestamp, lang);
+        if (!utcDate) {
+            // 如果日期解析失败，显示原始时间戳
+            html += formatHistoryRecord(record, record.timestamp || 'Invalid Date', lang);
+        } else {
+            const timestamp = formatDateSafely(utcDate, isZh ? 'zh-CN' : 'en-US');
+            html += formatHistoryRecord(record, timestamp, lang);
+        }
     });
     
     $("#full-history-list").html(html);
@@ -1143,15 +1167,19 @@ function updateRecentHistory(logsFromCache) {
         const todayLogs = mergedLogs.filter(record => {
             // 使用安全的日期解析
             const recordDate = parseDateSafely(record.timestamp);
-            const recordDateStr = recordDate.getFullYear() + '-' + 
+            const recordDateStr = recordDate ? recordDate.getFullYear() + '-' + 
                                  String(recordDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                                 String(recordDate.getDate()).padStart(2, '0');
+                                 String(recordDate.getDate()).padStart(2, '0') : null;
             return recordDateStr === todayStr;
         });
         
         const html = todayLogs.map(record => {
             // 使用安全的日期解析和格式化
             const utcDate = parseDateSafely(record.timestamp);
+            if (!utcDate) {
+                // 如果日期解析失败，显示原始时间戳
+                return formatHistoryRecord(record, record.timestamp || 'Invalid Date', document.body.className.includes('lang-en') ? 'en' : 'zh');
+            }
             const timestamp = formatDateSafely(utcDate, 'zh-CN');
             return formatHistoryRecord(record, timestamp, document.body.className.includes('lang-en') ? 'en' : 'zh');
         }).join('');
