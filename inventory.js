@@ -1191,7 +1191,7 @@ function switchQueryTab(tabId) {
         $('#binSearch').val('');
     }
     if (tabId !== 'container-search') {
-        $('#containerSearchResult').empty();
+        $('#BTSearchResult').empty();
         $('#BTSearch').val('');
     }
     if (tabId !== 'item-total') {
