@@ -185,22 +185,55 @@ function mergeClearAndAddLogs(logs) {
 function formatHistoryRecord(record, timestamp, lang) {
     const isZh = lang === 'zh';
     
+    // 构建商品显示部分
+    const itemCodeDisplay = record.item_code ? 
+        (isZh ? `商品 <span class="item-code">${record.item_code}</span>` : `Item <span class="item-code">${record.item_code}</span>`) : '';
+
+    //box_count
+    const boxCountDisplay = record.box_count ? 
+        (isZh ? `<span class="quantity">${record.box_count}</span> 箱` : `<span class="quantity">${record.box_count}</span> boxes`) : '';
+    
+    //pieces_per_box
+    const piecesPerBoxDisplay = record.pieces_per_box ? 
+        (isZh ? `<span class="quantity">${record.pieces_per_box}</span> 件/箱` : `<span class="quantity">${record.pieces_per_box}</span> pcs/box`) : '';
+    
+    //total_pieces
+    const totalPiecesDisplay = record.total_pieces ? 
+        (isZh ? `<span class="quantity">${record.total_pieces}</span> 件` : `<span class="quantity">${record.total_pieces}</span> pcs`) : '';
+
+    const binCodeDisplay = record.bin_code ? 
+        (isZh ? `库位 <span class="bin-code">${record.bin_code}</span>` : `Bin <span class="bin-code">${record.bin_code}</span>`) : '';
+
     // 构建客户订单号显示部分
     const customerPODisplay = record.customer_po ? 
-        (isZh ? `: 客户订单号 <span class="customer-po">${record.customer_po}</span>` :
-         `: Customer PO <span class="customer-po">${record.customer_po}</span>`) : '';
+        (isZh ? `订单 <span class="customer-po">${record.customer_po}</span>` :
+         `PO <span class="customer-po">${record.customer_po}</span>`) : '';
     
     // 构建BT显示部分
     const BTDisplay = record.BT ? 
-        (isZh ? `: BT号 <span class="BT-number">${record.BT}</span>` :
-         `: BT <span class="BT-number">${record.BT}</span>`) : '';
+        (isZh ? `BT号 <span class="BT-number">${record.BT}</span>` :
+         `BT <span class="BT-number">${record.BT}</span>`) : '';
     
-    const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${customerPODisplay}${BTDisplay}: <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
-    const mergedEn = `🗑️ Cleared&Added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${customerPODisplay}${BTDisplay}: <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
-    const clearZh = `🗑️ 清空库位 <span class="bin-code">${record.bin_code}</span>`;
-    const clearEn = `🗑️ Cleared Bin <span class="bin-code">${record.bin_code}</span>`;
-    const normalZh = `库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${customerPODisplay}${BTDisplay}: <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
-    const normalEn = `Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${customerPODisplay}${BTDisplay}: <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
+    // 构建PO和BT的组合显示（只在有内容时显示括号）
+    const pobtInfo = [];
+    if (customerPODisplay) pobtInfo.push(customerPODisplay);
+    if (BTDisplay) pobtInfo.push(BTDisplay);
+    const pobtDisplay = pobtInfo.length > 0 ? ` (${pobtInfo.join(', ')})` : '';
+    
+    const mergedZh = `🗑️ ${binCodeDisplay}<br>
+                    ➕ ${itemCodeDisplay}${pobtDisplay} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
+    const mergedEn = `🗑️ ${binCodeDisplay}<br>
+                    ➕ ${itemCodeDisplay}${pobtDisplay} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
+    
+    const clearZh = `🗑️ ${binCodeDisplay}`;
+    const clearEn = `🗑️ ${binCodeDisplay}`;
+    
+    const normalZh = `➕ ${itemCodeDisplay}${pobtDisplay} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
+    const normalEn = `➕ ${itemCodeDisplay}${pobtDisplay} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
 
     let lineHtml;
     if (record.__merged) {
@@ -210,8 +243,8 @@ function formatHistoryRecord(record, timestamp, lang) {
     } else if (record.item_code && record.item_code.startsWith('清空商品')) {
         // 处理清空商品操作
         const itemCode = record.item_code.replace('清空商品', '');
-        const clearItemZh = `🗑️ 清空商品: 库位 <span class="bin-code">${record.bin_code}</span> 中的商品 <span class="item-code">${itemCode}</span> (<span class="quantity">${record.total_pieces}</span> 件)`;
-        const clearItemEn = `🗑️ Cleared item: Item <span class="item-code">${itemCode}</span> from bin <span class="bin-code">${record.bin_code}</span> (<span class="quantity">${record.total_pieces}</span> pcs)`;
+        const clearItemZh = `➖ 商品 <span class="item-code">${itemCode}</span> (${totalPiecesDisplay}) &rarr; ${binCodeDisplay}`;
+        const clearItemEn = `➖ Item <span class="item-code">${itemCode}</span> (${totalPiecesDisplay}) &rarr; ${binCodeDisplay}`;
         lineHtml = isZh ? clearItemZh : clearItemEn;
     } else {
         lineHtml = isZh ? normalZh : normalEn;
@@ -1526,16 +1559,16 @@ function clearItemAtBin(binCode, itemCode) {
             <span class="label">
                 <span class="lang-zh">库位：</span>
                 <span class="lang-en">Bin:</span>
-            </span>
+                    </span>
             <span class="bin-code">${binCode}</span>
         </div>
         <div class="confirm-row">
             <span class="label">
                 <span class="lang-zh">商品：</span>
                 <span class="lang-en">Item:</span>
-            </span>
+                    </span>
             <span class="item-code">${itemCode}</span>
-        </div>
+                </div>
     `);
     
     // 重置按钮显示和样式
