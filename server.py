@@ -1331,7 +1331,7 @@ def export_history():
         # 导出指定日期的历史记录
         cursor.execute('''
             SELECT 
-                datetime(input_time, 'localtime') as input_time,
+                input_time,
                 bin_code,
                 item_code,
                 customer_po,
@@ -1348,7 +1348,7 @@ def export_history():
         # 导出所有历史记录
         cursor.execute('''
             SELECT 
-                datetime(input_time, 'localtime') as input_time,
+                input_time,
                 bin_code,
                 item_code,
                 customer_po,
