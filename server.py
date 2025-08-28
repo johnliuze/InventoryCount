@@ -1026,9 +1026,9 @@ def get_logs():
     if date_filter:
         # 如果有日期过滤，只返回指定日期的记录
         cursor.execute('''
-            SELECT 
-                bin_code,
-                item_code,
+        SELECT 
+            bin_code,
+            item_code,
                 customer_po,
                 BT,
                 box_count,
@@ -1047,13 +1047,13 @@ def get_logs():
                 item_code,
                 customer_po,
                 BT,
-                box_count,
-                pieces_per_box,
-                total_pieces,
-                input_time
-            FROM input_history
-            ORDER BY input_time DESC
-        ''')
+            box_count,
+            pieces_per_box,
+            total_pieces,
+            input_time
+        FROM input_history
+        ORDER BY input_time DESC
+    ''')
     
     logs = []
     for row in cursor.fetchall():
@@ -1662,6 +1662,34 @@ def export_po(PO):
         # 应用表头格式
         for col_num, value in enumerate(df.columns.values):
             worksheet.write(0, col_num, value, header_format)
+        
+        # 合并相同PO和相同商品的单元格
+        if len(export_data) > 0:
+            # 合并整个Customer PO列（所有行都是同一个PO）
+            if len(export_data) > 1:
+                po_value = export_data[0]['Customer PO']
+                worksheet.merge_range(1, 0, len(export_data), 0, po_value, customer_po_format)
+            
+            # 合并相同Item Code的行
+            current_item = None
+            item_start_row = 1
+            
+            for row_idx, row_data in enumerate(export_data, start=1):
+                item = row_data['Item Code']
+                
+                # 检查商品是否变化
+                if current_item != item:
+                    # 合并之前商品的Item Code列（如果有多行）
+                    if current_item is not None and row_idx - 1 > item_start_row:
+                        worksheet.merge_range(item_start_row, 1, row_idx - 1, 1, current_item, item_format)
+                    
+                    current_item = item
+                    item_start_row = row_idx
+            
+            # 处理最后一个商品的合并
+            if len(export_data) > item_start_row:
+                last_item = export_data[-1]['Item Code']
+                worksheet.merge_range(item_start_row, 1, len(export_data), 1, last_item, item_format)
     
     output.seek(0)
     
@@ -1781,6 +1809,34 @@ def export_bt(BT):
         # 应用表头格式
         for col_num, value in enumerate(df.columns.values):
             worksheet.write(0, col_num, value, header_format)
+        
+        # 合并相同BT和相同商品的单元格
+        if len(export_data) > 0:
+            # 合并整个BT Number列（所有行都是同一个BT）
+            if len(export_data) > 1:
+                bt_value = export_data[0]['BT Number']
+                worksheet.merge_range(1, 0, len(export_data), 0, bt_value, bt_format)
+            
+            # 合并相同Item Code的行
+            current_item = None
+            item_start_row = 1
+            
+            for row_idx, row_data in enumerate(export_data, start=1):
+                item = row_data['Item Code']
+                
+                # 检查商品是否变化
+                if current_item != item:
+                    # 合并之前商品的Item Code列（如果有多行）
+                    if current_item is not None and row_idx - 1 > item_start_row:
+                        worksheet.merge_range(item_start_row, 1, row_idx - 1, 1, current_item, item_format)
+                    
+                    current_item = item
+                    item_start_row = row_idx
+            
+            # 处理最后一个商品的合并
+            if len(export_data) > item_start_row:
+                last_item = export_data[-1]['Item Code']
+                worksheet.merge_range(item_start_row, 1, len(export_data), 1, last_item, item_format)
     
     output.seek(0)
     
