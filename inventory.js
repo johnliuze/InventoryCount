@@ -1309,6 +1309,11 @@ function exportDatabase() {
     window.location.href = `${API_URL}/api/export/database`;
 }
 
+// 导出所有PO详细信息
+function exportAllPOs() {
+    window.location.href = `${API_URL}/api/export/all-pos`;
+}
+
 // 导出BT搜索结果
 function exportBTSearch() {
     const BTNumber = $("#BTSearch").val();
