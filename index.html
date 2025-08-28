@@ -1376,8 +1376,12 @@
                 <div class="search-input-group">
                     <input type="text" id="binSearch">
                     <button onclick="searchBinContents()">
-                        <span class="lang-zh">查询</span>
+                        <span class="lang-zh">搜索</span>
                         <span class="lang-en">Search</span>
+                    </button>
+                    <button id="clearBinButton" onclick="clearBinInventory(document.getElementById('binSearch').value)" style="display:none; margin-left: 10px; background-color: #dc3545;">
+                        <span class="lang-zh">清空库位</span>
+                        <span class="lang-en">Clear Bin</span>
                     </button>
                 </div>
                 <div id="binContentsResult" class="result-div"></div>
@@ -1412,7 +1416,7 @@
                 <div class="search-input-group">
                     <input type="text" id="itemSearch">
                     <button onclick="searchItemTotal()">
-                        <span class="lang-zh">查询</span>
+                        <span class="lang-zh">搜索</span>
                         <span class="lang-en">Search</span>
                     </button>
                 </div>

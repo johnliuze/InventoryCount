@@ -944,12 +944,6 @@ function searchBinContents() {
                             (<span class="quantity">${totalBoxes}</span> boxes)
                         </span>
                     </div>
-                    <div class="bin-actions">
-                        <button class="clear-bin-button" onclick="clearBinInventory('${binCode}')" style="background-color: #dc3545; margin-top: 10px;">
-                            <span class="lang-zh">清空库位</span>
-                            <span class="lang-en">Clear Bin</span>
-                        </button>
-                    </div>
             `;
             
             if (!contents || contents.length === 0) {
@@ -958,25 +952,13 @@ function searchBinContents() {
                         <span class="lang-zh">该库位暂无库存</span>
                         <span class="lang-en">No inventory in this location</span>
                     </div>
-                    <div class="bin-actions">
-                        <button class="clear-bin-button" onclick="clearBinInventory('${binCode}')" style="background-color: #dc3545; margin-top: 10px;">
-                            <span class="lang-zh">清空库位</span>
-                            <span class="lang-en">Clear Bin</span>
-                        </button>
-                    </div>
                 </div>
                 `;
                 $("#binContentsResult").html(html);
+                // 显示清空库位按钮
+                $("#clearBinButton").show();
                 return;
             }
-            
-            html += `
-                    <div class="items-details">
-                        <h4>
-                            <span class="lang-zh">商品明细：</span>
-                            <span class="lang-en">Item Details:</span>
-                        </h4>
-            `;
             
             html += contents.map(inv => `
                 <div class="item-card">
@@ -1044,6 +1026,8 @@ function searchBinContents() {
             `;
             
             $("#binContentsResult").html(html);
+            // 显示清空库位按钮
+            $("#clearBinButton").show();
         },
         error: function(xhr, status, error) {
             let errorMsg = "查询失败！";
@@ -1051,6 +1035,8 @@ function searchBinContents() {
                 errorMsg = xhr.responseJSON.error;
             }
             $("#binContentsResult").text(errorMsg);
+            // 隐藏清空库位按钮
+            $("#clearBinButton").hide();
             console.error("查询失败:", error, xhr.responseText);
         }
     });
@@ -1225,11 +1211,7 @@ function searchBT() {
                             total quantity: <span class="quantity">${data.total_pieces}</span> pcs
                         </span>
                     </div>
-                    <div class="items-details">
-                        <h4>
-                            <span class="lang-zh">商品明细：</span>
-                            <span class="lang-en">Item Details:</span>
-                        </h4>
+
                         ${data.items.map(item => `
                 <div class="item-card">
                     <div class="item-header">
@@ -1333,11 +1315,6 @@ function searchPO() {
                             total quantity: <span class="quantity">${data.total_pieces}</span> pcs
                         </span>
                     </div>
-                    <div class="items-details">
-                        <h4>
-                            <span class="lang-zh">商品明细：</span>
-                            <span class="lang-en">Item Details:</span>
-                        </h4>
                         ${data.items.map(item => `
                 <div class="item-card">
                     <div class="item-header">
@@ -1488,6 +1465,7 @@ function switchQueryTab(tabId) {
     if (tabId !== 'bin-contents') {
         $('#binContentsResult').empty();
         $('#binSearch').val('');
+        $('#clearBinButton').hide();
     }
     if (tabId !== 'container-search') {
         $('#BTSearchResult').empty();
