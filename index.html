@@ -1188,6 +1188,8 @@
                                required 
                                min="1" 
                                step="1" 
+                               inputmode="numeric" 
+                               pattern="[0-9]*"
                                oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
                     </div>
                     <div>
@@ -1200,6 +1202,8 @@
                                required 
                                min="1" 
                                step="1" 
+                               inputmode="numeric" 
+                               pattern="[0-9]*"
                                oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
                     </div>
                 </div>
@@ -1301,7 +1305,7 @@
                     <div class="export-description">
                         <p>
                             <span class="lang-zh">导出所有客人订单的详细库存信息</span>
-                            <span class="lang-en">Export detailed inventory for all customer purchase orders</span>
+                            <span class="lang-en">Export detailed inventory for all customer POs</span>
                         </p>
                     </div>
                 </div>
@@ -1314,8 +1318,8 @@
                     </button>
                     <div class="export-description">
                         <p>
-                            <span class="lang-zh">导出所有商品在各库位的详细信息</span>
-                            <span class="lang-en">Export detailed information for all items in each location</span>
+                            <span class="lang-zh">导出所有商品的详细信息</span>
+                            <span class="lang-en">Export detailed information for all items</span>
                         </p>
                     </div>
                 </div>
@@ -1328,8 +1332,8 @@
                     </button>
                     <div class="export-description">
                         <p>
-                            <span class="lang-zh">导出完整的数据库文件，用于备份或数据迁移</span>
-                            <span class="lang-en">Export complete database file for backup or data migration</span>
+                            <span class="lang-zh">导出完整的数据库文件</span>
+                            <span class="lang-en">Export complete database file</span>
                         </p>
                     </div>
                 </div>
