@@ -583,6 +583,19 @@
             transform: translateY(-1px);
         }
 
+        /* 中等屏幕适配 */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .query-tab-buttons {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            
+            .query-tab-button {
+                font-size: 13px;
+                padding: 10px 12px;
+            }
+        }
+
         /* 移动设备适配 */
         @media (max-width: 768px) {
             .container {
@@ -684,14 +697,20 @@
             }
             
             .query-tab-buttons {
-                flex-direction: column;
-                gap: 10px;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                margin-bottom: 20px;
             }
             
             .query-tab-button {
                 min-width: auto;
                 width: 100%;
                 box-sizing: border-box;
+                padding: 15px 8px;
+                font-size: 13px;
+                white-space: normal;
+                line-height: 1.2;
             }
             
             /* 导出网格在移动设备上的样式 */
@@ -825,24 +844,29 @@
 
         /* 查询标签页样式 */
         .query-tab-buttons {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 10px;
             margin-bottom: 20px;
-            flex-wrap: wrap;
         }
         
         .query-tab-button {
-            padding: 10px 20px;
+            padding: 12px 16px;
             background-color: #e9ecef;
             border: 1px solid #dee2e6;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
             flex: 1;
-            min-width: 200px;
+            min-width: 0;
+            max-width: none;
             transition: all 0.3s;
             color: #495057;
-            font-weight: bold; /* 加粗 */
-            font-size: 16px; /* 增大字体 */
+            font-weight: bold;
+            font-size: 14px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .query-tab-button.active {
