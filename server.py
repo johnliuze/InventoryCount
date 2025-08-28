@@ -706,12 +706,12 @@ def export_items():
                 
                 # 创建包含处理后数据的行
                 processed_row = {
-                    'item_code': row['item_code'],
-                    'total_quantity': row['total_quantity'],
-                    'total_boxes': row['total_boxes'],
-                    'bin_locations': row['bin_locations'],
-                    'customer_po_list': customer_po_list,
-                    'BT_list': bt_list
+                    'Item Code': row['item_code'],
+                    'Total Quantity': row['total_quantity'],
+                    'Total Boxes': row['total_boxes'],
+                    'Bin Locations': row['bin_locations'],
+                    'Customer PO': customer_po_list,
+                    'BT': bt_list
                 }
                 yield processed_row
     
@@ -1034,6 +1034,7 @@ def export_item_details():
             SELECT 
                 i.item_code,
                 b.bin_code,
+                inv.customer_po,
                 inv.BT,
                 inv.pieces_per_box,
                 inv.box_count,
@@ -1056,6 +1057,7 @@ def export_item_details():
         SELECT DISTINCT
             ild.item_code,
             ild.bin_code,
+            ild.customer_po,
             ild.BT,
             ild.pieces_per_box,
             ild.box_count,
@@ -1063,7 +1065,7 @@ def export_item_details():
             ild.total_pieces_in_bin as bin_total,
             ild.total_pieces_all_bins as item_total
         FROM item_location_details ild
-        ORDER BY item_code, bin_code, pieces_per_box DESC, box_count DESC
+        ORDER BY item_code, bin_code, customer_po, pieces_per_box DESC, box_count DESC
     ''')
     
     # 使用生成器创建数据
@@ -1113,6 +1115,11 @@ def export_item_details():
             'valign': 'vcenter',
             'font_color': '#e67e22'  # 橙色
         })
+        customer_po_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#ff5722'  # 橘红色
+        })
         bt_format = workbook.add_format({
             'align': 'center',
             'valign': 'vcenter',
@@ -1125,7 +1132,7 @@ def export_item_details():
         })
         
         # 写入标题
-        headers = ['Item Code', 'Bin Location', 'BT', 'Box Count', 'Pieces/Box', 
+        headers = ['Item Code', 'Bin Location', 'Customer PO', 'BT', 'Box Count', 'Pieces/Box', 
                   'Total in Box', 'Bin Total', 'Item Total']
         for col, header in enumerate(headers):
             worksheet.write(0, col, header, header_format)
@@ -1133,8 +1140,9 @@ def export_item_details():
         # 设置列宽
         worksheet.set_column('A:A', 20)  # Item Code
         worksheet.set_column('B:B', 15)  # Bin Location
-        worksheet.set_column('C:C', 15)  # BT
-        worksheet.set_column('D:H', 12)  # Numeric columns
+        worksheet.set_column('C:C', 15)  # Customer PO
+        worksheet.set_column('D:D', 15)  # BT
+        worksheet.set_column('E:I', 12)  # Numeric columns
         
         # 写入数据
         row_num = 1
@@ -1147,43 +1155,44 @@ def export_item_details():
             for data in group:
                 worksheet.write(row_num, 0, data['item_code'], item_format)
                 worksheet.write(row_num, 1, data['bin_code'], bin_format)
-                worksheet.write(row_num, 2, data['BT'], bt_format)
-                worksheet.write(row_num, 3, data['box_count'], number_format)
-                worksheet.write(row_num, 4, data['pieces_per_box'], number_format)
-                worksheet.write(row_num, 5, data['box_total'], number_format)
+                worksheet.write(row_num, 2, data['customer_po'] or '-', customer_po_format)
+                worksheet.write(row_num, 3, data['BT'], bt_format)
+                worksheet.write(row_num, 4, data['box_count'], number_format)
+                worksheet.write(row_num, 5, data['pieces_per_box'], number_format)
+                worksheet.write(row_num, 6, data['box_total'], number_format)
                 
                 # 处理bin_total和bin_code的写入和合并
                 if current_bin != data['bin_code']:
                     if current_bin is not None and row_num - bin_start > 1:
                         # 合并前一个bin的单元格
-                        worksheet.merge_range(f'G{bin_start+1}:G{row_num}', 
+                        worksheet.merge_range(f'H{bin_start+1}:H{row_num}', 
                                               current_bin_total, number_format)
                         worksheet.merge_range(f'B{bin_start+1}:B{row_num}',
                                               current_bin, bin_format)
                     current_bin = data['bin_code']
                     current_bin_total = data['bin_total']
                     bin_start = row_num
-                    worksheet.write(row_num, 6, current_bin_total, number_format)
+                    worksheet.write(row_num, 7, current_bin_total, number_format)
                     worksheet.write(row_num, 1, data['bin_code'], bin_format)
                 else:
                     # 对于同一个bin的后续行，使用相同的bin_total
-                    worksheet.write(row_num, 6, current_bin_total, number_format)
+                    worksheet.write(row_num, 7, current_bin_total, number_format)
                 
                 row_num += 1
             
             # 处理最后一个bin的合并
             if row_num - bin_start > 1:
-                worksheet.merge_range(f'G{bin_start+1}:G{row_num}', 
+                worksheet.merge_range(f'H{bin_start+1}:H{row_num}', 
                                       current_bin_total, number_format)
                 worksheet.merge_range(f'B{bin_start+1}:B{row_num}',
                                       data['bin_code'], bin_format)
             elif row_num == bin_start + 1:
                 # 如果只有一行，直接写入而不合并
                 worksheet.write(bin_start, 1, data['bin_code'], bin_format)
-                worksheet.write(bin_start, 6, current_bin_total, number_format)
+                worksheet.write(bin_start, 7, current_bin_total, number_format)
             
             # 合并item_total - 确保总是显示商品总数量
-            worksheet.merge_range(f'H{start_row+1}:H{row_num}', 
+            worksheet.merge_range(f'I{start_row+1}:I{row_num}', 
                                   data['item_total'], number_format)
             
             # 合并item_code - 确保总是显示商品编码
