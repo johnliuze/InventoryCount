@@ -424,11 +424,11 @@ $("#inventoryForm").submit(function(e) {
     }
     
     // 先检查库位状态
-    checkBinStatus(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
+    checkBinStatus(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox);
 });
 
 // 检查库位状态并显示相应的确认对话框
-function checkBinStatus(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
+function checkBinStatus(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox) {
     const encodedBinCode = binCode.trim()
         .replace(/\//g, '___SLASH___')
         .replace(/\s/g, '___SPACE___');
