@@ -825,18 +825,21 @@ function searchItemTotal() {
             }
             
         // 构建总数量信息
+        const locationCount = locations ? locations.length : 0;
         let html = `
                 <div class="result-item">
                 <div class="total-summary">
                     <span class="lang-zh">
                         商品 <span class="item-code">${itemCode}</span>: 
                         共 <span class="quantity">${total.total_boxes}</span> 箱, 
-                        <span class="quantity">${total.total}</span> 件
+                        <span class="quantity">${total.total}</span> 件, 
+                        分布在 <span class="quantity">${locationCount}</span> 个库位
                     </span>
                     <span class="lang-en">
                         Item <span class="item-code">${itemCode}</span>: 
                         total <span class="quantity">${total.total_boxes}</span> boxes, 
-                        <span class="quantity">${total.total}</span> pcs
+                        <span class="quantity">${total.total}</span> pcs, 
+                        in <span class="quantity">${locationCount}</span> locations
                     </span>
                 </div>
         `;
@@ -969,14 +972,14 @@ function searchBinContents() {
                             total <span class="quantity">${totalItems}</span> items,
                             total <span class="quantity">${totalBoxes}</span> boxes
                         </span>
-                    </div>
+                </div>
             `;
             
             if (!contents || contents.length === 0) {
                 html += `
                     <div class="no-inventory">
-                        <span class="lang-zh">该库位暂无库存</span>
-                        <span class="lang-en">No inventory in this location</span>
+                    <span class="lang-zh">该库位暂无库存</span>
+                    <span class="lang-en">No inventory in this location</span>
                     </div>
                 </div>
                 `;
@@ -1027,18 +1030,18 @@ function searchBinContents() {
                         `).join('') : ''}
                         ${inv.box_details && inv.box_details.length > 0 && (!inv.po_bt_groups || inv.po_bt_groups.length === 0) ? `
                             <div class="box-details-fallback">
-                                ${inv.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box).map(detail => `
-                                    <div class="box-detail-line">
-                                        <span class="lang-zh">
-                                            <span class="quantity">${detail.box_count}</span> 箱 × 
-                                            <span class="quantity">${detail.pieces_per_box}</span> 件/箱
-                                        </span>
-                                        <span class="lang-en">
-                                            <span class="quantity">${detail.box_count}</span> boxes × 
-                                            <span class="quantity">${detail.pieces_per_box}</span> pcs/box
-                                        </span>
-                                    </div>
-                                `).join('')}
+                        ${inv.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box).map(detail => `
+                            <div class="box-detail-line">
+                                <span class="lang-zh">
+                                    <span class="quantity">${detail.box_count}</span> 箱 × 
+                                    <span class="quantity">${detail.pieces_per_box}</span> 件/箱
+                                </span>
+                                <span class="lang-en">
+                                    <span class="quantity">${detail.box_count}</span> boxes × 
+                                    <span class="quantity">${detail.pieces_per_box}</span> pcs/box
+                                </span>
+                            </div>
+                        `).join('')}
                             </div>
                         ` : ''}
                     </div>
@@ -1618,16 +1621,16 @@ function clearItemAtBin(binCode, itemCode) {
             <span class="label">
                 <span class="lang-zh">库位：</span>
                 <span class="lang-en">Bin:</span>
-            </span>
+                    </span>
             <span class="bin-code">${binCode}</span>
         </div>
         <div class="confirm-row">
             <span class="label">
                 <span class="lang-zh">商品：</span>
                 <span class="lang-en">Item:</span>
-            </span>
+                    </span>
             <span class="item-code">${itemCode}</span>
-        </div>
+                </div>
     `);
     
     // 重置按钮显示和样式
