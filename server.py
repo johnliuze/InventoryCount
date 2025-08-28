@@ -1604,7 +1604,7 @@ def export_po(PO):
     filename = f'PO_{PO}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     
     # 创建Excel文件
-    output = io.BytesIO()
+    output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df.to_excel(writer, sheet_name='PO Details', index=False)
         
@@ -1723,7 +1723,7 @@ def export_bt(BT):
     filename = f'BT_{BT}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     
     # 创建Excel文件
-    output = io.BytesIO()
+    output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df.to_excel(writer, sheet_name='BT Details', index=False)
         
