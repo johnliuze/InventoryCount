@@ -340,6 +340,27 @@ $(document).ready(function() {
         autoFocus: true
     });
 
+    // PO搜索自动完成
+    $("#POSearch").autocomplete({
+        source: function(request, response) {
+            console.log("搜索PO:", request.term);
+            console.log("请求URL:", `${API_URL}/api/POs`);
+            $.get(`${API_URL}/api/POs`, { search: request.term })
+                .done(POs => {
+                    console.log('POs response:', POs);
+                    response(POs.map(PO => PO.PO));
+                })
+                .fail(error => {
+                    console.error('POs search error:', error);
+                    console.error('错误详情:', error.responseText);
+                    response([]);
+                });
+        },
+        minLength: 1,
+        delay: 300,
+        autoFocus: true
+    });
+
     // 页面加载时初始化历史记录显示
     updateHistoryDisplay();
     
@@ -1167,6 +1188,110 @@ function searchBT() {
     });
 }
 
+// 搜索PO
+function searchPO() {
+    const PONumber = $("#POSearch").val();
+    if (!PONumber) {
+        $("#POSearchResult").html(`
+            <span class="lang-zh">请输入客户订单号！</span>
+            <span class="lang-en">Please enter customer PO number!</span>
+        `);
+        return;
+    }
+    
+    $.ajax({
+        url: `${API_URL}/api/inventory/PO/${encodeURIComponent(PONumber)}`,
+        type: 'GET',
+        success: function(data) {
+            if (!data.items || data.items.length === 0) {
+                $("#POSearchResult").html(`
+                    <div class="result-item">
+                        <span class="lang-zh">
+                            客户订单号 <span class="customer-po">${PONumber}</span> 不存在
+                        </span>
+                        <span class="lang-en">
+                            Customer PO <span class="customer-po">${PONumber}</span> does not exist
+                        </span>
+                    </div>
+                `);
+                return;
+            }
+            
+            // 构建总数量信息
+            let html = `
+                <div class="result-item">
+                    <div class="total-summary">
+                        <span class="lang-zh">
+                            客户订单号 <span class="customer-po">${PONumber}</span> 
+                            总商品数：<span class="quantity">${data.total_items}</span> 种
+                            总数量：<span class="quantity">${data.total_pieces}</span> 件
+                        </span>
+                        <span class="lang-en">
+                            Customer PO <span class="customer-po">${PONumber}</span> 
+                            total items: <span class="quantity">${data.total_items}</span> types
+                            total quantity: <span class="quantity">${data.total_pieces}</span> pcs
+                        </span>
+                    </div>
+                    <div class="items-details">
+                        <h4>
+                            <span class="lang-zh">商品明细：</span>
+                            <span class="lang-en">Item Details:</span>
+                        </h4>
+                        ${data.items.map(item => `
+                <div class="item-card">
+                    <div class="item-header">
+                                    <div class="item-info">
+                        <span class="lang-zh">
+                                            商品 <span class="item-code">${item.item_code}</span>: <span class="quantity">${item.total_pieces}</span> 件
+                        </span>
+                        <span class="lang-en">
+                                            Item <span class="item-code">${item.item_code}</span>: <span class="quantity">${item.total_pieces}</span> pcs
+                        </span>
+                    </div>
+                                </div>
+                                <div class="locations-details">
+                                    <span class="lang-zh">所在库位：</span>
+                                    <span class="lang-en">Locations:</span>
+                                    ${item.locations.map(loc => `
+                                        <div class="location-item">
+                                <span class="lang-zh">
+                                                库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.pieces}</span> 件
+                                                ${loc.BT ? ` (BT: <span class="BT-number">${loc.BT}</span>)` : ''}
+                                </span>
+                                <span class="lang-en">
+                                                Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.pieces}</span> pcs
+                                                ${loc.BT ? ` (BT: <span class="BT-number">${loc.BT}</span>)` : ''}
+                                </span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                        `).join("")}
+                    </div>
+                </div>
+            `;
+            
+            $("#POSearchResult").html(html);
+        },
+        error: function(xhr, status, error) {
+            let errorMsg = {
+                zh: "搜索失败！",
+                en: "Search failed!"
+            };
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = {
+                    zh: xhr.responseJSON.error,
+                    en: xhr.responseJSON.error_en || xhr.responseJSON.error
+                };
+            }
+            $("#POSearchResult").html(`
+                <span class="lang-zh">${errorMsg.zh}</span>
+                <span class="lang-en">${errorMsg.en}</span>
+            `);
+        }
+    });
+}
+
 // 导出数据库
 function exportDatabase() {
     window.location.href = `${API_URL}/api/export/database`;
@@ -1232,6 +1357,10 @@ function switchQueryTab(tabId) {
     if (tabId !== 'item-total') {
         $('#itemTotalResult').empty();
         $('#itemSearch').val('');
+    }
+    if (tabId !== 'po-search') {
+        $('#POSearchResult').empty();
+        $('#POSearch').val('');
     }
 }
 

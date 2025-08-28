@@ -1331,6 +1331,10 @@
                     <span class="lang-zh">📋 搜索商品</span>
                     <span class="lang-en">📋 Search Item</span>
                 </button>
+                <button class="query-tab-button" onclick="switchQueryTab('po-search')" data-tab="po-search">
+                    <span class="lang-zh">📋 搜索PO</span>
+                    <span class="lang-en">📋 Search PO</span>
+                </button>
             </div>
             
             <!-- 搜索库位 -->
@@ -1379,6 +1383,22 @@
                     </button>
                 </div>
                 <div id="itemTotalResult" class="result-div"></div>
+            </div>
+
+            <!-- 搜索PO -->
+            <div id="po-search-tab" class="query-content">
+                <h3>
+                    <span class="lang-zh">📋 搜索客户订单号明细</span>
+                    <span class="lang-en">📋 Search Customer PO Details</span>
+                </h3>
+                <div class="search-input-group">
+                    <input type="text" id="POSearch">
+                    <button onclick="searchPO()">
+                        <span class="lang-zh">搜索</span>
+                        <span class="lang-en">Search</span>
+                    </button>
+                </div>
+                <div id="POSearchResult" class="result-div"></div>
             </div>
         </div>
     </div>

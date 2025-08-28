@@ -659,6 +659,106 @@ def get_BTs():
     
     return jsonify(BTs)
 
+@app.route('/api/inventory/PO/<PO>', methods=['GET'])
+def get_PO_inventory(PO):
+    db = get_db()
+    cursor = db.cursor()
+    
+    PO = PO.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+    
+    # 查询指定客户订单号的所有商品
+    cursor.execute('''
+        SELECT 
+            i.item_code,
+            b.bin_code,
+            inv.customer_po,
+            inv.BT,
+            SUM(inv.total_pieces) as total_pieces,
+            SUM(inv.box_count) as total_boxes
+        FROM inventory inv
+        JOIN items i ON inv.item_id = i.item_id
+        JOIN bins b ON inv.bin_id = b.bin_id
+        WHERE inv.customer_po = ?
+        GROUP BY i.item_code, b.bin_code, inv.BT
+        ORDER BY i.item_code, b.bin_code, inv.BT
+    ''', (PO,))
+    
+    results = cursor.fetchall()
+    
+    if not results:
+        return jsonify({
+            'PO': PO,
+            'total_items': 0,
+            'total_pieces': 0,
+            'items': []
+        })
+    
+    # 按商品分组整理数据
+    items_data = {}
+    total_pieces = 0
+    
+    for row in results:
+        item_code = row['item_code']
+        if item_code not in items_data:
+            items_data[item_code] = {
+                'item_code': item_code,
+                'total_pieces': 0,
+                'locations': []
+            }
+        
+        items_data[item_code]['total_pieces'] += row['total_pieces']
+        items_data[item_code]['locations'].append({
+            'bin_code': row['bin_code'],
+            'BT': row['BT'],
+            'pieces': row['total_pieces']
+        })
+        total_pieces += row['total_pieces']
+    
+    # 转换为列表格式
+    items_list = list(items_data.values())
+    
+    return jsonify({
+        'PO': PO,
+        'total_items': len(items_list),
+        'total_pieces': total_pieces,
+        'items': items_list
+    })
+
+@app.route('/api/POs', methods=['GET'])
+def get_POs():
+    db = get_db()
+    cursor = db.cursor()
+    
+    search_term = request.args.get('search', '').strip()
+    
+    if not search_term:
+        # 如果没有搜索词，返回所有PO
+        cursor.execute('''
+            SELECT DISTINCT customer_po 
+            FROM inventory 
+            WHERE customer_po IS NOT NULL AND customer_po != ''
+            ORDER BY customer_po
+        ''')
+    else:
+        # 如果有搜索词，进行模糊搜索
+        search_pattern = f'%{search_term}%'
+        cursor.execute('''
+            SELECT DISTINCT customer_po 
+            FROM inventory 
+            WHERE customer_po IS NOT NULL 
+            AND customer_po != '' 
+            AND customer_po LIKE ?
+            ORDER BY customer_po
+        ''', (search_pattern,))
+    
+    POs = []
+    for row in cursor.fetchall():
+        POs.append({
+            'PO': row['customer_po']
+        })
+    
+    return jsonify(POs)
+
 @app.route('/api/export/items', methods=['GET'])
 def export_items():
     db = get_db()
