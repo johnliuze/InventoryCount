@@ -261,6 +261,15 @@ function formatHistoryRecord(record, timestamp, lang) {
     } else {
         lineHtml = isZh ? normalZh : normalEn;
     }
+    
+    // 调试最终HTML输出
+    if (record.item_code === '2') {
+        console.log('最终HTML调试 item_code=2:', {
+            isZh: isZh,
+            lineHtml: lineHtml,
+            normalEn: normalEn
+        });
+    }
             
             return `
             <div class="history-item">
