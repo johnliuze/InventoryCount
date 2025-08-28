@@ -113,12 +113,13 @@ function formatDateSafely(date, locale = 'zh-CN') {
     }
 }
 
-// 合并“清空并添加”的历史记录（将紧邻的 清空库位 + 添加 组合为一条）
+// 合并"清空并添加"的历史记录（将紧邻的 清空库位 + 添加 组合为一条）
 function mergeClearAndAddLogs(logs) {
     if (!Array.isArray(logs) || logs.length === 0) return [];
     const result = [];
     const usedIndexSet = new Set();
     const isClear = (code) => code === '清空库位' || code === 'Clear Bin';
+    const isClearItem = (code) => code && (code.startsWith('清空商品') || code.startsWith('Clear Item'));
     const withinMs = 5000; // 允许合并的最大时间差（毫秒）
 
     for (let i = 0; i < logs.length; i++) {
@@ -135,8 +136,10 @@ function mergeClearAndAddLogs(logs) {
             const timeB = parseDateSafely(next.timestamp);
             const closeInTime = timeA && timeB && Math.abs(timeA.getTime() - timeB.getTime()) <= withinMs;
 
-            // 情况1：按时间倒序常见，先看到添加，后一条是清空
-            if (!isClear(current.item_code) && isClear(next.item_code) && sameBin && closeInTime) {
+            // 情况1：按时间倒序常见，先看到添加，后一条是清空库位（不是清空商品）
+            if (!isClear(current.item_code) && !isClearItem(current.item_code) && 
+                isClear(next.item_code) && !isClearItem(next.item_code) && 
+                sameBin && closeInTime) {
                 result.push({
                     __merged: true,
                     bin_code: current.bin_code,
@@ -151,8 +154,10 @@ function mergeClearAndAddLogs(logs) {
                 continue;
             }
 
-            // 情况2：先看到清空，后一条是添加（边界情况）
-            if (isClear(current.item_code) && !isClear(next.item_code) && sameBin && closeInTime) {
+            // 情况2：先看到清空库位（不是清空商品），后一条是添加（边界情况）
+            if (isClear(current.item_code) && !isClearItem(current.item_code) && 
+                !isClear(next.item_code) && !isClearItem(next.item_code) && 
+                sameBin && closeInTime) {
                 result.push({
                     __merged: true,
                     bin_code: next.bin_code,
@@ -191,9 +196,9 @@ function formatHistoryRecord(record, timestamp, lang) {
          `: BT <span class="BT-number">${record.BT}</span>`) : '';
     
     const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${customerPODisplay}${BTDisplay}: <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
-    const mergedEn = `🗑️ Cleared then added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${customerPODisplay}${BTDisplay}: <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
+    const mergedEn = `🗑️ Cleared&Added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${customerPODisplay}${BTDisplay}: <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
     const clearZh = `🗑️ 清空库位 <span class="bin-code">${record.bin_code}</span>`;
-    const clearEn = `🗑️ Cleared bin <span class="bin-code">${record.bin_code}</span>`;
+    const clearEn = `🗑️ Cleared Bin <span class="bin-code">${record.bin_code}</span>`;
     const normalZh = `库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${customerPODisplay}${BTDisplay}: <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
     const normalEn = `Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${customerPODisplay}${BTDisplay}: <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
 
