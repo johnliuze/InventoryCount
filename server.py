@@ -1553,6 +1553,244 @@ def export_history():
         download_name=filename
     )
 
+@app.route('/api/export/po/<PO>', methods=['GET'])
+def export_po(PO):
+    db = get_db()
+    cursor = db.cursor()
+    
+    PO = PO.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+    
+    # 查询指定客户订单号的所有商品
+    cursor.execute('''
+        SELECT 
+            i.item_code,
+            b.bin_code,
+            inv.customer_po,
+            inv.BT,
+            SUM(inv.total_pieces) as total_pieces,
+            SUM(inv.box_count) as total_boxes
+        FROM inventory inv
+        JOIN items i ON inv.item_id = i.item_id
+        JOIN bins b ON inv.bin_id = b.bin_id
+        WHERE inv.customer_po = ?
+        GROUP BY i.item_code, b.bin_code, inv.BT
+        ORDER BY i.item_code, b.bin_code, inv.BT
+    ''', (PO,))
+    
+    results = cursor.fetchall()
+    
+    if not results:
+        return jsonify({
+            'error': f'客户订单号 {PO} 不存在',
+            'error_en': f'Customer PO {PO} does not exist'
+        }), 404
+    
+    # 准备导出数据
+    export_data = []
+    for row in results:
+        export_data.append({
+            'Customer PO': row['customer_po'],
+            'Item Code': row['item_code'], 
+            'Bin Code': row['bin_code'],
+            'BT Number': row['BT'] or '',
+            'Total Pieces': row['total_pieces'],
+            'Box Count': row['total_boxes']
+        })
+    
+    # 创建DataFrame
+    df = pd.DataFrame(export_data)
+    
+    # 生成文件名
+    filename = f'PO_{PO}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    # 创建Excel文件
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name='PO Details', index=False)
+        
+        # 获取工作表和工作簿对象
+        workbook = writer.book
+        worksheet = writer.sheets['PO Details']
+        
+        # 定义格式
+        header_format = workbook.add_format({
+            'bold': True,
+            'align': 'center',
+            'valign': 'vcenter',
+            'bg_color': '#f0f0f0',
+            'border': 1
+        })
+        
+        customer_po_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#ff5722'  # 橘红色
+        })
+        
+        item_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#2962ff'  # 蓝色
+        })
+        
+        bin_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#e67e22'  # 橙色
+        })
+        
+        bt_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#9c27b0'  # 紫色
+        })
+        
+        number_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#27ae60'  # 绿色
+        })
+        
+        # 设置列宽和格式
+        worksheet.set_column('A:A', 15, customer_po_format)  # Customer PO
+        worksheet.set_column('B:B', 20, item_format)         # Item Code
+        worksheet.set_column('C:C', 15, bin_format)          # Bin Code
+        worksheet.set_column('D:D', 12, bt_format)           # BT Number
+        worksheet.set_column('E:E', 12, number_format)       # Total Pieces
+        worksheet.set_column('F:F', 12, number_format)       # Box Count
+        
+        # 应用表头格式
+        for col_num, value in enumerate(df.columns.values):
+            worksheet.write(0, col_num, value, header_format)
+    
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+@app.route('/api/export/bt/<BT>', methods=['GET'])
+def export_bt(BT):
+    db = get_db()
+    cursor = db.cursor()
+    
+    BT = BT.replace('___SLASH___', '/').replace('___SPACE___', ' ')
+    
+    # 查询指定BT的所有商品
+    cursor.execute('''
+        SELECT 
+            i.item_code,
+            b.bin_code,
+            inv.customer_po,
+            inv.BT,
+            SUM(inv.total_pieces) as total_pieces,
+            SUM(inv.box_count) as total_boxes
+        FROM inventory inv
+        JOIN items i ON inv.item_id = i.item_id
+        JOIN bins b ON inv.bin_id = b.bin_id
+        WHERE inv.BT = ?
+        GROUP BY i.item_code, b.bin_code, inv.customer_po
+        ORDER BY i.item_code, b.bin_code, inv.customer_po
+    ''', (BT,))
+    
+    results = cursor.fetchall()
+    
+    if not results:
+        return jsonify({
+            'error': f'BT {BT} 不存在',
+            'error_en': f'BT {BT} does not exist'
+        }), 404
+    
+    # 准备导出数据
+    export_data = []
+    for row in results:
+        export_data.append({
+            'BT Number': row['BT'],
+            'Item Code': row['item_code'], 
+            'Bin Code': row['bin_code'],
+            'Customer PO': row['customer_po'] or '',
+            'Total Pieces': row['total_pieces'],
+            'Box Count': row['total_boxes']
+        })
+    
+    # 创建DataFrame
+    df = pd.DataFrame(export_data)
+    
+    # 生成文件名
+    filename = f'BT_{BT}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    # 创建Excel文件
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name='BT Details', index=False)
+        
+        # 获取工作表和工作簿对象
+        workbook = writer.book
+        worksheet = writer.sheets['BT Details']
+        
+        # 定义格式
+        header_format = workbook.add_format({
+            'bold': True,
+            'align': 'center',
+            'valign': 'vcenter',
+            'bg_color': '#f0f0f0',
+            'border': 1
+        })
+        
+        bt_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#9c27b0'  # 紫色
+        })
+        
+        item_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#2962ff'  # 蓝色
+        })
+        
+        bin_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#e67e22'  # 橙色
+        })
+        
+        customer_po_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#ff5722'  # 橘红色
+        })
+        
+        number_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#27ae60'  # 绿色
+        })
+        
+        # 设置列宽和格式
+        worksheet.set_column('A:A', 12, bt_format)           # BT Number
+        worksheet.set_column('B:B', 20, item_format)         # Item Code
+        worksheet.set_column('C:C', 15, bin_format)          # Bin Code
+        worksheet.set_column('D:D', 15, customer_po_format)  # Customer PO
+        worksheet.set_column('E:E', 12, number_format)       # Total Pieces
+        worksheet.set_column('F:F', 12, number_format)       # Box Count
+        
+        # 应用表头格式
+        for col_num, value in enumerate(df.columns.values):
+            worksheet.write(0, col_num, value, header_format)
+    
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
 
 if __name__ == '__main__':
     print("Starting server...")

@@ -1094,6 +1094,7 @@ function searchBT() {
             <span class="lang-zh">请输入BT号！</span>
             <span class="lang-en">Please enter BT number!</span>
         `);
+        $("#exportBTButton").hide();
         return;
     }
     
@@ -1112,6 +1113,7 @@ function searchBT() {
                         </span>
                     </div>
                 `);
+                $("#exportBTButton").hide();
                 return;
             }
             
@@ -1168,6 +1170,8 @@ function searchBT() {
             `;
             
             $("#BTSearchResult").html(html);
+            // 显示导出按钮
+            $("#exportBTButton").show();
         },
         error: function(xhr, status, error) {
             let errorMsg = {
@@ -1184,6 +1188,8 @@ function searchBT() {
                 <span class="lang-zh">${errorMsg.zh}</span>
                 <span class="lang-en">${errorMsg.en}</span>
             `);
+            // 隐藏导出按钮
+            $("#exportBTButton").hide();
         }
     });
 }
@@ -1196,6 +1202,7 @@ function searchPO() {
             <span class="lang-zh">请输入客户订单号！</span>
             <span class="lang-en">Please enter customer PO number!</span>
         `);
+        $("#exportPOButton").hide();
         return;
     }
     
@@ -1214,6 +1221,7 @@ function searchPO() {
                         </span>
                     </div>
                 `);
+                $("#exportPOButton").hide();
                 return;
             }
             
@@ -1272,6 +1280,8 @@ function searchPO() {
             `;
             
             $("#POSearchResult").html(html);
+            // 显示导出按钮
+            $("#exportPOButton").show();
         },
         error: function(xhr, status, error) {
             let errorMsg = {
@@ -1288,6 +1298,8 @@ function searchPO() {
                 <span class="lang-zh">${errorMsg.zh}</span>
                 <span class="lang-en">${errorMsg.en}</span>
             `);
+            // 隐藏导出按钮
+            $("#exportPOButton").hide();
         }
     });
 }
@@ -1295,6 +1307,32 @@ function searchPO() {
 // 导出数据库
 function exportDatabase() {
     window.location.href = `${API_URL}/api/export/database`;
+}
+
+// 导出BT搜索结果
+function exportBTSearch() {
+    const BTNumber = $("#BTSearch").val();
+    if (!BTNumber) {
+        alert("请先搜索BT号！ / Please search BT first!");
+        return;
+    }
+    
+    // 对BT号进行URL编码，处理特殊字符
+    const encodedBT = BTNumber.replace(/\//g, '___SLASH___').replace(/ /g, '___SPACE___');
+    window.location.href = `${API_URL}/api/export/bt/${encodeURIComponent(encodedBT)}`;
+}
+
+// 导出PO搜索结果
+function exportPOSearch() {
+    const PONumber = $("#POSearch").val();
+    if (!PONumber) {
+        alert("请先搜索客户订单号！ / Please search Customer PO first!");
+        return;
+    }
+    
+    // 对PO号进行URL编码，处理特殊字符
+    const encodedPO = PONumber.replace(/\//g, '___SLASH___').replace(/ /g, '___SPACE___');
+    window.location.href = `${API_URL}/api/export/po/${encodeURIComponent(encodedPO)}`;
 }
 
 // 语言切换时更新历史记录显示
@@ -1353,6 +1391,7 @@ function switchQueryTab(tabId) {
     if (tabId !== 'container-search') {
         $('#BTSearchResult').empty();
         $('#BTSearch').val('');
+        $('#exportBTButton').hide();
     }
     if (tabId !== 'item-total') {
         $('#itemTotalResult').empty();
@@ -1361,6 +1400,7 @@ function switchQueryTab(tabId) {
     if (tabId !== 'po-search') {
         $('#POSearchResult').empty();
         $('#POSearch').val('');
+        $('#exportPOButton').hide();
     }
 }
 
