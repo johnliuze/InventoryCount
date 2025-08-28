@@ -1565,6 +1565,14 @@ function switchQueryTab(tabId) {
         $('#binContentsResult').empty();
         $('#binSearch').val('');
         $('#clearBinButton').hide();
+    } else {
+        // 切换回bin-contents时，检查是否有搜索结果来决定是否显示Clear Bin按钮
+        const hasSearchResults = $('#binContentsResult').children().length > 0;
+        if (hasSearchResults) {
+            $('#clearBinButton').show();
+        } else {
+            $('#clearBinButton').hide();
+        }
     }
     if (tabId !== 'container-search') {
         $('#BTSearchResult').empty();
