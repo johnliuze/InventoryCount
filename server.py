@@ -588,6 +588,7 @@ def get_item_locations(item_id):
         location_info = {
             'bin_code': row['bin_code'],
             'total_pieces': row['total_pieces'],
+            'total_boxes': 0,  # 将在后面计算
             'po_bt_groups': [],
             'box_details': []
         }
@@ -622,16 +623,19 @@ def get_item_locations(item_id):
                         'box_details': group_box_details
                     })
         
-        # 合并所有箱规到总的box_details中
+        # 合并所有箱规到总的box_details中，同时计算总箱数
         all_box_details = {}
+        total_boxes = 0
         for group in location_info['po_bt_groups']:
             for box_detail in group['box_details']:
                 key = f"{box_detail['pieces_per_box']}"
                 if key not in all_box_details:
                     all_box_details[key] = {'box_count': 0, 'pieces_per_box': box_detail['pieces_per_box']}
                 all_box_details[key]['box_count'] += box_detail['box_count']
+                total_boxes += box_detail['box_count']
         
         location_info['box_details'] = list(all_box_details.values())
+        location_info['total_boxes'] = total_boxes
         locations.append(location_info)
     
     return jsonify(locations)

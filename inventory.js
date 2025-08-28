@@ -833,13 +833,13 @@ function searchItemTotal() {
                         商品 <span class="item-code">${itemCode}</span>: 
                         共 <span class="quantity">${total.total_boxes}</span> 箱, 
                         <span class="quantity">${total.total}</span> 件, 
-                        分布在 <span class="quantity">${locationCount}</span> 个库位
+                        分布在 <span class="bin-code">${locationCount}</span> 个库位
                     </span>
                     <span class="lang-en">
                         Item <span class="item-code">${itemCode}</span>: 
                         total <span class="quantity">${total.total_boxes}</span> boxes, 
                         <span class="quantity">${total.total}</span> pcs, 
-                        in <span class="quantity">${locationCount}</span> locations
+                        in <span class="bin-code">${locationCount}</span> locations
                     </span>
                 </div>
         `;
@@ -857,10 +857,14 @@ function searchItemTotal() {
                             <div class="item-header">
                                 <div class="item-info">
                                     <span class="lang-zh">
-                                        库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> 件
+                                        库位 <span class="bin-code">${loc.bin_code}</span>: 
+                                        共 <span class="quantity">${loc.total_boxes}</span> 箱, 
+                                        <span class="quantity">${loc.total_pieces}</span> 件
                                     </span>
                                     <span class="lang-en">
-                                        Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> pcs
+                                        Bin <span class="bin-code">${loc.bin_code}</span>: 
+                                        total <span class="quantity">${loc.total_boxes}</span> boxes, 
+                                        <span class="quantity">${loc.total_pieces}</span> pcs
                                     </span>
                                 </div>
                             </div>
@@ -965,12 +969,12 @@ function searchBinContents() {
                         <span class="lang-zh">
                             库位 <span class="bin-code">${binCode}</span>: 
                             商品共 <span class="quantity">${totalItems}</span> 种,
-                            共 <span class="quantity">${totalBoxes}</span> 箱
+                            <span class="quantity">${totalBoxes}</span> 箱
                         </span>
                         <span class="lang-en">
                             Bin <span class="bin-code">${binCode}</span>: 
                             total <span class="quantity">${totalItems}</span> items,
-                            total <span class="quantity">${totalBoxes}</span> boxes
+                            <span class="quantity">${totalBoxes}</span> boxes
                         </span>
                 </div>
             `;
