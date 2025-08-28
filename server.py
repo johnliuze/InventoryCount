@@ -1914,6 +1914,52 @@ def export_all_pos():
         # 应用表头格式
         for col_num, value in enumerate(df.columns.values):
             worksheet.write(0, col_num, value, header_format)
+        
+        # 合并相同PO和相同商品的单元格
+        if len(export_data) > 0:
+            current_po = None
+            current_item = None
+            po_start_row = 1
+            item_start_row = 1
+            
+            for row_idx, row_data in enumerate(export_data, start=1):
+                po = row_data['Customer PO']
+                item = row_data['Item Code']
+                
+                # 检查PO是否变化
+                if current_po != po:
+                    # 合并之前PO的单元格（如果有多行）
+                    if current_po is not None and row_idx - 1 > po_start_row:
+                        worksheet.merge_range(po_start_row, 0, row_idx - 1, 0, current_po, customer_po_format)
+                        # 同时合并该PO下最后一个商品的总数量列
+                        if row_idx - 1 > item_start_row:
+                            last_item_total = export_data[row_idx - 2]['Item Total in PO']
+                            worksheet.merge_range(item_start_row, 7, row_idx - 1, 7, last_item_total, number_format)
+                    
+                    current_po = po
+                    po_start_row = row_idx
+                    current_item = item
+                    item_start_row = row_idx
+                
+                # 检查商品是否变化（在同一PO内）
+                elif current_item != item:
+                    # 合并之前商品的Item Total in PO列（如果有多行）
+                    if row_idx - 1 > item_start_row:
+                        item_total = export_data[row_idx - 2]['Item Total in PO']
+                        worksheet.merge_range(item_start_row, 7, row_idx - 1, 7, item_total, number_format)
+                    
+                    current_item = item
+                    item_start_row = row_idx
+            
+            # 处理最后一个PO和商品的合并
+            if len(export_data) > po_start_row:
+                last_po = export_data[-1]['Customer PO']
+                worksheet.merge_range(po_start_row, 0, len(export_data), 0, last_po, customer_po_format)
+                
+                # 合并最后一个商品的Item Total in PO列
+                if len(export_data) > item_start_row:
+                    last_item_total = export_data[-1]['Item Total in PO']
+                    worksheet.merge_range(item_start_row, 7, len(export_data), 7, last_item_total, number_format)
     
     output.seek(0)
     
