@@ -926,28 +926,52 @@ function searchBinContents() {
         url: url,
         type: 'GET',
         success: function(contents) {
-            // 添加清除按钮
+            // 计算统计信息
+            const totalItems = contents.length;
+            const totalPieces = contents.reduce((sum, inv) => sum + inv.total_pieces, 0);
+            
+            // 添加总体统计和清除按钮
             let html = `
-                <div class="bin-header">
-                    <h3>
-                        <span class="lang-zh">库位: <span class="bin-code">${binCode}</span></span>
-                        <span class="lang-en">Bin: <span class="bin-code">${binCode}</span></span>
-                    </h3>
-                    <button class="clear-bin-button" onclick="clearBinInventory('${binCode}')">
-                        <span class="lang-zh">清空库位</span>
-                        <span class="lang-en">Clear Bin</span>
-                    </button>
-                </div>
+                <div class="result-item">
+                    <div class="total-summary">
+                        <span class="lang-zh">
+                            库位 <span class="bin-code">${binCode}</span> 
+                            总商品种类：<span class="quantity">${totalItems}</span> 种
+                            总数量：<span class="quantity">${totalPieces}</span> 件
+                        </span>
+                        <span class="lang-en">
+                            Bin <span class="bin-code">${binCode}</span> 
+                            total items: <span class="quantity">${totalItems}</span> types
+                            total quantity: <span class="quantity">${totalPieces}</span> pcs
+                        </span>
+                    </div>
+                    <div class="bin-actions">
+                        <button class="clear-bin-button" onclick="clearBinInventory('${binCode}')">
+                            <span class="lang-zh">清空库位</span>
+                            <span class="lang-en">Clear Bin</span>
+                        </button>
+                    </div>
             `;
             
             if (!contents || contents.length === 0) {
                 html += `
-                    <span class="lang-zh">该库位暂无库存</span>
-                    <span class="lang-en">No inventory in this location</span>
+                    <div class="no-inventory">
+                        <span class="lang-zh">该库位暂无库存</span>
+                        <span class="lang-en">No inventory in this location</span>
+                    </div>
+                </div>
                 `;
                 $("#binContentsResult").html(html);
                 return;
             }
+            
+            html += `
+                    <div class="items-details">
+                        <h4>
+                            <span class="lang-zh">商品明细：</span>
+                            <span class="lang-en">Item Details:</span>
+                        </h4>
+            `;
             
             html += contents.map(inv => `
                 <div class="item-card">
@@ -1011,6 +1035,12 @@ function searchBinContents() {
                     </div>
                 </div>
             `).join("");
+            
+            // 闭合items-details和result-item div
+            html += `
+                    </div>
+                </div>
+            `;
             
             $("#binContentsResult").html(html);
         },
@@ -1185,7 +1215,7 @@ function searchBT() {
                     <div class="total-summary">
                         <span class="lang-zh">
                             BT <span class="BT-number">${BTNumber}</span> 
-                            总商品数：<span class="quantity">${data.total_items}</span> 种
+                            总商品种类：<span class="quantity">${data.total_items}</span> 种
                             总数量：<span class="quantity">${data.total_pieces}</span> 件
                         </span>
                         <span class="lang-en">
