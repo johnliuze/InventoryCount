@@ -1796,20 +1796,32 @@ def export_all_pos():
     db = get_db()
     cursor = db.cursor()
     
-    # 查询所有客户订单号的详细信息
+    # 查询所有客户订单号的详细信息，包括每箱件数
     cursor.execute('''
+        WITH po_item_totals AS (
+            SELECT 
+                inv.customer_po,
+                i.item_code,
+                SUM(inv.total_pieces) as item_total_in_po
+            FROM inventory inv
+            JOIN items i ON inv.item_id = i.item_id
+            WHERE inv.customer_po IS NOT NULL AND inv.customer_po != ''
+            GROUP BY inv.customer_po, i.item_code
+        )
         SELECT 
             inv.customer_po,
             i.item_code,
             b.bin_code,
             inv.BT,
-            SUM(inv.total_pieces) as total_pieces,
-            SUM(inv.box_count) as total_boxes
+            inv.box_count as boxes_in_bin,
+            inv.pieces_per_box,
+            inv.total_pieces as pieces_in_bin,
+            pit.item_total_in_po
         FROM inventory inv
         JOIN items i ON inv.item_id = i.item_id
         JOIN bins b ON inv.bin_id = b.bin_id
+        JOIN po_item_totals pit ON inv.customer_po = pit.customer_po AND i.item_code = pit.item_code
         WHERE inv.customer_po IS NOT NULL AND inv.customer_po != ''
-        GROUP BY inv.customer_po, i.item_code, b.bin_code, inv.BT
         ORDER BY inv.customer_po, i.item_code, b.bin_code, inv.BT
     ''')
     
@@ -1829,8 +1841,10 @@ def export_all_pos():
             'Item Code': row['item_code'], 
             'Bin Code': row['bin_code'],
             'BT Number': row['BT'] or '',
-            'Total Pieces': row['total_pieces'],
-            'Box Count': row['total_boxes']
+            'Boxes in Bin': row['boxes_in_bin'],
+            'Pieces per Box': row['pieces_per_box'],
+            'Pieces in Bin': row['pieces_in_bin'],
+            'Item Total in PO': row['item_total_in_po']
         })
     
     # 创建DataFrame
@@ -1892,8 +1906,10 @@ def export_all_pos():
         worksheet.set_column('B:B', 20, item_format)         # Item Code
         worksheet.set_column('C:C', 15, bin_format)          # Bin Code
         worksheet.set_column('D:D', 12, bt_format)           # BT Number
-        worksheet.set_column('E:E', 12, number_format)       # Total Pieces
-        worksheet.set_column('F:F', 12, number_format)       # Box Count
+        worksheet.set_column('E:E', 12, number_format)       # Boxes in Bin
+        worksheet.set_column('F:F', 12, number_format)       # Pieces per Box
+        worksheet.set_column('G:G', 12, number_format)       # Pieces in Bin
+        worksheet.set_column('H:H', 15, number_format)       # Item Total in PO
         
         # 应用表头格式
         for col_num, value in enumerate(df.columns.values):
