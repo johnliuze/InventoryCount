@@ -994,10 +994,14 @@ function searchBinContents() {
                     <div class="item-header">
                         <div class="item-info">
                         <span class="lang-zh">
-                            商品 <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> 件
+                            商品 <span class="item-code">${inv.item_code}</span>: 
+                            共 <span class="quantity">${inv.total_boxes}</span> 箱, 
+                            <span class="quantity">${inv.total_pieces}</span> 件
                         </span>
                         <span class="lang-en">
-                            Item <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> pcs
+                            Item <span class="item-code">${inv.item_code}</span>: 
+                            total <span class="quantity">${inv.total_boxes}</span> boxes, 
+                            <span class="quantity">${inv.total_pieces}</span> pcs
                         </span>
                     </div>
                         <button class="clear-item-button" onclick="clearItemAtBin('${binCode}', '${inv.item_code}')">
