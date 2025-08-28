@@ -1560,22 +1560,34 @@ def export_po(PO):
     
     PO = PO.replace('___SLASH___', '/').replace('___SPACE___', ' ')
     
-    # 查询指定客户订单号的所有商品
+    # 查询指定客户订单号的详细信息，包括每箱件数
     cursor.execute('''
+        WITH po_item_totals AS (
+            SELECT 
+                inv.customer_po,
+                i.item_code,
+                SUM(inv.total_pieces) as item_total_in_po
+            FROM inventory inv
+            JOIN items i ON inv.item_id = i.item_id
+            WHERE inv.customer_po = ?
+            GROUP BY inv.customer_po, i.item_code
+        )
         SELECT 
+            inv.customer_po,
             i.item_code,
             b.bin_code,
-            inv.customer_po,
             inv.BT,
-            SUM(inv.total_pieces) as total_pieces,
-            SUM(inv.box_count) as total_boxes
+            inv.box_count as boxes_in_bin,
+            inv.pieces_per_box,
+            inv.total_pieces as pieces_in_bin,
+            pit.item_total_in_po
         FROM inventory inv
         JOIN items i ON inv.item_id = i.item_id
         JOIN bins b ON inv.bin_id = b.bin_id
+        JOIN po_item_totals pit ON inv.customer_po = pit.customer_po AND i.item_code = pit.item_code
         WHERE inv.customer_po = ?
-        GROUP BY i.item_code, b.bin_code, inv.BT
         ORDER BY i.item_code, b.bin_code, inv.BT
-    ''', (PO,))
+    ''', (PO, PO))
     
     results = cursor.fetchall()
     
@@ -1593,8 +1605,10 @@ def export_po(PO):
             'Item Code': row['item_code'], 
             'Bin Code': row['bin_code'],
             'BT Number': row['BT'] or '',
-            'Total Pieces': row['total_pieces'],
-            'Box Count': row['total_boxes']
+            'Boxes in Bin': row['boxes_in_bin'],
+            'Pieces per Box': row['pieces_per_box'],
+            'Pieces in Bin': row['pieces_in_bin'],
+            'Item Total in PO': row['item_total_in_po']
         })
     
     # 创建DataFrame
@@ -1656,8 +1670,10 @@ def export_po(PO):
         worksheet.set_column('B:B', 20, item_format)         # Item Code
         worksheet.set_column('C:C', 15, bin_format)          # Bin Code
         worksheet.set_column('D:D', 12, bt_format)           # BT Number
-        worksheet.set_column('E:E', 12, number_format)       # Total Pieces
-        worksheet.set_column('F:F', 12, number_format)       # Box Count
+        worksheet.set_column('E:E', 12, number_format)       # Boxes in Bin
+        worksheet.set_column('F:F', 12, number_format)       # Pieces per Box
+        worksheet.set_column('G:G', 12, number_format)       # Pieces in Bin
+        worksheet.set_column('H:H', 15, number_format)       # Item Total in PO
         
         # 应用表头格式
         for col_num, value in enumerate(df.columns.values):
@@ -1679,9 +1695,13 @@ def export_po(PO):
                 
                 # 检查商品是否变化
                 if current_item != item:
-                    # 合并之前商品的Item Code列（如果有多行）
+                    # 合并之前商品的Item Code列和Item Total in PO列（如果有多行）
                     if current_item is not None and row_idx - 1 > item_start_row:
+                        # 合并Item Code列 (B列)
                         worksheet.merge_range(item_start_row, 1, row_idx - 1, 1, current_item, item_format)
+                        # 合并Item Total in PO列 (H列)
+                        item_total = export_data[row_idx - 2]['Item Total in PO']
+                        worksheet.merge_range(item_start_row, 7, row_idx - 1, 7, item_total, number_format)
                     
                     current_item = item
                     item_start_row = row_idx
@@ -1689,7 +1709,11 @@ def export_po(PO):
             # 处理最后一个商品的合并
             if len(export_data) > item_start_row:
                 last_item = export_data[-1]['Item Code']
+                last_item_total = export_data[-1]['Item Total in PO']
+                # 合并Item Code列 (B列)
                 worksheet.merge_range(item_start_row, 1, len(export_data), 1, last_item, item_format)
+                # 合并Item Total in PO列 (H列)
+                worksheet.merge_range(item_start_row, 7, len(export_data), 7, last_item_total, number_format)
     
     output.seek(0)
     
