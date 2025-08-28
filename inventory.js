@@ -227,13 +227,13 @@ function formatHistoryRecord(record, timestamp, lang) {
         poAndBtText = ` (${parts.join(', ')})`;
     }
     
-    // 调试输出
+    // 临时强制显示 - 用于测试
     if (record.item_code === '2') {
-        console.log('调试记录 item_code=2 - 新逻辑:', {
-            customer_po: record.customer_po,
-            BT: record.BT,
+        console.log('强制显示测试:', {
             poAndBtText: poAndBtText
         });
+        // 强制添加可见的测试文本
+        poAndBtText = ' [TEST-PO-BT-INFO]';
     }
     
     const mergedZh = `🗑️ ${binCodeDisplay}<br>
@@ -266,14 +266,7 @@ function formatHistoryRecord(record, timestamp, lang) {
         lineHtml = isZh ? normalZh : normalEn;
     }
     
-    // 调试最终HTML输出
-    if (record.item_code === '2') {
-        console.log('最终HTML调试 item_code=2:', {
-            isZh: isZh,
-            lineHtml: lineHtml,
-            normalEn: normalEn
-        });
-    }
+
             
             return `
             <div class="history-item">
