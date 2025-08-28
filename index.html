@@ -1483,6 +1483,22 @@
                 $('#binSearch').val('');
                 $('#BTSearch').val('');
                 $('#itemSearch').val('');
+                
+                // 隐藏Clear Bin按钮
+                $('#clearBinButton').hide();
+            } else {
+                // 切换回query标签页时，根据当前子标签页状态决定Clear Bin按钮显示
+                const currentQueryTab = localStorage.getItem('current-query-tab') || 'bin-contents';
+                if (currentQueryTab === 'bin-contents') {
+                    const hasSearchResults = $('#binContentsResult').children().length > 0;
+                    if (hasSearchResults) {
+                        $('#clearBinButton').show();
+                    } else {
+                        $('#clearBinButton').hide();
+                    }
+                } else {
+                    $('#clearBinButton').hide();
+                }
             }
             
             // 如果切换到Input标签页，清空所有输入框
