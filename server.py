@@ -1026,9 +1026,9 @@ def get_logs():
     if date_filter:
         # 如果有日期过滤，只返回指定日期的记录
         cursor.execute('''
-            SELECT 
-                bin_code,
-                item_code,
+        SELECT 
+            bin_code,
+            item_code,
                 customer_po,
                 BT,
                 box_count,
