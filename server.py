@@ -430,7 +430,7 @@ def get_bin_inventory(bin_id):
     if not bin_result:
         return jsonify({'error': '库位不存在', 'error_en': 'Bin location does not exist', 'inventory': []}), 404
     
-    # 按商品分组，合并同一商品的不同PO和BT
+    # 按商品分组，保持PO和BT的对应关系
     cursor.execute('''
         WITH item_inventory AS (
             SELECT 
@@ -444,49 +444,82 @@ def get_bin_inventory(bin_id):
             JOIN items i ON inv.item_id = i.item_id
             WHERE inv.bin_id = ?
             GROUP BY i.item_code, inv.customer_po, inv.BT, inv.pieces_per_box
+        ),
+        item_summary AS (
+            SELECT 
+                item_code,
+                customer_po,
+                BT,
+                SUM(total_pieces) as po_bt_total_pieces,
+                GROUP_CONCAT(box_count || 'x' || pieces_per_box) as po_bt_box_details
+            FROM item_inventory
+            GROUP BY item_code, customer_po, BT
         )
         SELECT 
             item_code,
-            SUM(total_pieces) as total_pieces,
-            GROUP_CONCAT(DISTINCT customer_po) as customer_pos,
-            GROUP_CONCAT(DISTINCT BT) as BTs,
-            GROUP_CONCAT(box_count || 'x' || pieces_per_box) as box_details
-        FROM item_inventory
+            SUM(po_bt_total_pieces) as total_pieces,
+            GROUP_CONCAT(
+                CASE 
+                    WHEN customer_po IS NOT NULL AND BT IS NOT NULL THEN customer_po || '|' || BT || '|' || po_bt_total_pieces || '|' || po_bt_box_details
+                    WHEN customer_po IS NOT NULL THEN customer_po || '||' || po_bt_total_pieces || '|' || po_bt_box_details
+                    WHEN BT IS NOT NULL THEN '|' || BT || '|' || po_bt_total_pieces || '|' || po_bt_box_details
+                    ELSE '||' || po_bt_total_pieces || '|' || po_bt_box_details
+                END
+            ) as po_bt_details
+        FROM item_summary
         GROUP BY item_code
         ORDER BY item_code
     ''', (bin_result['bin_id'],))
     
     inventory = []
     for row in cursor.fetchall():
-        # 处理PO列表
-        customer_pos = []
-        if row['customer_pos']:
-            customer_pos = [po for po in row['customer_pos'].split(',') if po and po.strip()]
-        
-        # 处理BT列表
-        BTs = []
-        if row['BTs']:
-            BTs = [bt for bt in row['BTs'].split(',') if bt and bt.strip()]
-        
         item_info = {
             'item_code': row['item_code'],
             'total_pieces': row['total_pieces'],
-            'customer_pos': customer_pos,
-            'BTs': BTs,
+            'po_bt_groups': [],
             'box_details': []
         }
         
-        # 解析箱规细节
-        if row['box_details']:
-            details = row['box_details'].split(',')
+        # 解析PO-BT对应关系
+        if row['po_bt_details']:
+            details = row['po_bt_details'].split(',')
             for detail in details:
-                if 'x' in detail:
-                    box_count, pieces = detail.split('x')
-                    item_info['box_details'].append({
-                        'box_count': int(box_count),
-                        'pieces_per_box': int(pieces)
+                parts = detail.split('|')
+                if len(parts) >= 4:
+                    customer_po = parts[0] if parts[0] else None
+                    BT = parts[1] if parts[1] else None
+                    pieces = int(parts[2]) if parts[2] else 0
+                    box_details_str = parts[3] if parts[3] else ''
+                    
+                    # 解析这个PO-BT组合的箱规
+                    group_box_details = []
+                    if box_details_str:
+                        box_details_list = box_details_str.split(',') if ',' in box_details_str else [box_details_str]
+                        for box_detail in box_details_list:
+                            if 'x' in box_detail:
+                                box_count, pieces_per_box = box_detail.split('x')
+                                group_box_details.append({
+                                    'box_count': int(box_count),
+                                    'pieces_per_box': int(pieces_per_box)
+                                })
+                    
+                    item_info['po_bt_groups'].append({
+                        'customer_po': customer_po,
+                        'BT': BT,
+                        'pieces': pieces,
+                        'box_details': group_box_details
                     })
         
+        # 合并所有箱规到总的box_details中
+        all_box_details = {}
+        for group in item_info['po_bt_groups']:
+            for box_detail in group['box_details']:
+                key = f"{box_detail['pieces_per_box']}"
+                if key not in all_box_details:
+                    all_box_details[key] = {'box_count': 0, 'pieces_per_box': box_detail['pieces_per_box']}
+                all_box_details[key]['box_count'] += box_detail['box_count']
+        
+        item_info['box_details'] = list(all_box_details.values())
         inventory.append(item_info)
     
     return jsonify(inventory)

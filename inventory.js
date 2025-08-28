@@ -955,13 +955,15 @@ function searchBinContents() {
                         <div class="item-info">
                         <span class="lang-zh">
                             商品 <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> 件
-                            ${inv.customer_pos && inv.customer_pos.length > 0 ? `<br/>客户订单号: ${inv.customer_pos.map(po => `<span class="customer-po">${po}</span>`).join(', ')}` : ''}
-                            ${inv.BTs && inv.BTs.length > 0 ? `<br/>BT: ${inv.BTs.map(bt => `<span class="BT-number">${bt}</span>`).join(', ')}` : ''}
+                            ${inv.po_bt_groups && inv.po_bt_groups.length > 0 ? inv.po_bt_groups.map(group => `
+                                <br/>${group.customer_po ? `客户订单号: <span class="customer-po">${group.customer_po}</span>` : ''}${group.customer_po && group.BT ? ' - ' : ''}${group.BT ? `BT: <span class="BT-number">${group.BT}</span>` : ''}: <span class="quantity">${group.pieces}</span> 件
+                            `).join('') : ''}
                         </span>
                         <span class="lang-en">
                             Item <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> pcs
-                            ${inv.customer_pos && inv.customer_pos.length > 0 ? `<br/>Customer PO: ${inv.customer_pos.map(po => `<span class="customer-po">${po}</span>`).join(', ')}` : ''}
-                            ${inv.BTs && inv.BTs.length > 0 ? `<br/>BT: ${inv.BTs.map(bt => `<span class="BT-number">${bt}</span>`).join(', ')}` : ''}
+                            ${inv.po_bt_groups && inv.po_bt_groups.length > 0 ? inv.po_bt_groups.map(group => `
+                                <br/>${group.customer_po ? `Customer PO: <span class="customer-po">${group.customer_po}</span>` : ''}${group.customer_po && group.BT ? ' - ' : ''}${group.BT ? `BT: <span class="BT-number">${group.BT}</span>` : ''}: <span class="quantity">${group.pieces}</span> pcs
+                            `).join('') : ''}
                         </span>
                     </div>
                         <button class="clear-item-button" onclick="clearItemAtBin('${binCode}', '${inv.item_code}')">
