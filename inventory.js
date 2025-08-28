@@ -829,14 +829,14 @@ function searchItemTotal() {
                 <div class="result-item">
                 <div class="total-summary">
                     <span class="lang-zh">
-                        商品 <span class="item-code">${itemCode}</span> 
-                        总数量：<span class="quantity">${total.total}</span> 件
-                        （<span class="quantity">${total.total_boxes}</span> 箱）
+                        商品 <span class="item-code">${itemCode}</span>: 
+                        共 <span class="quantity">${total.total_boxes}</span> 箱, 
+                        <span class="quantity">${total.total}</span> 件
                     </span>
                     <span class="lang-en">
-                        Item <span class="item-code">${itemCode}</span> 
-                        total quantity: <span class="quantity">${total.total}</span> pcs
-                        (<span class="quantity">${total.total_boxes}</span> boxes)
+                        Item <span class="item-code">${itemCode}</span>: 
+                        total <span class="quantity">${total.total_boxes}</span> boxes, 
+                        <span class="quantity">${total.total}</span> pcs
                     </span>
                 </div>
         `;
@@ -850,29 +850,57 @@ function searchItemTotal() {
                         <span class="lang-en">Locations:</span>
                     </h4>
                     ${locations.map(loc => `
-                        <div class="location-item">
-                            <span class="lang-zh">
-                                库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> 件
-                                ${loc.customer_po ? ` (客户订单号: <span class="customer-po">${loc.customer_po}</span>)` : ''}
-                                ${loc.BT ? ` (BT: <span class="BT-number">${loc.BT}</span>)` : ''}
-                            </span>
-                            <span class="lang-en">
-                                Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> pcs
-                                ${loc.customer_po ? ` (Customer PO: <span class="customer-po">${loc.customer_po}</span>)` : ''}
-                                ${loc.BT ? ` (BT: <span class="BT-number">${loc.BT}</span>)` : ''}
-                            </span>
-                            ${loc.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box).map(detail => `
-                                <div class="box-details">
+                        <div class="item-card">
+                            <div class="item-header">
+                                <div class="item-info">
                                     <span class="lang-zh">
-                                        <span class="quantity">${detail.box_count}</span> 箱 × 
-                                        <span class="quantity">${detail.pieces_per_box}</span> 件/箱
+                                        库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> 件
                                     </span>
                                     <span class="lang-en">
-                                        <span class="quantity">${detail.box_count}</span> boxes × 
-                                        <span class="quantity">${detail.pieces_per_box}</span> pcs/box
+                                        Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> pcs
                                     </span>
                                 </div>
-                            `).join('')}
+                            </div>
+                            <div class="po-bt-details">
+                                ${loc.po_bt_groups && loc.po_bt_groups.length > 0 ? loc.po_bt_groups.map(group => `
+                                    <div class="location-item">
+                                        <span class="lang-zh">
+                                            ${group.customer_po ? `客户订单号 <span class="customer-po">${group.customer_po}</span>` : ''}${group.customer_po && group.BT ? ', ' : ''}${group.BT ? `BT <span class="BT-number">${group.BT}</span>` : ''}: <span class="quantity">${group.pieces}</span> 件
+                                        </span>
+                                        <span class="lang-en">
+                                            ${group.customer_po ? `Customer PO <span class="customer-po">${group.customer_po}</span>` : ''}${group.customer_po && group.BT ? ', ' : ''}${group.BT ? `BT <span class="BT-number">${group.BT}</span>` : ''}: <span class="quantity">${group.pieces}</span> pcs
+                                        </span>
+                                        ${group.box_details && group.box_details.length > 0 ? group.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box).map(detail => `
+                                            <div class="box-details">
+                                                <span class="lang-zh">
+                                                    <span class="quantity">${detail.box_count}</span> 箱 × 
+                                                    <span class="quantity">${detail.pieces_per_box}</span> 件/箱
+                                                </span>
+                                                <span class="lang-en">
+                                                    <span class="quantity">${detail.box_count}</span> boxes × 
+                                                    <span class="quantity">${detail.pieces_per_box}</span> pcs/box
+                                                </span>
+                                            </div>
+                                        `).join('') : ''}
+                                    </div>
+                                `).join('') : ''}
+                                ${loc.box_details && loc.box_details.length > 0 && (!loc.po_bt_groups || loc.po_bt_groups.length === 0) ? `
+                                    <div class="box-details-fallback">
+                                        ${loc.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box).map(detail => `
+                                            <div class="box-details">
+                                                <span class="lang-zh">
+                                                    <span class="quantity">${detail.box_count}</span> 箱 × 
+                                                    <span class="quantity">${detail.pieces_per_box}</span> 件/箱
+                                                </span>
+                                                <span class="lang-en">
+                                                    <span class="quantity">${detail.box_count}</span> boxes × 
+                                                    <span class="quantity">${detail.pieces_per_box}</span> pcs/box
+                                                </span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
                         </div>
                     `).join("")}
                 </div>
@@ -932,16 +960,14 @@ function searchBinContents() {
                 <div class="result-item">
                     <div class="total-summary">
                         <span class="lang-zh">
-                            库位 <span class="bin-code">${binCode}</span> 
-                            总商品种类：<span class="quantity">${totalItems}</span> 种
-                            总数量：<span class="quantity">${totalPieces}</span> 件
-                            （<span class="quantity">${totalBoxes}</span> 箱）
+                            库位 <span class="bin-code">${binCode}</span>: 
+                            商品共 <span class="quantity">${totalItems}</span> 种,
+                            共 <span class="quantity">${totalBoxes}</span> 箱
                         </span>
                         <span class="lang-en">
-                            Bin <span class="bin-code">${binCode}</span> 
-                            total items: <span class="quantity">${totalItems}</span> types
-                            total quantity: <span class="quantity">${totalPieces}</span> pcs
-                            (<span class="quantity">${totalBoxes}</span> boxes)
+                            Bin <span class="bin-code">${binCode}</span>: 
+                            total <span class="quantity">${totalItems}</span> items,
+                            total <span class="quantity">${totalBoxes}</span> boxes
                         </span>
                     </div>
             `;
@@ -980,10 +1006,10 @@ function searchBinContents() {
                         ${inv.po_bt_groups && inv.po_bt_groups.length > 0 ? inv.po_bt_groups.map(group => `
                             <div class="location-item">
                                 <span class="lang-zh">
-                                    ${group.customer_po ? `客户订单号: <span class="customer-po">${group.customer_po}</span>` : ''}${group.customer_po && group.BT ? ' - ' : ''}${group.BT ? `BT: <span class="BT-number">${group.BT}</span>` : ''}: <span class="quantity">${group.pieces}</span> 件
+                                    ${group.customer_po ? `客户订单号 <span class="customer-po">${group.customer_po}</span>` : ''}${group.customer_po && group.BT ? ', ' : ''}${group.BT ? `BT <span class="BT-number">${group.BT}</span>` : ''}: <span class="quantity">${group.pieces}</span> 件
                                 </span>
                                 <span class="lang-en">
-                                    ${group.customer_po ? `Customer PO: <span class="customer-po">${group.customer_po}</span>` : ''}${group.customer_po && group.BT ? ' - ' : ''}${group.BT ? `BT: <span class="BT-number">${group.BT}</span>` : ''}: <span class="quantity">${group.pieces}</span> pcs
+                                    ${group.customer_po ? `Customer PO <span class="customer-po">${group.customer_po}</span>` : ''}${group.customer_po && group.BT ? ', ' : ''}${group.BT ? `BT <span class="BT-number">${group.BT}</span>` : ''}: <span class="quantity">${group.pieces}</span> pcs
                                 </span>
                                 ${group.box_details && group.box_details.length > 0 ? group.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box).map(detail => `
                                     <div class="box-details">
