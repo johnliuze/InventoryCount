@@ -436,31 +436,34 @@ def get_bin_inventory(bin_id):
             SELECT 
                 i.item_code,
                 inv.customer_po,
+                inv.BT,
                 inv.pieces_per_box,
                 SUM(inv.box_count) as merged_box_count,
                 SUM(inv.total_pieces) as pieces_for_box_size
             FROM inventory inv
             JOIN items i ON inv.item_id = i.item_id
             WHERE inv.bin_id = ?
-            GROUP BY i.item_code, inv.customer_po, inv.pieces_per_box
+            GROUP BY i.item_code, inv.customer_po, inv.BT, inv.pieces_per_box
         ),
         total_by_item AS (
             SELECT
                 item_code,
                 customer_po,
+                BT,
                 SUM(pieces_for_box_size) as total_pieces
             FROM merged_inventory
-            GROUP BY item_code, customer_po
+            GROUP BY item_code, customer_po, BT
         )
         SELECT 
             m.item_code,
             m.customer_po,
+            m.BT,
             t.total_pieces,
             GROUP_CONCAT(m.merged_box_count || 'x' || m.pieces_per_box) as box_details
         FROM merged_inventory m
-        JOIN total_by_item t ON m.item_code = t.item_code AND m.customer_po = t.customer_po
-        GROUP BY m.item_code, m.customer_po
-        ORDER BY m.item_code, m.customer_po
+        JOIN total_by_item t ON m.item_code = t.item_code AND m.customer_po = t.customer_po AND m.BT = t.BT
+        GROUP BY m.item_code, m.customer_po, m.BT
+        ORDER BY m.item_code, m.customer_po, m.BT
     ''', (bin_result['bin_id'],))
     
     inventory = []
@@ -468,6 +471,7 @@ def get_bin_inventory(bin_id):
         item_info = {
             'item_code': row['item_code'],
             'customer_po': row['customer_po'],
+            'BT': row['BT'],
             'total_pieces': row['total_pieces'],
             'box_details': []
         }
@@ -1026,19 +1030,19 @@ def get_logs():
     if date_filter:
         # 如果有日期过滤，只返回指定日期的记录
         cursor.execute('''
-        SELECT 
-            bin_code,
-            item_code,
-                customer_po,
-                BT,
-                box_count,
-                pieces_per_box,
-                total_pieces,
-                input_time
-            FROM input_history
-            WHERE DATE(datetime(input_time, 'localtime')) = ?
-            ORDER BY input_time DESC
-        ''', (date_filter,))
+            SELECT 
+                bin_code,
+                item_code,
+                    customer_po,
+                    BT,
+                    box_count,
+                    pieces_per_box,
+                    total_pieces,
+                    input_time
+                FROM input_history
+                WHERE DATE(datetime(input_time, 'localtime')) = ?
+                ORDER BY input_time DESC
+            ''', (date_filter,))
     else:
         # 否则返回所有记录
         cursor.execute('''

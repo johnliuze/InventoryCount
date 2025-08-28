@@ -214,47 +214,19 @@ function formatHistoryRecord(record, timestamp, lang) {
         (isZh ? `BT号 <span class="BT-number">${record.BT}</span>` :
          `BT <span class="BT-number">${record.BT}</span>`) : '';
     
-    // 强制构建显示文本 - 直接处理PO和BT信息
-    let poAndBtText = '';
-    // 检查是否有有效的PO或BT值（不是null、undefined或空字符串）
-    const hasValidPO = record.customer_po && record.customer_po !== 'null' && record.customer_po !== '';
-    const hasValidBT = record.BT && record.BT !== 'null' && record.BT !== '';
-    
-    if (hasValidPO || hasValidBT) {
-        const parts = [];
-        if (hasValidPO) {
-            parts.push(isZh ? `订单 <span class="customer-po">${record.customer_po}</span>` : `PO <span class="customer-po">${record.customer_po}</span>`);
-        }
-        if (hasValidBT) {
-            parts.push(isZh ? `BT号 <span class="BT-number">${record.BT}</span>` : `BT <span class="BT-number">${record.BT}</span>`);
-        }
-        poAndBtText = ` (${parts.join(', ')})`;
-    }
-    
-    // 调试输出
-    if (record.item_code === '2') {
-        console.log('调试记录 item_code=2:', {
-            customer_po: record.customer_po,
-            BT: record.BT,
-            hasValidPO: hasValidPO,
-            hasValidBT: hasValidBT,
-            poAndBtText: poAndBtText
-        });
-    }
-    
     const mergedZh = `🗑️ ${binCodeDisplay}<br>
-                    ➕ ${itemCodeDisplay}${poAndBtText} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
     const mergedEn = `🗑️ ${binCodeDisplay}<br>
-                    ➕ ${itemCodeDisplay}${poAndBtText} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
     
     const clearZh = `🗑️ ${binCodeDisplay}`;
     const clearEn = `🗑️ ${binCodeDisplay}`;
     
-    const normalZh = `➕ ${itemCodeDisplay}${poAndBtText} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+    const normalZh = `➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
-    const normalEn = `➕ ${itemCodeDisplay}${poAndBtText} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+    const normalEn = `➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
 
     let lineHtml;
@@ -271,8 +243,6 @@ function formatHistoryRecord(record, timestamp, lang) {
     } else {
         lineHtml = isZh ? normalZh : normalEn;
     }
-    
-
             
             return `
             <div class="history-item">
@@ -984,10 +954,10 @@ function searchBinContents() {
                     <div class="item-header">
                         <div class="item-info">
                         <span class="lang-zh">
-                            商品 <span class="item-code">${inv.item_code}</span>${inv.customer_po ? `: 客户订单号 <span class="customer-po">${inv.customer_po}</span>` : ''}: <span class="quantity">${inv.total_pieces}</span> 件
+                            商品 <span class="item-code">${inv.item_code}</span>${inv.customer_po ? ` (客户订单号: <span class="customer-po">${inv.customer_po}</span>)` : ''}${inv.BT ? ` (BT: <span class="BT-number">${inv.BT}</span>)` : ''}: <span class="quantity">${inv.total_pieces}</span> 件
                         </span>
                         <span class="lang-en">
-                            Item <span class="item-code">${inv.item_code}</span>${inv.customer_po ? `: Customer PO <span class="customer-po">${inv.customer_po}</span>` : ''}: <span class="quantity">${inv.total_pieces}</span> pcs
+                            Item <span class="item-code">${inv.item_code}</span>${inv.customer_po ? ` (Customer PO: <span class="customer-po">${inv.customer_po}</span>)` : ''}${inv.BT ? ` (BT: <span class="BT-number">${inv.BT}</span>)` : ''}: <span class="quantity">${inv.total_pieces}</span> pcs
                         </span>
                     </div>
                         <button class="clear-item-button" onclick="clearItemAtBin('${binCode}', '${inv.item_code}')">
@@ -1583,16 +1553,16 @@ function clearItemAtBin(binCode, itemCode) {
             <span class="label">
                 <span class="lang-zh">库位：</span>
                 <span class="lang-en">Bin:</span>
-                    </span>
+            </span>
             <span class="bin-code">${binCode}</span>
         </div>
         <div class="confirm-row">
             <span class="label">
                 <span class="lang-zh">商品：</span>
                 <span class="lang-en">Item:</span>
-                    </span>
+            </span>
             <span class="item-code">${itemCode}</span>
-                </div>
+        </div>
     `);
     
     // 重置按钮显示和样式
