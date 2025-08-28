@@ -430,49 +430,49 @@ def get_bin_inventory(bin_id):
     if not bin_result:
         return jsonify({'error': '库位不存在', 'error_en': 'Bin location does not exist', 'inventory': []}), 404
     
-    # 先获取每个商品的总数和合并后的箱规
+    # 按商品分组，合并同一商品的不同PO和BT
     cursor.execute('''
-        WITH merged_inventory AS (
+        WITH item_inventory AS (
             SELECT 
                 i.item_code,
                 inv.customer_po,
                 inv.BT,
                 inv.pieces_per_box,
-                SUM(inv.box_count) as merged_box_count,
-                SUM(inv.total_pieces) as pieces_for_box_size
+                SUM(inv.box_count) as box_count,
+                SUM(inv.total_pieces) as total_pieces
             FROM inventory inv
             JOIN items i ON inv.item_id = i.item_id
             WHERE inv.bin_id = ?
             GROUP BY i.item_code, inv.customer_po, inv.BT, inv.pieces_per_box
-        ),
-        total_by_item AS (
-            SELECT
-                item_code,
-                customer_po,
-                BT,
-                SUM(pieces_for_box_size) as total_pieces
-            FROM merged_inventory
-            GROUP BY item_code, customer_po, BT
         )
         SELECT 
-            m.item_code,
-            m.customer_po,
-            m.BT,
-            t.total_pieces,
-            GROUP_CONCAT(m.merged_box_count || 'x' || m.pieces_per_box) as box_details
-        FROM merged_inventory m
-        JOIN total_by_item t ON m.item_code = t.item_code AND m.customer_po = t.customer_po AND m.BT = t.BT
-        GROUP BY m.item_code, m.customer_po, m.BT
-        ORDER BY m.item_code, m.customer_po, m.BT
+            item_code,
+            SUM(total_pieces) as total_pieces,
+            GROUP_CONCAT(DISTINCT customer_po) as customer_pos,
+            GROUP_CONCAT(DISTINCT BT) as BTs,
+            GROUP_CONCAT(box_count || 'x' || pieces_per_box) as box_details
+        FROM item_inventory
+        GROUP BY item_code
+        ORDER BY item_code
     ''', (bin_result['bin_id'],))
     
     inventory = []
     for row in cursor.fetchall():
+        # 处理PO列表
+        customer_pos = []
+        if row['customer_pos']:
+            customer_pos = [po for po in row['customer_pos'].split(',') if po and po.strip()]
+        
+        # 处理BT列表
+        BTs = []
+        if row['BTs']:
+            BTs = [bt for bt in row['BTs'].split(',') if bt and bt.strip()]
+        
         item_info = {
             'item_code': row['item_code'],
-            'customer_po': row['customer_po'],
-            'BT': row['BT'],
             'total_pieces': row['total_pieces'],
+            'customer_pos': customer_pos,
+            'BTs': BTs,
             'box_details': []
         }
         
@@ -480,11 +480,12 @@ def get_bin_inventory(bin_id):
         if row['box_details']:
             details = row['box_details'].split(',')
             for detail in details:
-                box_count, pieces = detail.split('x')
-                item_info['box_details'].append({
-                    'box_count': int(box_count),
-                    'pieces_per_box': int(pieces)
-                })
+                if 'x' in detail:
+                    box_count, pieces = detail.split('x')
+                    item_info['box_details'].append({
+                        'box_count': int(box_count),
+                        'pieces_per_box': int(pieces)
+                    })
         
         inventory.append(item_info)
     
