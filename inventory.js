@@ -933,7 +933,7 @@ function searchBinContents() {
                 return sum + inv.box_details.reduce((boxSum, detail) => boxSum + detail.box_count, 0);
             }, 0);
             
-            // 添加总体统计信息
+            // 添加总体统计和清除按钮
             let html = `
                 <div class="result-item">
                     <div class="total-summary">
@@ -950,6 +950,7 @@ function searchBinContents() {
                             (<span class="quantity">${totalBoxes}</span> boxes)
                         </span>
                     </div>
+
             `;
             
             if (!contents || contents.length === 0) {
@@ -966,16 +967,10 @@ function searchBinContents() {
             
             html += `
                     <div class="items-details">
-                        <div class="items-header">
-                            <h4>
-                                <span class="lang-zh">商品明细：</span>
-                                <span class="lang-en">Item Details:</span>
-                            </h4>
-                            <button class="clear-bin-button" onclick="clearBinInventory('${binCode}')">
-                                <span class="lang-zh">清空库位</span>
-                                <span class="lang-en">Clear Bin</span>
-                            </button>
-                        </div>
+                        <h4>
+                            <span class="lang-zh">商品明细：</span>
+                            <span class="lang-en">Item Details:</span>
+                        </h4>
             `;
             
             html += contents.map(inv => `

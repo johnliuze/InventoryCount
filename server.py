@@ -446,7 +446,7 @@ def get_bin_inventory(bin_id):
             GROUP BY i.item_code, inv.customer_po, inv.BT, inv.pieces_per_box
         ),
         item_summary AS (
-            SELECT 
+            SELECT
                 item_code,
                 customer_po,
                 BT,
@@ -499,7 +499,7 @@ def get_bin_inventory(bin_id):
                             if 'x' in box_detail:
                                 box_count, pieces_per_box = box_detail.split('x')
                                 group_box_details.append({
-                                    'box_count': int(box_count),
+                    'box_count': int(box_count),
                                     'pieces_per_box': int(pieces_per_box)
                                 })
                     
@@ -1064,9 +1064,9 @@ def get_logs():
     if date_filter:
         # 如果有日期过滤，只返回指定日期的记录
         cursor.execute('''
-            SELECT 
-                bin_code,
-                item_code,
+        SELECT 
+            bin_code,
+            item_code,
                     customer_po,
                     BT,
                     box_count,
