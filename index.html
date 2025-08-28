@@ -1183,28 +1183,26 @@
                             <span class="lang-zh">箱数：</span>
                             <span class="lang-en">Box Count:</span>
                         </label>
-                        <input type="number" 
+                        <input type="tel" 
                                id="boxCount" 
                                required 
-                               min="1" 
-                               step="1" 
                                inputmode="numeric" 
                                pattern="[0-9]*"
-                               oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
+                               oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';"
+                               onblur="if(this.value && parseInt(this.value) < 1) this.value = '';">
                     </div>
                     <div>
                         <label>
                             <span class="lang-zh">每箱数量：</span>
                             <span class="lang-en">Pieces per Box:</span>
                         </label>
-                        <input type="number" 
+                        <input type="tel" 
                                id="piecesPerBox" 
                                required 
-                               min="1" 
-                               step="1" 
                                inputmode="numeric" 
                                pattern="[0-9]*"
-                               oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';">
+                               oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value <= 0) this.value = '';"
+                               onblur="if(this.value && parseInt(this.value) < 1) this.value = '';">
                     </div>
                 </div>
 
