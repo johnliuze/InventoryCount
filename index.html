@@ -1151,7 +1151,7 @@
                     </div>
                 </div>
 
-                <!-- 客户订单号信息部分 -->
+                <!-- 客户订单号和BT信息部分 -->
                 <div class="input-section container-section">
                     <div>
                         <label>
@@ -1160,10 +1160,6 @@
                         </label>
                         <input type="text" id="customerPOInput">
                     </div>
-                </div>
-
-                <!-- BT信息部分 -->
-                <div class="input-section container-section">
                     <div>
                         <label>
                             <span class="lang-zh">BT：</span>
@@ -1350,20 +1346,20 @@
             <!-- 查询类型标签页 -->
             <div class="query-tab-buttons">
                 <button class="query-tab-button" onclick="switchQueryTab('bin-contents')" data-tab="bin-contents">
-                    <span class="lang-zh">📦 搜索库位</span>
-                    <span class="lang-en">📦 Search Bin</span>
-                </button>
-                <button class="query-tab-button" onclick="switchQueryTab('container-search')" data-tab="container-search">
-                    <span class="lang-zh">🚢 搜索BT号</span>
-                    <span class="lang-en">🚢 Search BT</span>
+                    <span class="lang-zh">📦 库位</span>
+                    <span class="lang-en">📦 Bin</span>
                 </button>
                 <button class="query-tab-button" onclick="switchQueryTab('item-total')" data-tab="item-total">
-                    <span class="lang-zh">📋 搜索商品</span>
-                    <span class="lang-en">📋 Search Item</span>
+                    <span class="lang-zh">📋 商品</span>
+                    <span class="lang-en">📋 Item</span>
+                </button>
+                <button class="query-tab-button" onclick="switchQueryTab('container-search')" data-tab="container-search">
+                    <span class="lang-zh">🚢 BT号</span>
+                    <span class="lang-en">🚢 BT</span>
                 </button>
                 <button class="query-tab-button" onclick="switchQueryTab('po-search')" data-tab="po-search">
-                    <span class="lang-zh">🚛 搜索客人订单号</span>
-                    <span class="lang-en">🚛 Search Customer PO</span>
+                    <span class="lang-zh">🚛 客人订单号</span>
+                    <span class="lang-en">🚛 Customer PO</span>
                 </button>
             </div>
             
@@ -1395,7 +1391,7 @@
                         <span class="lang-zh">搜索</span>
                         <span class="lang-en">Search</span>
                     </button>
-                    <button id="exportBTButton" onclick="exportBTSearch()" style="display:none; margin-left: 10px; background-color: #27ae60;">
+                    <button id="exportBTButton" onclick="exportBTSearch()" style="display:none; margin-left: 10px; background-color: #2980b9;">
                         <span class="lang-zh">导出</span>
                         <span class="lang-en">Export</span>
                     </button>
@@ -1431,7 +1427,7 @@
                         <span class="lang-zh">搜索</span>
                         <span class="lang-en">Search</span>
                     </button>
-                    <button id="exportPOButton" onclick="exportPOSearch()" style="display:none; margin-left: 10px; background-color: #27ae60;">
+                    <button id="exportPOButton" onclick="exportPOSearch()" style="display:none; margin-left: 10px; background-color: #2980b9;">
                         <span class="lang-zh">导出</span>
                         <span class="lang-en">Export</span>
                     </button>
