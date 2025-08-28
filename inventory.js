@@ -216,12 +216,16 @@ function formatHistoryRecord(record, timestamp, lang) {
     
     // 强制构建显示文本 - 直接处理PO和BT信息
     let poAndBtText = '';
-    if (record.customer_po || record.BT) {
+    // 检查是否有有效的PO或BT值（不是null、undefined或空字符串）
+    const hasValidPO = record.customer_po && record.customer_po !== 'null' && record.customer_po !== '';
+    const hasValidBT = record.BT && record.BT !== 'null' && record.BT !== '';
+    
+    if (hasValidPO || hasValidBT) {
         const parts = [];
-        if (record.customer_po) {
+        if (hasValidPO) {
             parts.push(isZh ? `订单 <span class="customer-po">${record.customer_po}</span>` : `PO <span class="customer-po">${record.customer_po}</span>`);
         }
-        if (record.BT) {
+        if (hasValidBT) {
             parts.push(isZh ? `BT号 <span class="BT-number">${record.BT}</span>` : `BT <span class="BT-number">${record.BT}</span>`);
         }
         poAndBtText = ` (${parts.join(', ')})`;
@@ -232,6 +236,8 @@ function formatHistoryRecord(record, timestamp, lang) {
         console.log('调试记录 item_code=2:', {
             customer_po: record.customer_po,
             BT: record.BT,
+            hasValidPO: hasValidPO,
+            hasValidBT: hasValidBT,
             poAndBtText: poAndBtText
         });
     }
