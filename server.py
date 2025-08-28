@@ -1012,7 +1012,7 @@ def export_bins():
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name='bins_inventory.xlsx'
+        download_name= f'Bins-{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     )
 
 @app.route('/api/logs', methods=['GET'])
@@ -1026,9 +1026,9 @@ def get_logs():
     if date_filter:
         # 如果有日期过滤，只返回指定日期的记录
         cursor.execute('''
-        SELECT 
-            bin_code,
-            item_code,
+            SELECT 
+                bin_code,
+                item_code,
                 customer_po,
                 BT,
                 box_count,
@@ -1319,7 +1319,7 @@ def export_item_details():
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name='inventory_details.xlsx'
+        download_name= f'Details-{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     )
 
 @app.route('/api/export/database', methods=['GET'])
@@ -1453,7 +1453,7 @@ def export_history():
             WHERE DATE(datetime(input_time, 'localtime')) = ?
             ORDER BY input_time DESC
         ''', (date_filter,))
-        filename = f'history_{date_filter}.xlsx'
+        filename = f'History-{date_filter}.xlsx'
     else:
         # 导出所有历史记录
         cursor.execute('''
@@ -1469,7 +1469,7 @@ def export_history():
             FROM input_history
             ORDER BY input_time DESC
         ''')
-        filename = 'history_all.xlsx'
+        filename = f'History-{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     
     history_data = cursor.fetchall()
     
@@ -1615,7 +1615,7 @@ def export_po(PO):
     df = pd.DataFrame(export_data)
     
     # 生成文件名
-    filename = f'PO_{PO}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    filename = f'PO-{PO}-{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     
     # 创建Excel文件
     output = BytesIO()
@@ -1772,7 +1772,7 @@ def export_bt(BT):
     df = pd.DataFrame(export_data)
     
     # 生成文件名
-    filename = f'BT_{BT}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    filename = f'BT-{BT}-{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     
     # 创建Excel文件
     output = BytesIO()
@@ -1931,7 +1931,7 @@ def export_all_pos():
     df = pd.DataFrame(export_data)
     
     # 生成文件名
-    filename = f'All_POs_Details_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    filename = f'POs-{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     
     # 创建Excel文件
     output = BytesIO()
