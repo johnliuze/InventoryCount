@@ -439,21 +439,21 @@ function checkBinStatus(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
         success: function(contents) {
             if (contents && contents.length > 0) {
                 // 库位有库存，显示选择对话框
-                showBinChoiceDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox, contents);
+                showBinChoiceDialog(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox, contents);
             } else {
                 // 库位为空，直接显示确认对话框
-                showConfirmDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
+                showConfirmDialog(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox);
             }
         },
         error: function(xhr, status, error) {
             // 如果查询失败，直接显示确认对话框
-            showConfirmDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
+            showConfirmDialog(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox);
         }
     });
 }
 
 // 显示库位选择对话框
-function showBinChoiceDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox, existingContents) {
+function showBinChoiceDialog(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox, existingContents) {
     // 移除之前可能存在的事件处理器
     $("#confirm-yes").off('click');
     $("#confirm-no").off('click');
@@ -511,6 +511,13 @@ function showBinChoiceDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox
                 <span class="lang-en">New Item:</span>
             </span>
             <span class="item-code">${itemCode}</span>
+        </div>
+        <div class="confirm-row">
+            <span class="label">
+                <span class="lang-zh">客户订单号：</span>
+                <span class="lang-en">Customer PO:</span>
+            </span>
+            <span class="customer-po">${customerPO || '-'}</span>
         </div>
         <div class="confirm-row">
             <span class="label">
@@ -585,7 +592,7 @@ function showBinChoiceDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox
 }
 
 // 显示普通确认对话框
-function showConfirmDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
+function showConfirmDialog(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox) {
     // 移除之前可能存在的事件处理器
     $("#confirm-yes").off('click');
     $("#confirm-no").off('click');
@@ -609,6 +616,13 @@ function showConfirmDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox) 
                 <span class="lang-en">Item:</span>
             </span>
             <span id="confirm-item" class="item-code">${itemCode}</span>
+        </div>
+        <div class="confirm-row">
+            <span class="label">
+                <span class="lang-zh">客户订单号：</span>
+                <span class="lang-en">Customer PO:</span>
+            </span>
+            <span id="confirm-customer-po" class="customer-po">${customerPO || '-'}</span>
         </div>
         <div class="confirm-row">
             <span class="label">
