@@ -227,13 +227,13 @@ function formatHistoryRecord(record, timestamp, lang) {
         poAndBtText = ` (${parts.join(', ')})`;
     }
     
-    // 临时强制显示 - 用于测试
+    // 调试输出
     if (record.item_code === '2') {
-        console.log('强制显示测试:', {
+        console.log('调试记录 item_code=2:', {
+            customer_po: record.customer_po,
+            BT: record.BT,
             poAndBtText: poAndBtText
         });
-        // 强制添加可见的测试文本
-        poAndBtText = ' [TEST-PO-BT-INFO]';
     }
     
     const mergedZh = `🗑️ ${binCodeDisplay}<br>
