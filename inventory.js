@@ -214,6 +214,16 @@ function formatHistoryRecord(record, timestamp, lang) {
         (isZh ? `BT号 <span class="BT-number">${record.BT}</span>` :
          `BT <span class="BT-number">${record.BT}</span>`) : '';
     
+    // 调试输出
+    if (record.item_code === '2') {
+        console.log('调试记录 item_code=2:', {
+            customer_po: record.customer_po,
+            BT: record.BT,
+            customerPODisplay: customerPODisplay,
+            BTDisplay: BTDisplay
+        });
+    }
+    
     // 构建PO和BT的组合显示（只在有内容时显示括号）
     const pobtInfo = [];
     if (customerPODisplay) pobtInfo.push(customerPODisplay);
