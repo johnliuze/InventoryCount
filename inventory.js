@@ -405,10 +405,11 @@ $(document).ready(function() {
         });
     });
 
-    // 初始化搜索框占位符 - 延迟执行确保语言已设置
+    // 初始化搜索框占位符和日期选择器语言 - 延迟执行确保语言已设置
     setTimeout(() => {
         const savedLang = localStorage.getItem('preferred-language') || 'zh';
         updateSearchPlaceholders(savedLang);
+        updateDatePickerLanguage(savedLang);
     }, 100);
     
     // 恢复搜索子标签页状态
@@ -1348,6 +1349,9 @@ function switchLanguage(lang) {
     $('.language-switch button').removeClass('active');
     $(`.language-switch button[onclick="switchLanguage('${lang}')"]`).addClass('active');
     
+    // 更新日期选择器的语言属性
+    updateDatePickerLanguage(lang);
+    
     // 更新搜索框占位符
     updateSearchPlaceholders(lang);
     
@@ -1357,18 +1361,29 @@ function switchLanguage(lang) {
     updateFullHistory(cachedLogs);
 }
 
+// 更新日期选择器语言
+function updateDatePickerLanguage(lang) {
+    const datePicker = document.getElementById('historyDate');
+    if (datePicker) {
+        // 设置lang属性来提示浏览器使用对应语言
+        datePicker.setAttribute('lang', lang === 'zh' ? 'zh-CN' : 'en-US');
+    }
+}
+
 // 更新搜索框占位符
 function updateSearchPlaceholders(lang) {
             const placeholders = {
             zh: {
                 binSearch: '输入库位编号',
                 BTSearch: '输入BT号',
-                itemSearch: '输入商品编号'
+                itemSearch: '输入商品编号',
+                POSearch: '输入客人订单号'
             },
             en: {
-                binSearch: 'Enter bin location',
-                BTSearch: 'Enter BT number',
-                itemSearch: 'Enter item code'
+                binSearch: 'Enter Bin Location',
+                BTSearch: 'Enter BT Number',
+                itemSearch: 'Enter Item SKU',
+                POSearch: 'Enter Customer PO'   
             }
         };
     
@@ -1376,6 +1391,7 @@ function updateSearchPlaceholders(lang) {
     $('#binSearch').attr('placeholder', texts.binSearch);
     $('#BTSearch').attr('placeholder', texts.BTSearch);
     $('#itemSearch').attr('placeholder', texts.itemSearch);
+    $('#POSearch').attr('placeholder', texts.POSearch);
 }
 
 // 查询标签页切换
