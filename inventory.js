@@ -147,6 +147,8 @@ function mergeClearAndAddLogs(logs) {
                     box_count: current.box_count,
                     pieces_per_box: current.pieces_per_box,
                     total_pieces: current.total_pieces,
+                    customer_po: current.customer_po,
+                    BT: current.BT,
                     timestamp: current.timestamp
                 });
                 usedIndexSet.add(i);
@@ -165,6 +167,8 @@ function mergeClearAndAddLogs(logs) {
                     box_count: next.box_count,
                     pieces_per_box: next.pieces_per_box,
                     total_pieces: next.total_pieces,
+                    customer_po: next.customer_po,
+                    BT: next.BT,
                     timestamp: timeA >= timeB ? current.timestamp : next.timestamp
                 });
                 usedIndexSet.add(i);
