@@ -929,8 +929,11 @@ function searchBinContents() {
             // 计算统计信息
             const totalItems = contents.length;
             const totalPieces = contents.reduce((sum, inv) => sum + inv.total_pieces, 0);
+            const totalBoxes = contents.reduce((sum, inv) => {
+                return sum + inv.box_details.reduce((boxSum, detail) => boxSum + detail.box_count, 0);
+            }, 0);
             
-            // 添加总体统计和清除按钮
+            // 添加总体统计信息
             let html = `
                 <div class="result-item">
                     <div class="total-summary">
@@ -938,18 +941,14 @@ function searchBinContents() {
                             库位 <span class="bin-code">${binCode}</span> 
                             总商品种类：<span class="quantity">${totalItems}</span> 种
                             总数量：<span class="quantity">${totalPieces}</span> 件
+                            （<span class="quantity">${totalBoxes}</span> 箱）
                         </span>
                         <span class="lang-en">
                             Bin <span class="bin-code">${binCode}</span> 
                             total items: <span class="quantity">${totalItems}</span> types
                             total quantity: <span class="quantity">${totalPieces}</span> pcs
+                            (<span class="quantity">${totalBoxes}</span> boxes)
                         </span>
-                    </div>
-                    <div class="bin-actions">
-                        <button class="clear-bin-button" onclick="clearBinInventory('${binCode}')">
-                            <span class="lang-zh">清空库位</span>
-                            <span class="lang-en">Clear Bin</span>
-                        </button>
                     </div>
             `;
             
@@ -967,10 +966,16 @@ function searchBinContents() {
             
             html += `
                     <div class="items-details">
-                        <h4>
-                            <span class="lang-zh">商品明细：</span>
-                            <span class="lang-en">Item Details:</span>
-                        </h4>
+                        <div class="items-header">
+                            <h4>
+                                <span class="lang-zh">商品明细：</span>
+                                <span class="lang-en">Item Details:</span>
+                            </h4>
+                            <button class="clear-bin-button" onclick="clearBinInventory('${binCode}')">
+                                <span class="lang-zh">清空库位</span>
+                                <span class="lang-en">Clear Bin</span>
+                            </button>
+                        </div>
             `;
             
             html += contents.map(inv => `
