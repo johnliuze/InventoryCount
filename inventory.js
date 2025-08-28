@@ -950,7 +950,12 @@ function searchBinContents() {
                             (<span class="quantity">${totalBoxes}</span> boxes)
                         </span>
                     </div>
-
+                    <div class="bin-actions">
+                        <button class="clear-bin-button" onclick="clearBinInventory('${binCode}')" style="background-color: #dc3545; margin-top: 10px;">
+                            <span class="lang-zh">清空库位</span>
+                            <span class="lang-en">Clear Bin</span>
+                        </button>
+                    </div>
             `;
             
             if (!contents || contents.length === 0) {
@@ -958,6 +963,12 @@ function searchBinContents() {
                     <div class="no-inventory">
                         <span class="lang-zh">该库位暂无库存</span>
                         <span class="lang-en">No inventory in this location</span>
+                    </div>
+                    <div class="bin-actions">
+                        <button class="clear-bin-button" onclick="clearBinInventory('${binCode}')" style="background-color: #dc3545; margin-top: 10px;">
+                            <span class="lang-zh">清空库位</span>
+                            <span class="lang-en">Clear Bin</span>
+                        </button>
                     </div>
                 </div>
                 `;
