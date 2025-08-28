@@ -435,35 +435,39 @@ def get_bin_inventory(bin_id):
         WITH merged_inventory AS (
             SELECT 
                 i.item_code,
+                inv.customer_po,
                 inv.pieces_per_box,
                 SUM(inv.box_count) as merged_box_count,
                 SUM(inv.total_pieces) as pieces_for_box_size
             FROM inventory inv
             JOIN items i ON inv.item_id = i.item_id
             WHERE inv.bin_id = ?
-            GROUP BY i.item_code, inv.pieces_per_box
+            GROUP BY i.item_code, inv.customer_po, inv.pieces_per_box
         ),
         total_by_item AS (
             SELECT
                 item_code,
+                customer_po,
                 SUM(pieces_for_box_size) as total_pieces
             FROM merged_inventory
-            GROUP BY item_code
+            GROUP BY item_code, customer_po
         )
         SELECT 
             m.item_code,
+            m.customer_po,
             t.total_pieces,
             GROUP_CONCAT(m.merged_box_count || 'x' || m.pieces_per_box) as box_details
         FROM merged_inventory m
-        JOIN total_by_item t ON m.item_code = t.item_code
-        GROUP BY m.item_code
-        ORDER BY m.item_code
+        JOIN total_by_item t ON m.item_code = t.item_code AND m.customer_po = t.customer_po
+        GROUP BY m.item_code, m.customer_po
+        ORDER BY m.item_code, m.customer_po
     ''', (bin_result['bin_id'],))
     
     inventory = []
     for row in cursor.fetchall():
         item_info = {
             'item_code': row['item_code'],
+            'customer_po': row['customer_po'],
             'total_pieces': row['total_pieces'],
             'box_details': []
         }
@@ -496,11 +500,12 @@ def get_item_locations(item_id):
         # 商品不存在，返回空结果
         return jsonify({'locations': []})
     
-    # 查询商品在各库位的库存，包含BT
+    # 查询商品在各库位的库存，包含客户订单号和BT
     cursor.execute('''
         WITH merged_inventory AS (
             SELECT 
                 b.bin_code,
+                inv.customer_po,
                 inv.BT,
                 inv.pieces_per_box,
                 SUM(inv.box_count) as merged_box_count,
@@ -508,31 +513,34 @@ def get_item_locations(item_id):
             FROM inventory inv
             JOIN bins b ON inv.bin_id = b.bin_id
             WHERE inv.item_id = ?
-            GROUP BY b.bin_code, inv.BT, inv.pieces_per_box
+            GROUP BY b.bin_code, inv.customer_po, inv.BT, inv.pieces_per_box
         ),
         total_by_bin AS (
             SELECT
                 bin_code,
+                customer_po,
                 BT,
                 SUM(pieces_for_box_size) as total_pieces
             FROM merged_inventory
-            GROUP BY bin_code, BT
+            GROUP BY bin_code, customer_po, BT
         )
         SELECT 
             m.bin_code,
+            m.customer_po,
             m.BT,
             t.total_pieces,
             GROUP_CONCAT(m.merged_box_count || 'x' || m.pieces_per_box) as box_details
         FROM merged_inventory m
-        JOIN total_by_bin t ON m.bin_code = t.bin_code AND m.BT = t.BT
-        GROUP BY m.bin_code, m.BT
-        ORDER BY m.bin_code, m.BT
+        JOIN total_by_bin t ON m.bin_code = t.bin_code AND m.customer_po = t.customer_po AND m.BT = t.BT
+        GROUP BY m.bin_code, m.customer_po, m.BT
+        ORDER BY m.bin_code, m.customer_po, m.BT
     ''', (item_result['item_id'],))
     
     locations = []
     for row in cursor.fetchall():
         location_info = {
             'bin_code': row['bin_code'],
+            'customer_po': row['customer_po'],
             'BT': row['BT'],
             'total_pieces': row['total_pieces'],
             'box_details': []
@@ -563,6 +571,7 @@ def get_BT_inventory(BT):
         SELECT 
             i.item_code,
             b.bin_code,
+            inv.customer_po,
             inv.BT,
             SUM(inv.total_pieces) as total_pieces,
             SUM(inv.box_count) as total_boxes
@@ -570,8 +579,8 @@ def get_BT_inventory(BT):
         JOIN items i ON inv.item_id = i.item_id
         JOIN bins b ON inv.bin_id = b.bin_id
         WHERE inv.BT = ?
-        GROUP BY i.item_code, b.bin_code
-        ORDER BY i.item_code, b.bin_code
+        GROUP BY i.item_code, b.bin_code, inv.customer_po
+        ORDER BY i.item_code, b.bin_code, inv.customer_po
     ''', (BT,))
     
     results = cursor.fetchall()
@@ -600,6 +609,7 @@ def get_BT_inventory(BT):
         items_data[item_code]['total_pieces'] += row['total_pieces']
         items_data[item_code]['locations'].append({
             'bin_code': row['bin_code'],
+            'customer_po': row['customer_po'],
             'pieces': row['total_pieces']
         })
         total_pieces += row['total_pieces']
@@ -1331,7 +1341,7 @@ def export_history():
         # 导出指定日期的历史记录
         cursor.execute('''
             SELECT 
-                input_time,
+                datetime(input_time, 'localtime') as input_time,
                 bin_code,
                 item_code,
                 customer_po,
@@ -1348,7 +1358,7 @@ def export_history():
         # 导出所有历史记录
         cursor.execute('''
             SELECT 
-                input_time,
+                datetime(input_time, 'localtime') as input_time,
                 bin_code,
                 item_code,
                 customer_po,

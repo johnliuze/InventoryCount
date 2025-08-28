@@ -801,11 +801,11 @@ function searchItemTotal() {
                             <div class="item-header">
                                 <div class="location-info">
                                     <span class="lang-zh">
-                                        库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> 件
+                                        库位 <span class="bin-code">${loc.bin_code}</span>${loc.customer_po ? `: 客户订单号 <span class="customer-po">${loc.customer_po}</span>` : ''}: <span class="quantity">${loc.total_pieces}</span> 件
                                         ${loc.BT ? ` (BT: <span class="BT-number">${loc.BT}</span>)` : ''}
                                     </span>
                                     <span class="lang-en">
-                                        Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.total_pieces}</span> pcs
+                                        Bin <span class="bin-code">${loc.bin_code}</span>${loc.customer_po ? `: Customer PO <span class="customer-po">${loc.customer_po}</span>` : ''}: <span class="quantity">${loc.total_pieces}</span> pcs
                                         ${loc.BT ? ` (BT: <span class="BT-number">${loc.BT}</span>)` : ''}
                                     </span>
                                 </div>
@@ -899,10 +899,10 @@ function searchBinContents() {
                     <div class="item-header">
                         <div class="item-info">
                         <span class="lang-zh">
-                            商品 <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> 件
+                            商品 <span class="item-code">${inv.item_code}</span>${inv.customer_po ? `: 客户订单号 <span class="customer-po">${inv.customer_po}</span>` : ''}: <span class="quantity">${inv.total_pieces}</span> 件
                         </span>
                         <span class="lang-en">
-                            Item <span class="item-code">${inv.item_code}</span>: <span class="quantity">${inv.total_pieces}</span> pcs
+                            Item <span class="item-code">${inv.item_code}</span>${inv.customer_po ? `: Customer PO <span class="customer-po">${inv.customer_po}</span>` : ''}: <span class="quantity">${inv.total_pieces}</span> pcs
                         </span>
                     </div>
                         <button class="clear-item-button" onclick="clearItemAtBin('${binCode}', '${inv.item_code}')">
@@ -1130,10 +1130,10 @@ function searchBT() {
                                     ${item.locations.map(loc => `
                                         <div class="location-item">
                                 <span class="lang-zh">
-                                                库位 <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.pieces}</span> 件
+                                                库位 <span class="bin-code">${loc.bin_code}</span>${loc.customer_po ? `: 客户订单号 <span class="customer-po">${loc.customer_po}</span>` : ''}: <span class="quantity">${loc.pieces}</span> 件
                                 </span>
                                 <span class="lang-en">
-                                                Bin <span class="bin-code">${loc.bin_code}</span>: <span class="quantity">${loc.pieces}</span> pcs
+                                                Bin <span class="bin-code">${loc.bin_code}</span>${loc.customer_po ? `: Customer PO <span class="customer-po">${loc.customer_po}</span>` : ''}: <span class="quantity">${loc.pieces}</span> pcs
                                 </span>
                             </div>
                         `).join('')}
