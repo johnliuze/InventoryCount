@@ -1351,28 +1351,10 @@ function switchLanguage(lang) {
     // 更新搜索框占位符
     updateSearchPlaceholders(lang);
     
-    // 优化：只更新当前可见的历史记录，使用requestAnimationFrame进行异步渲染
-    requestAnimationFrame(() => {
-        // 检查当前是否在历史相关的标签页
-        const currentTab = localStorage.getItem('current-tab');
-        const isInputTab = currentTab === 'input' || !currentTab;
-        const isHistoryTab = currentTab === 'history';
-        
-        if (isInputTab) {
-            // 只更新今日录入（Input标签页中的历史记录）
-            updateRecentHistory(cachedLogs);
-        }
-        
-        if (isHistoryTab) {
-            // 延迟更新完整历史记录，避免阻塞UI
-            setTimeout(() => {
-                updateFullHistory(cachedLogs);
-            }, 50);
-        }
-        
-        // 总是更新主要历史显示（较少的数据）
-        updateHistoryDisplay(cachedLogs);
-    });
+    // 使用缓存立即重渲染，避免重复请求
+    updateHistoryDisplay(cachedLogs);
+    updateRecentHistory(cachedLogs);
+    updateFullHistory(cachedLogs);
 }
 
 // 更新搜索框占位符
@@ -1492,27 +1474,20 @@ function updateRecentHistory(logsFromCache) {
 // 更新完整历史记录
 function updateFullHistory(logsFromCache) {
     const render = (logs) => {
-        const fullHistoryList = document.getElementById('full-history-list');
-        if (!fullHistoryList) return;
-        
-        // 如果数据量很大，使用批量渲染
         const mergedLogs = mergeClearAndAddLogs(logs);
-        const lang = document.body.className.includes('lang-en') ? 'en' : 'zh';
+        const html = mergedLogs.map(record => {
+            // 使用安全的日期解析和格式化
+            const utcDate = parseDateSafely(record.timestamp);
+            if (!utcDate) {
+                // 如果日期解析失败，显示原始时间戳
+                return formatHistoryRecord(record, record.timestamp || 'Invalid Date', document.body.className.includes('lang-en') ? 'en' : 'zh');
+            }
+            const timestamp = formatDateSafely(utcDate, 'zh-CN');
+            return formatHistoryRecord(record, timestamp, document.body.className.includes('lang-en') ? 'en' : 'zh');
+        }).join('');
         
-        if (mergedLogs.length > 100) {
-            // 大数据量时使用分批渲染
-            renderHistoryInBatches(mergedLogs, fullHistoryList, lang);
-        } else {
-            // 小数据量时直接渲染
-            const html = mergedLogs.map(record => {
-                const utcDate = parseDateSafely(record.timestamp);
-                if (!utcDate) {
-                    return formatHistoryRecord(record, record.timestamp || 'Invalid Date', lang);
-                }
-                const timestamp = formatDateSafely(utcDate, 'zh-CN');
-                return formatHistoryRecord(record, timestamp, lang);
-            }).join('');
-            
+        const fullHistoryList = document.getElementById('full-history-list');
+        if (fullHistoryList) {
             fullHistoryList.innerHTML = html;
         }
     };
@@ -1526,45 +1501,6 @@ function updateFullHistory(logsFromCache) {
         cachedLogs = logs;
         render(logs);
     });
-}
-
-// 分批渲染历史记录，避免阻塞UI
-function renderHistoryInBatches(logs, container, lang, batchSize = 50) {
-    container.innerHTML = ''; // 清空容器
-    
-    let currentIndex = 0;
-    const fragment = document.createDocumentFragment();
-    
-    function renderBatch() {
-        const endIndex = Math.min(currentIndex + batchSize, logs.length);
-        
-        for (let i = currentIndex; i < endIndex; i++) {
-            const record = logs[i];
-            const utcDate = parseDateSafely(record.timestamp);
-            const timestamp = utcDate ? formatDateSafely(utcDate, 'zh-CN') : (record.timestamp || 'Invalid Date');
-            const html = formatHistoryRecord(record, timestamp, lang);
-            
-            // 创建临时div来解析HTML
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            while (tempDiv.firstChild) {
-                fragment.appendChild(tempDiv.firstChild);
-            }
-        }
-        
-        currentIndex = endIndex;
-        
-        if (currentIndex < logs.length) {
-            // 还有更多数据，继续下一批
-            requestAnimationFrame(renderBatch);
-        } else {
-            // 所有数据渲染完成，一次性添加到DOM
-            container.appendChild(fragment);
-        }
-    }
-    
-    // 开始渲染
-    renderBatch();
 }
 
 // 清空库位中特定商品
@@ -1598,7 +1534,7 @@ function clearItemAtBin(binCode, itemCode) {
     `);
     
     // 重置按钮显示和样式
-    $("#confirm-yes").removeClass('success').addClass('warning');
+    $("#confirm-yes").removeClass('warning').addClass('success');
     $("#confirm-yes .lang-zh").text('确认清空');
     $("#confirm-yes .lang-en").text('Clear Item');
     
