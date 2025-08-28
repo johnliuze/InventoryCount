@@ -1247,13 +1247,13 @@
                 <!-- 商品库存导出 -->
                 <div class="export-item">
                     <button onclick="exportItems()" class="export-button">
-                        <span class="lang-zh">📋 导出商品库存</span>
-                        <span class="lang-en">📋 Export Items Inventory</span>
+                        <span class="lang-zh">📋 导出所有商品</span>
+                        <span class="lang-en">📋 Export All Items</span>
                     </button>
                     <div class="export-description">
                         <p>
-                            <span class="lang-zh">导出所有商品的总库存数量和所在库位信息</span>
-                            <span class="lang-en">Export total inventory quantities and locations for all items</span>
+                            <span class="lang-zh">导出所有商品的详细库存信息</span>
+                            <span class="lang-en">Export detailed inventory for all items</span>
                         </p>
                     </div>
                 </div>
@@ -1261,8 +1261,8 @@
                 <!-- 库位库存导出 -->
                 <div class="export-item">
                     <button onclick="exportBins()" class="export-button">
-                        <span class="lang-zh">📦 导出库位库存</span>
-                        <span class="lang-en">📦 Export Bins Inventory</span>
+                        <span class="lang-zh">📦 导出所有库位库存</span>
+                        <span class="lang-en">📦 Export All Bins</span>
                     </button>
                     <div class="export-description">
                         <p>
@@ -1272,30 +1272,30 @@
                     </div>
                 </div>
 
-                <!-- 明细导出 -->
+                <!-- 所有PO导出 -->
                 <div class="export-item">
-                    <button onclick="exportItemDetails()" class="export-button">
-                        <span class="lang-zh">📊 导出明细</span>
-                        <span class="lang-en">📊 Export Details</span>
+                    <button onclick="exportAllPOs()" class="export-button">
+                        <span class="lang-zh">🚛 导出所有客人订单</span>
+                        <span class="lang-en">🚛 Export All Customer POs</span>
                     </button>
                     <div class="export-description">
                         <p>
-                            <span class="lang-zh">导出所有商品在各库位的详细箱规信息</span>
-                            <span class="lang-en">Export detailed box specifications for all items in each location</span>
+                            <span class="lang-zh">导出所有客人订单的详细库存信息</span>
+                            <span class="lang-en">Export detailed inventory for all customer purchase orders</span>
                         </p>
                     </div>
                 </div>
 
-                <!-- 所有PO导出 -->
+                <!-- 明细导出 -->
                 <div class="export-item">
-                    <button onclick="exportAllPOs()" class="export-button">
-                        <span class="lang-zh">📋 导出所有PO</span>
-                        <span class="lang-en">📋 Export All POs</span>
+                    <button onclick="exportItemDetails()" class="export-button">
+                        <span class="lang-zh">📊 导出商品库存明细</span>
+                        <span class="lang-en">📊 Export Item Inventory Details</span>
                     </button>
                     <div class="export-description">
                         <p>
-                            <span class="lang-zh">导出所有客户订单的详细库存信息</span>
-                            <span class="lang-en">Export detailed inventory information for all customer orders</span>
+                            <span class="lang-zh">导出所有商品在各库位的详细信息</span>
+                            <span class="lang-en">Export detailed information for all items in each location</span>
                         </p>
                     </div>
                 </div>
