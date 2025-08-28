@@ -105,6 +105,7 @@ def init_db():
                     inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     bin_id INTEGER NOT NULL,
                     item_id INTEGER NOT NULL,
+                    customer_po TEXT,
                     BT TEXT,
                     box_count INTEGER NOT NULL,
                     pieces_per_box INTEGER NOT NULL,
@@ -114,9 +115,13 @@ def init_db():
                 )
             ''')
         else:
-            # 检查是否需要添加BT字段
+            # 检查是否需要添加customer_po字段
             cursor.execute("PRAGMA table_info(inventory)")
             columns = [column[1] for column in cursor.fetchall()]
+            if 'customer_po' not in columns:
+                print("为inventory表添加customer_po字段...")
+                cursor.execute('ALTER TABLE inventory ADD COLUMN customer_po TEXT')
+            # 检查是否需要添加BT字段
             if 'BT' not in columns:
                 print("为inventory表添加BT字段...")
                 cursor.execute('ALTER TABLE inventory ADD COLUMN BT TEXT')
@@ -127,6 +132,7 @@ def init_db():
                     history_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     bin_code TEXT NOT NULL,
                     item_code TEXT NOT NULL,
+                    customer_po TEXT,
                     BT TEXT,
                     box_count INTEGER NOT NULL,
                     pieces_per_box INTEGER NOT NULL,
@@ -135,9 +141,13 @@ def init_db():
                 )
             ''')
         else:
-            # 检查是否需要添加BT字段
+            # 检查是否需要添加customer_po字段
             cursor.execute("PRAGMA table_info(input_history)")
             columns = [column[1] for column in cursor.fetchall()]
+            if 'customer_po' not in columns:
+                print("为input_history表添加customer_po字段...")
+                cursor.execute('ALTER TABLE input_history ADD COLUMN customer_po TEXT')
+            # 检查是否需要添加BT字段
             if 'BT' not in columns:
                 print("为input_history表添加BT字段...")
                 cursor.execute('ALTER TABLE input_history ADD COLUMN BT TEXT')
@@ -337,20 +347,21 @@ def add_inventory():
         pieces_per_box = int(data['pieces_per_box'])
         total_pieces = box_count * pieces_per_box
 
-        # 获取BT，如果不存在则为None
+        # 获取客户订单号和BT，如果不存在则为None
+        customer_po = data.get('customer_po', None)
         BT = data.get('BT', None)
         
         # 插入库存记录
         cursor.execute('''
-            INSERT INTO inventory (bin_id, item_id, BT, box_count, pieces_per_box, total_pieces)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (bin_id, item_id, BT, box_count, pieces_per_box, total_pieces))
+            INSERT INTO inventory (bin_id, item_id, customer_po, BT, box_count, pieces_per_box, total_pieces)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (bin_id, item_id, customer_po, BT, box_count, pieces_per_box, total_pieces))
         
         # 记录输入历史
         cursor.execute('''
-            INSERT INTO input_history (bin_code, item_code, BT, box_count, pieces_per_box, total_pieces)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (data['bin_code'], data['item_code'], BT, box_count, pieces_per_box, total_pieces))
+            INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (data['bin_code'], data['item_code'], customer_po, BT, box_count, pieces_per_box, total_pieces))
         
         db.commit()
         
@@ -649,19 +660,21 @@ def export_items():
             SELECT 
                 i.item_code,
                 b.bin_code,
+                inv.customer_po,
                 inv.BT,
                 SUM(inv.total_pieces) as bin_total,
                 SUM(inv.box_count) as bin_boxes
             FROM inventory inv
             JOIN items i ON inv.item_id = i.item_id
             JOIN bins b ON inv.bin_id = b.bin_id
-            GROUP BY i.item_code, b.bin_code, inv.BT
+            GROUP BY i.item_code, b.bin_code, inv.customer_po, inv.BT
         )
         SELECT 
             item_code,
             SUM(bin_total) as total_quantity,
             SUM(bin_boxes) as total_boxes,
             GROUP_CONCAT(DISTINCT bin_code) as bin_locations,
+            GROUP_CONCAT(DISTINCT customer_po) as customer_po_list,
             GROUP_CONCAT(DISTINCT BT) as BT_list
         FROM merged_locations
         GROUP BY item_code
@@ -675,6 +688,14 @@ def export_items():
             if not rows:
                 break
             for row in rows:
+                # 处理客户订单号列表，移除NULL值并去重
+                customer_po_list = row['customer_po_list'] if row['customer_po_list'] else ''
+                if customer_po_list:
+                    # 分割、去重、过滤空值
+                    customer_po_items = [po.strip() for po in customer_po_list.split(',') if po.strip() and po.strip() != 'None']
+                    customer_po_items = list(set(customer_po_items))  # 去重
+                    customer_po_list = ', '.join(customer_po_items)
+                
                 # 处理BT列表，移除NULL值并去重
                 bt_list = row['BT_list'] if row['BT_list'] else ''
                 if bt_list:
@@ -682,10 +703,20 @@ def export_items():
                     bt_items = [bt.strip() for bt in bt_list.split(',') if bt.strip() and bt.strip() != 'None']
                     bt_items = list(set(bt_items))  # 去重
                     bt_list = ', '.join(bt_items)
-                yield row
+                
+                # 创建包含处理后数据的行
+                processed_row = {
+                    'item_code': row['item_code'],
+                    'total_quantity': row['total_quantity'],
+                    'total_boxes': row['total_boxes'],
+                    'bin_locations': row['bin_locations'],
+                    'customer_po_list': customer_po_list,
+                    'BT_list': bt_list
+                }
+                yield processed_row
     
     # 创建DataFrame，使用迭代器
-    df = pd.DataFrame(generate_rows(), columns=['Item Code', 'Total Quantity', 'Total Boxes', 'Bin Locations', 'BT'])
+    df = pd.DataFrame(generate_rows(), columns=['Item Code', 'Total Quantity', 'Total Boxes', 'Bin Locations', 'Customer PO', 'BT'])
     
     # 创建Excel文件
     output = BytesIO()
@@ -700,7 +731,8 @@ def export_items():
         worksheet.set_column('B:B', 15)  # Total Quantity
         worksheet.set_column('C:C', 12)  # Total Boxes
         worksheet.set_column('D:D', 40)  # Bin Locations
-        worksheet.set_column('E:E', 30)  # BT
+        worksheet.set_column('E:E', 20)  # Customer PO
+        worksheet.set_column('F:F', 30)  # BT
         
         # 定义格式
         item_format = workbook.add_format({
@@ -721,6 +753,12 @@ def export_items():
             'font_color': '#e67e22'  # 橙色
         })
         
+        customer_po_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#ff5722'  # 橘红色
+        })
+        
         bt_format = workbook.add_format({
             'align': 'center',
             'valign': 'vcenter',
@@ -732,7 +770,8 @@ def export_items():
         worksheet.set_column('B:B', 15, number_format) # Total Quantity
         worksheet.set_column('C:C', 12, number_format) # Total Boxes
         worksheet.set_column('D:D', 40, bin_format)    # Bin Locations
-        worksheet.set_column('E:E', 30, bt_format)     # BT
+        worksheet.set_column('E:E', 20, customer_po_format) # Customer PO
+        worksheet.set_column('F:F', 30, bt_format)     # BT
         
         # 设置标题行格式
         header_format = workbook.add_format({
@@ -756,11 +795,12 @@ def export_bins():
     db = get_db()
     cursor = db.cursor()
     
-    # 查询所有库位的库存信息，包含BT信息
+    # 查询所有库位的库存信息，包含客户订单号和BT信息
     cursor.execute('''
         SELECT 
             b.bin_code,
             i.item_code,
+            inv.customer_po,
             inv.BT,
             inv.box_count,
             inv.pieces_per_box,
@@ -768,14 +808,14 @@ def export_bins():
         FROM bins b
         LEFT JOIN inventory inv ON b.bin_id = inv.bin_id
         LEFT JOIN items i ON inv.item_id = i.item_id
-        GROUP BY b.bin_code, i.item_code, inv.BT, inv.box_count, inv.pieces_per_box
-        ORDER BY b.bin_code, i.item_code, inv.BT, inv.box_count, inv.pieces_per_box
+        GROUP BY b.bin_code, i.item_code, inv.customer_po, inv.BT, inv.box_count, inv.pieces_per_box
+        ORDER BY b.bin_code, i.item_code, inv.customer_po, inv.BT, inv.box_count, inv.pieces_per_box
     ''')
     
     bins_data = cursor.fetchall()
     
-    # 创建DataFrame，包含BT信息
-    df = pd.DataFrame(bins_data, columns=['Bin Location', 'Item Code', 'BT Number', 'Box Count', 'Pieces per Box', 'Total Pieces'])
+    # 创建DataFrame，包含客户订单号和BT信息
+    df = pd.DataFrame(bins_data, columns=['Bin Location', 'Item Code', 'Customer PO', 'BT Number', 'Box Count', 'Pieces per Box', 'Total Pieces'])
     
     # 创建Excel文件
     output = BytesIO()
@@ -788,8 +828,9 @@ def export_bins():
         # 设置列宽
         worksheet.set_column('A:A', 15)  # Bin Location
         worksheet.set_column('B:B', 20)  # Item Code
-        worksheet.set_column('C:C', 18)  # BT Number
-        worksheet.set_column('D:F', 12)  # Box Count, Pieces per Box, Total Pieces
+        worksheet.set_column('C:C', 15)  # Customer PO
+        worksheet.set_column('D:D', 18)  # BT Number
+        worksheet.set_column('E:G', 12)  # Box Count, Pieces per Box, Total Pieces
         
         # 定义格式
         bin_format = workbook.add_format({
@@ -802,6 +843,12 @@ def export_bins():
             'align': 'center',
             'valign': 'vcenter',
             'font_color': '#2962ff'  # 蓝色
+        })
+        
+        customer_po_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#ff5722'  # 橘红色
         })
         
         BT_format = workbook.add_format({
@@ -819,8 +866,9 @@ def export_bins():
         # 应用格式到整列
         worksheet.set_column('A:A', 15, bin_format)    # Bin Location
         worksheet.set_column('B:B', 20, item_format)   # Item Code
-        worksheet.set_column('C:C', 18, BT_format) # BT Number
-        worksheet.set_column('D:F', 12, number_format) # Box Count, Pieces per Box, Total Pieces
+        worksheet.set_column('C:C', 15, customer_po_format) # Customer PO
+        worksheet.set_column('D:D', 18, BT_format) # BT Number
+        worksheet.set_column('E:G', 12, number_format) # Box Count, Pieces per Box, Total Pieces
         
         # 合并相同库位的单元格
         current_bin = None
@@ -871,6 +919,7 @@ def get_logs():
             SELECT 
                 bin_code,
                 item_code,
+                customer_po,
                 BT,
                 box_count,
                 pieces_per_box,
@@ -886,6 +935,7 @@ def get_logs():
             SELECT 
                 bin_code,
                 item_code,
+                customer_po,
                 BT,
                 box_count,
                 pieces_per_box,
@@ -900,6 +950,7 @@ def get_logs():
         log_entry = {
             'bin_code': row['bin_code'],
             'item_code': row['item_code'],
+            'customer_po': row['customer_po'],
             'BT': row['BT'],
             'box_count': row['box_count'],
             'pieces_per_box': row['pieces_per_box'],
@@ -1274,6 +1325,7 @@ def export_history():
                 datetime(input_time, 'localtime') as input_time,
                 bin_code,
                 item_code,
+                customer_po,
                 BT,
                 box_count,
                 pieces_per_box,
@@ -1290,6 +1342,7 @@ def export_history():
                 datetime(input_time, 'localtime') as input_time,
                 bin_code,
                 item_code,
+                customer_po,
                 BT,
                 box_count,
                 pieces_per_box,
@@ -1303,7 +1356,7 @@ def export_history():
     
     # 创建DataFrame
     df = pd.DataFrame(history_data, columns=[
-        'Time (UTC)', 'Bin Location', 'Item (SKU)', 'BT Number', 
+        'Time (UTC)', 'Bin Location', 'Item (SKU)', 'Customer PO', 'BT Number', 
         'Box Count', 'PCs/Box', 'Total Pieces'
     ])
     
@@ -1342,6 +1395,12 @@ def export_history():
             'font_color': '#2962ff'  # 蓝色
         })
         
+        customer_po_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'font_color': '#ff5722'  # 橘红色
+        })
+        
         bt_format = workbook.add_format({
             'align': 'center',
             'valign': 'vcenter',
@@ -1363,8 +1422,9 @@ def export_history():
         worksheet.set_column('A:A', 20, time_format)    # Time column
         worksheet.set_column('B:B', 15 , bin_format)     # Bin Code column
         worksheet.set_column('C:C', 20, item_format)    # Item Code column
-        worksheet.set_column('D:D', 10, bt_format)      # BT Number column
-        worksheet.set_column('E:G', None, number_format) # Number columns
+        worksheet.set_column('D:D', 15, customer_po_format) # Customer PO column
+        worksheet.set_column('E:E', 10, bt_format)      # BT Number column
+        worksheet.set_column('F:H', None, number_format) # Number columns
     
     output.seek(0)
     return send_file(

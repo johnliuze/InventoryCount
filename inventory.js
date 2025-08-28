@@ -180,17 +180,22 @@ function mergeClearAndAddLogs(logs) {
 function formatHistoryRecord(record, timestamp, lang) {
     const isZh = lang === 'zh';
     
+    // 构建客户订单号显示部分
+    const customerPODisplay = record.customer_po ? 
+        (isZh ? `: 客户订单号 <span class="customer-po">${record.customer_po}</span>` :
+         `: Customer PO <span class="customer-po">${record.customer_po}</span>`) : '';
+    
     // 构建BT显示部分
     const BTDisplay = record.BT ? 
         (isZh ? `: BT号 <span class="BT-number">${record.BT}</span>` :
          `: BT <span class="BT-number">${record.BT}</span>`) : '';
     
-    const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${BTDisplay}: <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
-    const mergedEn = `🗑️ Cleared then added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${BTDisplay}: <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
+    const mergedZh = `🗑️ 清空库位后添加：库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${customerPODisplay}${BTDisplay}: <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
+    const mergedEn = `🗑️ Cleared then added: Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${customerPODisplay}${BTDisplay}: <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
     const clearZh = `🗑️ 清空库位 <span class="bin-code">${record.bin_code}</span>`;
     const clearEn = `🗑️ Cleared bin <span class="bin-code">${record.bin_code}</span>`;
-    const normalZh = `库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${BTDisplay}: <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
-    const normalEn = `Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${BTDisplay}: <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
+    const normalZh = `库位 <span class="bin-code">${record.bin_code}</span>: 商品 <span class="item-code">${record.item_code}</span>${customerPODisplay}${BTDisplay}: <span class="quantity">${record.box_count}</span> 箱 × <span class="quantity">${record.pieces_per_box}</span> 件/箱 = <span class="quantity">${record.total_pieces}</span> 件`;
+    const normalEn = `Bin <span class="bin-code">${record.bin_code}</span>: Item <span class="item-code">${record.item_code}</span>${customerPODisplay}${BTDisplay}: <span class="quantity">${record.box_count}</span> boxes × <span class="quantity">${record.pieces_per_box}</span> pcs/box = <span class="quantity">${record.total_pieces}</span> pcs`;
 
     let lineHtml;
     if (record.__merged) {
@@ -405,6 +410,7 @@ $("#inventoryForm").submit(function(e) {
     
     const binCode = $("#binInput").val();
     const itemCode = $("#itemInput").val();
+    const customerPO = $("#customerPOInput").val();
     const BTNumber = $("#BTInput").val();
     const boxCount = parseInt($("#boxCount").val());
     const piecesPerBox = parseInt($("#piecesPerBox").val());
@@ -555,7 +561,7 @@ function showBinChoiceDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox
         $("#confirm-dialog").fadeOut(200);
         
         // 直接添加新库存
-        addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
+        addInventory(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox);
     });
     
     // 中间按钮事件 - 清空库位后添加
@@ -566,7 +572,7 @@ function showBinChoiceDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox
         $("#confirm-dialog").fadeOut(200);
         
         // 先清空库位，然后添加新库存
-        clearBinAndAdd(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
+        clearBinAndAdd(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox);
     });
     
     // 取消按钮事件
@@ -649,7 +655,7 @@ function showConfirmDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox) 
         $("#confirm-dialog").fadeOut(200);
         
         // 添加库存
-        addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
+        addInventory(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox);
     });
     
     // 取消按钮事件
@@ -662,7 +668,7 @@ function showConfirmDialog(binCode, itemCode, BTNumber, boxCount, piecesPerBox) 
 }
 
 // 清空库位后添加新库存
-function clearBinAndAdd(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
+function clearBinAndAdd(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox) {
     const encodedBinCode = binCode.trim()
         .replace(/\//g, '___SLASH___')
         .replace(/\s/g, '___SPACE___');
@@ -672,7 +678,7 @@ function clearBinAndAdd(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
         type: 'DELETE',
         success: function(response) {
             // 清空成功后添加新库存
-            addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox);
+            addInventory(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox);
         },
         error: function(xhr, status, error) {
             alert(document.body.className.includes('lang-en')
@@ -683,7 +689,7 @@ function clearBinAndAdd(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
 }
 
 // 添加库存
-function addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
+function addInventory(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox) {
         $.ajax({
             url: `${API_URL}/api/inventory`,
             type: 'POST',
@@ -691,7 +697,8 @@ function addInventory(binCode, itemCode, BTNumber, boxCount, piecesPerBox) {
             data: JSON.stringify({
                 bin_code: binCode,
                 item_code: itemCode,
-            BT: BTNumber,
+                customer_po: customerPO,
+                BT: BTNumber,
                 box_count: boxCount,
                 pieces_per_box: piecesPerBox
             }),

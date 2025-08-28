@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Inventory System | 库存盘点系统</title>
+    <title>Soho Apparel Warehouse</title>
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
     <style>
@@ -411,6 +411,11 @@
         
         .quantity {
             color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .customer-po {
+            color: #ff5722;
             font-weight: bold;
         }
         
@@ -1084,8 +1089,8 @@
 </head>
 <body>
     <div class="container">
-        <h1 class="lang-zh">库存盘点系统</h1>
-        <h1 class="lang-en">Inventory System</h1>
+        <h1 class="lang-zh">Soho Apparel 仓库</h1>
+        <h1 class="lang-en">Soho Apparel Warehouse</h1>
         
         <div class="language-switch">
             <button onclick="switchLanguage('zh')">中文</button>
@@ -1123,6 +1128,17 @@
                             <span class="lang-en">Bin Location:</span>
                         </label>
                         <input type="text" id="binInput" required>
+                    </div>
+                </div>
+
+                <!-- 客户订单号信息部分 -->
+                <div class="input-section container-section">
+                    <div>
+                        <label>
+                            <span class="lang-zh">客户订单号：</span>
+                            <span class="lang-en">Customer PO:</span>
+                        </label>
+                        <input type="text" id="customerPOInput" required>
                     </div>
                 </div>
 
@@ -1410,6 +1426,7 @@
             // 如果切换到Input标签页，清空所有输入框
             if (tabId === 'input') {
                 $('#binInput').val('');
+                $('#customerPOInput').val('');
                 $('#BTInput').val('');
                 $('#itemInput').val('');
                 $('#boxCount').val('');
