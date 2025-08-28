@@ -214,37 +214,41 @@ function formatHistoryRecord(record, timestamp, lang) {
         (isZh ? `BT号 <span class="BT-number">${record.BT}</span>` :
          `BT <span class="BT-number">${record.BT}</span>`) : '';
     
-    // 构建PO和BT的组合显示（只在有内容时显示括号）
-    const pobtInfo = [];
-    if (customerPODisplay) pobtInfo.push(customerPODisplay);
-    if (BTDisplay) pobtInfo.push(BTDisplay);
-    const pobtDisplay = pobtInfo.length > 0 ? ` (${pobtInfo.join(', ')})` : '';
+    // 强制构建显示文本 - 直接处理PO和BT信息
+    let poAndBtText = '';
+    if (record.customer_po || record.BT) {
+        const parts = [];
+        if (record.customer_po) {
+            parts.push(isZh ? `订单 <span class="customer-po">${record.customer_po}</span>` : `PO <span class="customer-po">${record.customer_po}</span>`);
+        }
+        if (record.BT) {
+            parts.push(isZh ? `BT号 <span class="BT-number">${record.BT}</span>` : `BT <span class="BT-number">${record.BT}</span>`);
+        }
+        poAndBtText = ` (${parts.join(', ')})`;
+    }
     
     // 调试输出
     if (record.item_code === '2') {
-        console.log('调试记录 item_code=2:', {
+        console.log('调试记录 item_code=2 - 新逻辑:', {
             customer_po: record.customer_po,
             BT: record.BT,
-            customerPODisplay: customerPODisplay,
-            BTDisplay: BTDisplay,
-            pobtInfo: pobtInfo,
-            pobtDisplay: pobtDisplay
+            poAndBtText: poAndBtText
         });
     }
     
     const mergedZh = `🗑️ ${binCodeDisplay}<br>
-                    ➕ ${itemCodeDisplay}${pobtDisplay} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ➕ ${itemCodeDisplay}${poAndBtText} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
     const mergedEn = `🗑️ ${binCodeDisplay}<br>
-                    ➕ ${itemCodeDisplay}${pobtDisplay} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ➕ ${itemCodeDisplay}${poAndBtText} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
     
     const clearZh = `🗑️ ${binCodeDisplay}`;
     const clearEn = `🗑️ ${binCodeDisplay}`;
     
-    const normalZh = `➕ ${itemCodeDisplay}${pobtDisplay} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+    const normalZh = `➕ ${itemCodeDisplay}${poAndBtText} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
-    const normalEn = `➕ ${itemCodeDisplay}${pobtDisplay} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+    const normalEn = `➕ ${itemCodeDisplay}${poAndBtText} &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
 
     let lineHtml;
