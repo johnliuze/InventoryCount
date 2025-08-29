@@ -18,4 +18,8 @@ port = "$PORT"
 PYTHON_VERSION = "3.9"
 PIP_DISABLE_PIP_VERSION_CHECK = "1"
 PIP_DEFAULT_TIMEOUT = "100"
-PORT = "8080" 
+PORT = "8080"
+
+[deploy.env]
+# DATABASE_URL should be set through Railway's environment variables, not hardcoded here
+# DATABASE_URL = "postgresql://postgres:idGBWxxYbgwfLazwyBCuEtgZqPsdfGXo@data.railway.internal:5432/railway" 
