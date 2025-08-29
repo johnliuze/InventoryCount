@@ -252,9 +252,9 @@ function formatHistoryRecord(record, timestamp, lang) {
     const boxCountDisplay = record.box_count ? 
         (isZh ? `<span class="quantity">${record.box_count}</span> 箱` : `<span class="quantity">${record.box_count}</span> boxes`) : '';
     
-    //pieces_per_box (处理负数显示)
+    //pieces_per_box (现在保持正数，不需要取绝对值)
     const piecesPerBoxDisplay = record.pieces_per_box ? 
-        (isZh ? `<span class="quantity">${Math.abs(record.pieces_per_box)}</span> 件/箱` : `<span class="quantity">${Math.abs(record.pieces_per_box)}</span> pcs/box`) : '';
+        (isZh ? `<span class="quantity">${record.pieces_per_box}</span> 件/箱` : `<span class="quantity">${record.pieces_per_box}</span> pcs/box`) : '';
     
     //total_pieces (保持负数显示，用于区分增减)
     const totalPiecesDisplay = record.total_pieces ? 
@@ -294,7 +294,7 @@ function formatHistoryRecord(record, timestamp, lang) {
                 const clearBoxCountDisplay = clearRec.box_count ? 
                     `<span class="quantity">${clearRec.box_count}</span> 箱` : '';
                 const clearPiecesPerBoxDisplay = clearRec.pieces_per_box ? 
-                    `<span class="quantity">${Math.abs(clearRec.pieces_per_box)}</span> 件/箱` : '';
+                    `<span class="quantity">${clearRec.pieces_per_box}</span> 件/箱` : '';
                 const clearTotalPiecesDisplay = clearRec.total_pieces ? 
                     `<span class="quantity">${clearRec.total_pieces}</span> 件` : '';
                 
@@ -319,7 +319,7 @@ function formatHistoryRecord(record, timestamp, lang) {
                 const clearBoxCountDisplay = clearRec.box_count ? 
                     `<span class="quantity">${clearRec.box_count}</span> boxes` : '';
                 const clearPiecesPerBoxDisplay = clearRec.pieces_per_box ? 
-                    `<span class="quantity">${Math.abs(clearRec.pieces_per_box)}</span> pcs/box` : '';
+                    `<span class="quantity">${clearRec.pieces_per_box}</span> pcs/box` : '';
                 const clearTotalPiecesDisplay = clearRec.total_pieces ? 
                     `<span class="quantity">${clearRec.total_pieces}</span> pcs` : '';
                 
