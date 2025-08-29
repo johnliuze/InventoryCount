@@ -1154,7 +1154,7 @@ def export_items():
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name='items_inventory.xlsx'
+        download_name= f'Items-{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     )
 
 @app.route('/api/export/bins', methods=['GET'])
@@ -1567,9 +1567,10 @@ def export_item_details():
                 worksheet.merge_range(f'A{start_row+1}:A{row_num}', 
                                       data['item_code'], item_format)
             else:
-                # 如果只有一行，确保item_code和item_total都正确显示
+                # 如果只有一行，确保item_code、bin_total和item_total都正确显示
                 worksheet.write(start_row, 0, data['item_code'], item_format)
-                worksheet.write(start_row, 7, data['item_total'], number_format)
+                worksheet.write(start_row, 7, data['bin_total'], number_format)
+                worksheet.write(start_row, 8, data['item_total'], number_format)
     
     output.seek(0)
     return send_file(
@@ -1630,51 +1631,55 @@ def clear_bin_inventory(bin_code):
         
         inventory_records = cursor.fetchall()
         
+        # 如果库位为空，不允许清空操作
+        if not inventory_records:
+            return jsonify({
+                'error': '该库位为空，无需清空',
+                'error_en': 'Bin is empty, no need to clear'
+            }), 400
+        
         # 删除该库位的所有库存记录
         cursor.execute('DELETE FROM inventory WHERE bin_id = ?', (bin_result['bin_id'],))
         
         # 记录清除操作到历史记录（为每个商品的每个PO-BT组合创建详细的历史记录）
-        if inventory_records:
-            # 按商品和PO-BT组合分组
-            item_po_bt_groups = {}
-            for record in inventory_records:
-                item_key = record['item_code']
-                po_bt_key = f"{record['customer_po'] or 'None'}|{record['BT'] or 'None'}"
-                full_key = f"{item_key}|{po_bt_key}"
-                
-                if full_key not in item_po_bt_groups:
-                    item_po_bt_groups[full_key] = {
-                        'item_code': record['item_code'],
-                        'customer_po': record['customer_po'],
-                        'BT': record['BT'],
-                        'total_pieces': 0,
-                        'box_details': []
-                    }
-                item_po_bt_groups[full_key]['total_pieces'] += record['total_pieces']
-                item_po_bt_groups[full_key]['box_details'].append({
-                    'box_count': record['box_count'],
-                    'pieces_per_box': record['pieces_per_box']
-                })
+        # 按商品和PO-BT组合分组
+        item_po_bt_groups = {}
+        for record in inventory_records:
+            item_key = record['item_code']
+            po_bt_key = f"{record['customer_po'] or 'None'}|{record['BT'] or 'None'}"
+            full_key = f"{item_key}|{po_bt_key}"
             
-            # 为每个商品的每个PO-BT组合创建历史记录
-            for group_data in item_po_bt_groups.values():
-                # 选择最大的箱规作为代表性信息显示
-                max_box_detail = max(group_data['box_details'], 
-                                   key=lambda x: x['box_count'] * x['pieces_per_box'])
-                
-                cursor.execute('''
-                    INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (bin_code, f'{group_data["item_code"]}', 
-                     group_data['customer_po'], group_data['BT'],
-                     max_box_detail['box_count'], max_box_detail['pieces_per_box'], 
-                     group_data['total_pieces']))
-        else:
-            # 如果库位为空，仍然记录一条清空操作
+            if full_key not in item_po_bt_groups:
+                item_po_bt_groups[full_key] = {
+                    'item_code': record['item_code'],
+                    'customer_po': record['customer_po'],
+                    'BT': record['BT'],
+                    'total_pieces': 0,
+                    'box_details': []
+                }
+            item_po_bt_groups[full_key]['total_pieces'] += record['total_pieces']
+            item_po_bt_groups[full_key]['box_details'].append({
+                'box_count': record['box_count'],
+                'pieces_per_box': record['pieces_per_box']
+            })
+        
+        # 为每个商品的每个PO-BT组合创建历史记录
+        for group_data in item_po_bt_groups.values():
+            # 选择最大的箱规作为代表性信息显示
+            max_box_detail = max(group_data['box_details'], 
+                               key=lambda x: x['box_count'] * x['pieces_per_box'])
+            
+            clear_box_count = max_box_detail['box_count'] * -1
+            clear_box_detail = max_box_detail['pieces_per_box'] * -1
+            clear_total_pieces = group_data['total_pieces'] * -1
+
             cursor.execute('''
-                INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces)
-                VALUES (?, '清空库位', 0, 0, 0)
-            ''', (bin_code,))
+                INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (bin_code, group_data["item_code"], 
+                 group_data['customer_po'], group_data['BT'],
+                 clear_box_count, clear_box_detail, 
+                 clear_total_pieces))
         
         db.commit()
         return jsonify({'success': True, 'message': f'已清空库位 {bin_code} 的所有库存'})
@@ -1742,13 +1747,17 @@ def clear_item_at_bin(bin_code, item_code):
                 max_box_detail = max(group_data['box_details'], 
                                    key=lambda x: x['box_count'] * x['pieces_per_box'])
                 
+                clear_box_count = max_box_detail['box_count'] * -1
+                clear_box_detail = max_box_detail['pieces_per_box'] * -1
+                clear_total_pieces = group_data['total_pieces'] * -1
+                
                 cursor.execute('''
                     INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (bin_code, f'{item_code}', 
+                ''', (bin_code, item_code, 
                      group_data['customer_po'], group_data['BT'],
-                     max_box_detail['box_count'], max_box_detail['pieces_per_box'], 
-                     group_data['total_pieces']))
+                     clear_box_count, clear_box_detail, 
+                     clear_total_pieces))
         
         db.commit()
         return jsonify({
@@ -1804,35 +1813,8 @@ def export_history():
     
     history_data = cursor.fetchall()
     
-    # 处理历史数据，将清空操作的数字转换为负数
-    processed_data = []
-    for row in history_data:
-        row_dict = dict(row)
-        # 检查是否是清空操作
-        item_code = row_dict.get('item_code', '')
-        if (item_code and (item_code.startswith('清空库位') or item_code.startswith('清空商品') or 
-                          item_code.startswith('Clear Bin') or item_code.startswith('Clear Item'))):
-            # 将数字字段转换为负数（如果不是0的话）
-            if row_dict.get('box_count', 0) > 0:
-                row_dict['box_count'] = -row_dict['box_count']
-            if row_dict.get('pieces_per_box', 0) > 0:
-                row_dict['pieces_per_box'] = -row_dict['pieces_per_box']
-            if row_dict.get('total_pieces', 0) > 0:
-                row_dict['total_pieces'] = -row_dict['total_pieces']
-        
-        processed_data.append([
-            row_dict.get('input_time'),
-            row_dict.get('bin_code'),
-            row_dict.get('item_code'),
-            row_dict.get('customer_po'),
-            row_dict.get('BT'),
-            row_dict.get('box_count'),
-            row_dict.get('pieces_per_box'),
-            row_dict.get('total_pieces')
-        ])
-    
     # 创建DataFrame
-    df = pd.DataFrame(processed_data, columns=[
+    df = pd.DataFrame(history_data, columns=[
         'Time (UTC)', 'Bin Location', 'Item (SKU)', 'Customer PO', 'BT Number', 
         'Box Count', 'PCs/Box', 'Total Pieces'
     ])

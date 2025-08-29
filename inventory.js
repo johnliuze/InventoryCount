@@ -248,17 +248,17 @@ function formatHistoryRecord(record, timestamp, lang) {
     const itemCodeDisplay = record.item_code ? 
         (isZh ? `商品 <span class="item-code">${record.item_code}</span>` : `Item <span class="item-code">${record.item_code}</span>`) : '';
 
-    //box_count
+    //box_count - 显示绝对值
     const boxCountDisplay = record.box_count ? 
-        (isZh ? `<span class="quantity">${record.box_count}</span> 箱` : `<span class="quantity">${record.box_count}</span> boxes`) : '';
+        (isZh ? `<span class="quantity">${Math.abs(record.box_count)}</span> 箱` : `<span class="quantity">${Math.abs(record.box_count)}</span> boxes`) : '';
     
-    //pieces_per_box (现在保持正数，不需要取绝对值)
+    //pieces_per_box - 显示绝对值
     const piecesPerBoxDisplay = record.pieces_per_box ? 
-        (isZh ? `<span class="quantity">${record.pieces_per_box}</span> 件/箱` : `<span class="quantity">${record.pieces_per_box}</span> pcs/box`) : '';
+        (isZh ? `<span class="quantity">${Math.abs(record.pieces_per_box)}</span> 件/箱` : `<span class="quantity">${Math.abs(record.pieces_per_box)}</span> pcs/box`) : '';
     
-    //total_pieces (保持负数显示，用于区分增减)
+    //total_pieces - 显示绝对值
     const totalPiecesDisplay = record.total_pieces ? 
-        (isZh ? `<span class="quantity">${record.total_pieces}</span> 件` : `<span class="quantity">${record.total_pieces}</span> pcs`) : '';
+        (isZh ? `<span class="quantity">${Math.abs(record.total_pieces)}</span> 件` : `<span class="quantity">${Math.abs(record.total_pieces)}</span> pcs`) : '';
 
     const binCodeDisplay = record.bin_code ? 
         (isZh ? `库位 <span class="bin-code">${record.bin_code}</span>` : `Bin <span class="bin-code">${record.bin_code}</span>`) : '';
@@ -292,11 +292,11 @@ function formatHistoryRecord(record, timestamp, lang) {
                 const clearBTDisplay = clearRec.BT ? 
                     `BT号 <span class="BT-number">${clearRec.BT}</span>` : '';
                 const clearBoxCountDisplay = clearRec.box_count ? 
-                    `<span class="quantity">${clearRec.box_count}</span> 箱` : '';
+                    `<span class="quantity">${Math.abs(clearRec.box_count)}</span> 箱` : '';
                 const clearPiecesPerBoxDisplay = clearRec.pieces_per_box ? 
-                    `<span class="quantity">${clearRec.pieces_per_box}</span> 件/箱` : '';
+                    `<span class="quantity">${Math.abs(clearRec.pieces_per_box)}</span> 件/箱` : '';
                 const clearTotalPiecesDisplay = clearRec.total_pieces ? 
-                    `<span class="quantity">${clearRec.total_pieces}</span> 件` : '';
+                    `<span class="quantity">${Math.abs(clearRec.total_pieces)}</span> 件` : '';
                 
                 return `➖ ${clearItemCodeDisplay} (${clearCustomerPODisplay}, ${clearBTDisplay}): ${clearBoxCountDisplay} × ${clearPiecesPerBoxDisplay} = ${clearTotalPiecesDisplay}`;
             }
@@ -317,11 +317,11 @@ function formatHistoryRecord(record, timestamp, lang) {
                 const clearBTDisplay = clearRec.BT ? 
                     `BT <span class="BT-number">${clearRec.BT}</span>` : '';
                 const clearBoxCountDisplay = clearRec.box_count ? 
-                    `<span class="quantity">${clearRec.box_count}</span> boxes` : '';
+                    `<span class="quantity">${Math.abs(clearRec.box_count)}</span> boxes` : '';
                 const clearPiecesPerBoxDisplay = clearRec.pieces_per_box ? 
-                    `<span class="quantity">${clearRec.pieces_per_box}</span> pcs/box` : '';
+                    `<span class="quantity">${Math.abs(clearRec.pieces_per_box)}</span> pcs/box` : '';
                 const clearTotalPiecesDisplay = clearRec.total_pieces ? 
-                    `<span class="quantity">${clearRec.total_pieces}</span> pcs` : '';
+                    `<span class="quantity">${Math.abs(clearRec.total_pieces)}</span> pcs` : '';
                 
                 return `➖ ${clearItemCodeDisplay} (${clearCustomerPODisplay}, ${clearBTDisplay}): ${clearBoxCountDisplay} × ${clearPiecesPerBoxDisplay} = ${clearTotalPiecesDisplay}`;
             }
@@ -346,9 +346,13 @@ function formatHistoryRecord(record, timestamp, lang) {
     const clearZh = `🗑️ ${binCodeDisplay}`;
     const clearEn = `🗑️ ${binCodeDisplay}`;
     
-    const normalZh = `➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+    // 根据数量正负决定显示符号
+    const isNegative = record.total_pieces < 0;
+    const operationSymbol = isNegative ? '➖' : '➕';
+    
+    const normalZh = `${operationSymbol} ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
-    const normalEn = `➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+    const normalEn = `${operationSymbol} ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
 
     let lineHtml;
@@ -530,6 +534,31 @@ $(document).ready(function() {
         minLength: 1,
         delay: 300,
         autoFocus: true
+    });
+
+    // 为搜索输入框添加回车键支持
+    $("#binSearch").on('keypress', function(e) {
+        if (e.which === 13) { // 13 是回车键的键码
+            searchBinContents();
+        }
+    });
+    
+    $("#BTSearch").on('keypress', function(e) {
+        if (e.which === 13) {
+            searchBT();
+        }
+    });
+    
+    $("#itemSearch").on('keypress', function(e) {
+        if (e.which === 13) {
+            searchItemTotal();
+        }
+    });
+    
+    $("#POSearch").on('keypress', function(e) {
+        if (e.which === 13) {
+            searchPO();
+        }
     });
 
     // 页面加载时初始化历史记录显示
@@ -720,10 +749,17 @@ function showBinChoiceDialog(binCode, itemCode, customerPO, BTNumber, boxCount, 
         </div>
         <div class="confirm-row">
             <span class="label">
-                <span class="lang-zh">新库存：</span>
-                <span class="lang-en">New Inventory:</span>
+                <span class="lang-zh">详情：</span>
+                <span class="lang-en">Detail:</span>
             </span>
-            <span class="quantity">${boxCount} 箱 × ${piecesPerBox} 件/箱 = ${boxCount * piecesPerBox} 件</span>
+            <span class="quantity">
+                <span class="lang-zh">
+                    ${boxCount} 箱 × ${piecesPerBox} 件/箱 = ${boxCount * piecesPerBox} 件
+                </span>
+                <span class="lang-en">
+                    ${boxCount} boxes × ${piecesPerBox} pcs/box = ${boxCount * piecesPerBox} pcs
+                </span>
+            </span>
         </div>
         <div class="inventory-details">
             <div class="confirm-item">
@@ -1919,48 +1955,47 @@ function clearBinInventory(binCode) {
             // 填充确认对话框
             $("#confirm-bin").text(binCode);
             
+            // 如果库位为空，不显示确认对话框，直接提示用户
+            if (!contents || contents.length === 0) {
+                alert(document.body.className.includes('lang-en') 
+                    ? "This bin is empty, no need to clear"
+                    : "该库位为空，无需清空");
+                return;
+            }
+            
             // 创建商品详情HTML
             let detailsHtml = '';
-            if (contents && contents.length > 0) {
-                contents.forEach(inv => {
-                    detailsHtml += `
-                        <div class="confirm-item">
-                            <div class="item-header">
-                                <span class="lang-zh">
-                                    商品 <span class="item-code">${inv.item_code}</span>: 
-                                    <span class="quantity">${inv.total_pieces}</span> 件
-                                </span>
-                                <span class="lang-en">
-                                    Item <span class="item-code">${inv.item_code}</span>: 
-                                    <span class="quantity">${inv.total_pieces}</span> pcs
-                                </span>
-                            </div>
-                            <div class="box-details">
-                                ${inv.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box)
-                                    .map(detail => `
-                                    <div class="box-detail-line">
-                                        <span class="lang-zh">
-                                            <span class="quantity">${detail.box_count}</span> 箱 × 
-                                            <span class="quantity">${detail.pieces_per_box}</span> 件/箱
-                                        </span>
-                                        <span class="lang-en">
-                                            <span class="quantity">${detail.box_count}</span> boxes × 
-                                            <span class="quantity">${detail.pieces_per_box}</span> pcs/box
-                                        </span>
-                                    </div>
-                                `).join('')}
-                            </div>
+            contents.forEach(inv => {
+                detailsHtml += `
+                    <div class="confirm-item">
+                        <div class="item-header">
+                            <span class="lang-zh">
+                                商品 <span class="item-code">${inv.item_code}</span>: 
+                                <span class="quantity">${inv.total_pieces}</span> 件
+                            </span>
+                            <span class="lang-en">
+                                Item <span class="item-code">${inv.item_code}</span>: 
+                                <span class="quantity">${inv.total_pieces}</span> pcs
+                            </span>
                         </div>
-                    `;
-                });
-            } else {
-                detailsHtml = `
-                    <div class="empty-message">
-                        <span class="lang-zh">该库位暂无库存</span>
-                        <span class="lang-en">No inventory in this location</span>
+                        <div class="box-details">
+                            ${inv.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box)
+                                .map(detail => `
+                                <div class="box-detail-line">
+                                    <span class="lang-zh">
+                                        <span class="quantity">${detail.box_count}</span> 箱 × 
+                                        <span class="quantity">${detail.pieces_per_box}</span> 件/箱
+                                    </span>
+                                    <span class="lang-en">
+                                        <span class="quantity">${detail.box_count}</span> boxes × 
+                                        <span class="quantity">${detail.pieces_per_box}</span> pcs/box
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
                 `;
-            }
+            });
             
             // 更新确认对话框内容
             $(".confirm-details").html(`
@@ -2009,6 +2044,14 @@ function clearBinInventory(binCode) {
                     },
                     error: function(xhr, status, error) {
                         console.error("Error clearing bin:", error);
+                        // 显示服务器返回的错误信息
+                        let errorMsg = "清空库位失败";
+                        if (xhr.responseJSON && xhr.responseJSON.error) {
+                            errorMsg = document.body.className.includes('lang-en') 
+                                ? (xhr.responseJSON.error_en || xhr.responseJSON.error)
+                                : xhr.responseJSON.error;
+                        }
+                        alert(errorMsg);
                         searchBinContents();  // 刷新显示以反映当前状态
                         updateRecentHistory();  // 更新最近历史记录
                         updateFullHistory();    // 更新完整历史记录
