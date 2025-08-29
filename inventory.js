@@ -172,30 +172,50 @@ function mergeClearAndAddLogs(logs) {
                     !isClearBinItem(candidate.item_code) && !isClearItem(candidate.item_code)) {
                     if (!addRecord) { // 只取第一个匹配的添加记录
                         addRecord = candidate;
-                        usedIndexSet.add(k);
+                        // 注意：这里不要立即标记为已使用，等确认合并后再标记
                     }
                 }
             }
             
-            // 继续收集同一时间段的其他清空记录
-            for (let k = i + 1; k < logs.length && k <= i + 10; k++) {
-                if (usedIndexSet.has(k)) continue;
-                const candidate = logs[k];
-                
-                const timeA = parseDateSafely(current.timestamp);
-                const timeB = parseDateSafely(candidate.timestamp);
-                const closeInTime = timeA && timeB && Math.abs(timeA.getTime() - timeB.getTime()) <= withinMs;
-                const sameBin = current.bin_code === candidate.bin_code;
-                
-                if (sameBin && closeInTime && (isClear(candidate.item_code) || isClearBinItem(candidate.item_code))) {
-                    clearRecords.push(candidate);
-                    usedIndexSet.add(k);
+            // 继续收集同一时间段的其他清空记录（只有在找到添加记录时才收集）
+            if (addRecord) {
+                for (let k = i + 1; k < logs.length && k <= i + 10; k++) {
+                    if (usedIndexSet.has(k)) continue;
+                    const candidate = logs[k];
+                    
+                    const timeA = parseDateSafely(current.timestamp);
+                    const timeB = parseDateSafely(candidate.timestamp);
+                    const closeInTime = timeA && timeB && Math.abs(timeA.getTime() - timeB.getTime()) <= withinMs;
+                    const sameBin = current.bin_code === candidate.bin_code;
+                    
+                    if (sameBin && closeInTime && (isClear(candidate.item_code) || isClearBinItem(candidate.item_code))) {
+                        clearRecords.push(candidate);
+                        // 注意：这里也不要立即标记为已使用，等确认合并后再标记
+                    }
                 }
             }
         }
 
         // 如果找到了清空+添加的组合，创建合并记录
         if (clearRecords.length > 0 && addRecord) {
+            // 现在才标记为已使用
+            for (let k = i - 10; k < i; k++) {
+                if (k < 0) continue;
+                const candidate = logs[k];
+                if (candidate === addRecord) {
+                    usedIndexSet.add(k);
+                    break;
+                }
+            }
+            
+            // 标记所有相关的清空记录为已使用
+            for (let k = i + 1; k < logs.length && k <= i + 10; k++) {
+                const candidate = logs[k];
+                if (clearRecords.includes(candidate)) {
+                    usedIndexSet.add(k);
+                }
+            }
+            
             result.push({
                 __merged: true,
                 __clearRecords: clearRecords, // 保存所有被清空的记录
@@ -1409,24 +1429,24 @@ function searchBT() {
                                                 </span>
                                                 ${group.box_details && group.box_details.length > 0 ? group.box_details.sort((a, b) => b.pieces_per_box - a.pieces_per_box).map(detail => `
                                                     <div class="box-details">
-                                                        <span class="lang-zh">
-                                                            <span class="quantity">${detail.box_count}</span> 箱 ×
-                                                            <span class="quantity">${detail.pieces_per_box}</span> 件/箱
-                                                        </span>
-                                                        <span class="lang-en">
-                                                            <span class="quantity">${detail.box_count}</span> boxes ×
-                                                            <span class="quantity">${detail.pieces_per_box}</span> pcs/box
-                                                        </span>
+                                <span class="lang-zh">
+                                    <span class="quantity">${detail.box_count}</span> 箱 × 
+                                    <span class="quantity">${detail.pieces_per_box}</span> 件/箱
+                                </span>
+                                <span class="lang-en">
+                                    <span class="quantity">${detail.box_count}</span> boxes × 
+                                    <span class="quantity">${detail.pieces_per_box}</span> pcs/box
+                                </span>
                                                     </div>
                                                 `).join('') : ''}
                                             </div>
                                         `).join('') : ''}
                                     </div>
-                                </div>
-                            `).join('')}
-                </div>
-                        `).join("")}
+                            </div>
+                        `).join('')}
                     </div>
+                        `).join("")}
+                </div>
                 </div>
             `;
             
