@@ -19,6 +19,22 @@ except ImportError:
 app = Flask(__name__)
 CORS(app)
 
+# 全局变量跟踪数据库是否已初始化
+_db_initialized = False
+
+def ensure_db_initialized():
+    global _db_initialized
+    if not _db_initialized:
+        print("Initializing database for the first time...")
+        try:
+            init_db()
+            _db_initialized = True
+            print("Database initialization completed successfully")
+        except Exception as e:
+            print(f"Error initializing database: {str(e)}")
+            print(traceback.format_exc())
+            raise
+
 # 获取环境变量
 is_production = os.getenv('RAILWAY_ENVIRONMENT') == 'production'
 port = int(os.getenv('PORT', '5001'))  # 本地开发使用5001，生产环境使用环境变量
@@ -45,6 +61,7 @@ def after_request(response):
 # 添加路由来提供前端文件
 @app.route('/')
 def index():
+    ensure_db_initialized()  # 确保数据库已初始化
     try:
         return send_file('index.html')
     except Exception as e:
@@ -425,6 +442,7 @@ def get_items():
 
 @app.route('/api/inventory', methods=['POST'])
 def add_inventory():
+    ensure_db_initialized()  # 确保数据库已初始化
     data = request.json
     db = get_db()
     cursor = get_cursor(db)
