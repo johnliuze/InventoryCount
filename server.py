@@ -8,6 +8,14 @@ import pandas as pd
 from io import BytesIO
 from datetime import datetime
 
+# 条件导入PostgreSQL驱动，仅在需要时导入
+try:
+    import psycopg2
+    import psycopg2.extras
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
+
 app = Flask(__name__)
 CORS(app)
 
@@ -54,10 +62,26 @@ def inventory_js():
 
 # 数据库连接
 def get_db():
-    db_path = os.path.join(os.path.dirname(__file__), 'inventory.db')
-    db = sqlite3.connect(db_path)
-    db.row_factory = sqlite3.Row
-    return db
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url and PSYCOPG2_AVAILABLE:
+        # 生产环境使用PostgreSQL
+        conn = psycopg2.connect(database_url)
+        return conn
+    else:
+        # 本地开发使用SQLite或PostgreSQL不可用时的回退
+        if database_url and not PSYCOPG2_AVAILABLE:
+            print("警告: DATABASE_URL已设置但psycopg2未安装，回退到SQLite")
+        db_path = os.path.join(os.path.dirname(__file__), 'inventory.db')
+        db = sqlite3.connect(db_path)
+        db.row_factory = sqlite3.Row
+        return db
+
+# 获取数据库游标
+def get_cursor(db):
+    if is_postgresql() and PSYCOPG2_AVAILABLE:
+        return db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    else:
+        return db.cursor()
 
 # 确保数据库目录存在
 def ensure_db_directory():
@@ -65,16 +89,42 @@ def ensure_db_directory():
     if not os.path.exists(db_dir):
         os.makedirs(db_dir)
 
+# 检查是否使用PostgreSQL
+def is_postgresql():
+    return os.environ.get('DATABASE_URL') is not None and PSYCOPG2_AVAILABLE
+
+# 获取数据库占位符
+def get_placeholder():
+    return '%s' if is_postgresql() else '?'
+
+# 转换SQL查询中的占位符
+def convert_sql(sql):
+    if is_postgresql():
+        return sql.replace('?', '%s')
+    return sql
+
 # 初始化数据库
 def init_db():
-    ensure_db_directory()
+    if not is_postgresql():
+        ensure_db_directory()
+    
     db = get_db()
-    cursor = db.cursor()
+    cursor = get_cursor(db)
     
     try:
         # 检查数据库是否已经初始化
-        cursor.execute(''' SELECT name FROM sqlite_master 
-                        WHERE type='table' AND name IN ('bins', 'items', 'inventory', 'input_history') ''')
+        if is_postgresql():
+            # PostgreSQL查询
+            cursor.execute("""
+                SELECT table_name FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name IN ('bins', 'items', 'inventory', 'input_history')
+            """)
+        else:
+            # SQLite查询
+            cursor.execute(''' SELECT name FROM sqlite_master 
+                            WHERE type='table' AND name IN ('bins', 'items', 'inventory', 'input_history') ''')
+        
         existing_tables = cursor.fetchall()
         if len(existing_tables) == 4:
             print("数据库已存在且包含所有必要的表")
@@ -82,85 +132,138 @@ def init_db():
         
         print("开始初始化数据库...")
         
+        # 获取现有表名列表
+        existing_table_names = [row[0] if not is_postgresql() else row['table_name'] for row in existing_tables]
+        
         # 创建缺失的表
-        if 'bins' not in [row[0] for row in existing_tables]:
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS bins (
-                    bin_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    bin_code TEXT UNIQUE NOT NULL
-                )
-            ''')
+        if 'bins' not in existing_table_names:
+            if is_postgresql():
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS bins (
+                        bin_id SERIAL PRIMARY KEY,
+                        bin_code TEXT UNIQUE NOT NULL
+                    )
+                ''')
+            else:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS bins (
+                        bin_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        bin_code TEXT UNIQUE NOT NULL
+                    )
+                ''')
         
-        if 'items' not in [row[0] for row in existing_tables]:
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS items (
-                    item_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    item_code TEXT UNIQUE NOT NULL
-                )
-            ''')
+        if 'items' not in existing_table_names:
+            if is_postgresql():
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS items (
+                        item_id SERIAL PRIMARY KEY,
+                        item_code TEXT UNIQUE NOT NULL
+                    )
+                ''')
+            else:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS items (
+                        item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        item_code TEXT UNIQUE NOT NULL
+                    )
+                ''')
         
-        if 'inventory' not in [row[0] for row in existing_tables]:
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS inventory (
-                    inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    bin_id INTEGER NOT NULL,
-                    item_id INTEGER NOT NULL,
-                    customer_po TEXT,
-                    BT TEXT,
-                    box_count INTEGER NOT NULL,
-                    pieces_per_box INTEGER NOT NULL,
-                    total_pieces INTEGER NOT NULL,
-                    FOREIGN KEY (bin_id) REFERENCES bins (bin_id),
-                    FOREIGN KEY (item_id) REFERENCES items (item_id)
-                )
-            ''')
+        if 'inventory' not in existing_table_names:
+            if is_postgresql():
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS inventory (
+                        inventory_id SERIAL PRIMARY KEY,
+                        bin_id INTEGER NOT NULL,
+                        item_id INTEGER NOT NULL,
+                        customer_po TEXT,
+                        BT TEXT,
+                        box_count INTEGER NOT NULL,
+                        pieces_per_box INTEGER NOT NULL,
+                        total_pieces INTEGER NOT NULL,
+                        FOREIGN KEY (bin_id) REFERENCES bins (bin_id),
+                        FOREIGN KEY (item_id) REFERENCES items (item_id)
+                    )
+                ''')
+            else:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS inventory (
+                        inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        bin_id INTEGER NOT NULL,
+                        item_id INTEGER NOT NULL,
+                        customer_po TEXT,
+                        BT TEXT,
+                        box_count INTEGER NOT NULL,
+                        pieces_per_box INTEGER NOT NULL,
+                        total_pieces INTEGER NOT NULL,
+                        FOREIGN KEY (bin_id) REFERENCES bins (bin_id),
+                        FOREIGN KEY (item_id) REFERENCES items (item_id)
+                    )
+                ''')
         else:
-            # 检查是否需要添加customer_po字段
-            cursor.execute("PRAGMA table_info(inventory)")
-            columns = [column[1] for column in cursor.fetchall()]
-            if 'customer_po' not in columns:
-                print("为inventory表添加customer_po字段...")
-                cursor.execute('ALTER TABLE inventory ADD COLUMN customer_po TEXT')
-            # 检查是否需要添加BT字段
-            if 'BT' not in columns:
-                print("为inventory表添加BT字段...")
-                cursor.execute('ALTER TABLE inventory ADD COLUMN BT TEXT')
+            # 检查是否需要添加字段（只对SQLite适用，PostgreSQL在生产中应该已有完整表结构）
+            if not is_postgresql():
+                cursor.execute("PRAGMA table_info(inventory)")
+                columns = [column[1] for column in cursor.fetchall()]
+                if 'customer_po' not in columns:
+                    print("为inventory表添加customer_po字段...")
+                    cursor.execute('ALTER TABLE inventory ADD COLUMN customer_po TEXT')
+                if 'BT' not in columns:
+                    print("为inventory表添加BT字段...")
+                    cursor.execute('ALTER TABLE inventory ADD COLUMN BT TEXT')
         
-        if 'input_history' not in [row[0] for row in existing_tables]:
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS input_history (
-                    history_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    bin_code TEXT NOT NULL,
-                    item_code TEXT NOT NULL,
-                    customer_po TEXT,
-                    BT TEXT,
-                    box_count INTEGER NOT NULL,
-                    pieces_per_box INTEGER NOT NULL,
-                    total_pieces INTEGER NOT NULL,
-                    input_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+        if 'input_history' not in existing_table_names:
+            if is_postgresql():
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS input_history (
+                        history_id SERIAL PRIMARY KEY,
+                        bin_code TEXT NOT NULL,
+                        item_code TEXT NOT NULL,
+                        customer_po TEXT,
+                        BT TEXT,
+                        box_count INTEGER NOT NULL,
+                        pieces_per_box INTEGER NOT NULL,
+                        total_pieces INTEGER NOT NULL,
+                        input_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+            else:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS input_history (
+                        history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        bin_code TEXT NOT NULL,
+                        item_code TEXT NOT NULL,
+                        customer_po TEXT,
+                        BT TEXT,
+                        box_count INTEGER NOT NULL,
+                        pieces_per_box INTEGER NOT NULL,
+                        total_pieces INTEGER NOT NULL,
+                        input_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
         else:
-            # 检查是否需要添加customer_po字段
-            cursor.execute("PRAGMA table_info(input_history)")
-            columns = [column[1] for column in cursor.fetchall()]
-            if 'customer_po' not in columns:
-                print("为input_history表添加customer_po字段...")
-                cursor.execute('ALTER TABLE input_history ADD COLUMN customer_po TEXT')
-            # 检查是否需要添加BT字段
-            if 'BT' not in columns:
-                print("为input_history表添加BT字段...")
-                cursor.execute('ALTER TABLE input_history ADD COLUMN BT TEXT')
+            # 检查是否需要添加字段（只对SQLite适用）
+            if not is_postgresql():
+                cursor.execute("PRAGMA table_info(input_history)")
+                columns = [column[1] for column in cursor.fetchall()]
+                if 'customer_po' not in columns:
+                    print("为input_history表添加customer_po字段...")
+                    cursor.execute('ALTER TABLE input_history ADD COLUMN customer_po TEXT')
+                if 'BT' not in columns:
+                    print("为input_history表添加BT字段...")
+                    cursor.execute('ALTER TABLE input_history ADD COLUMN BT TEXT')
         
         # 只有在相应的表不存在时才导入初始数据
-        if 'bins' not in [row[0] for row in existing_tables]:
+        if 'bins' not in existing_table_names:
             print("导入库位数据...")
             with open('BIN.csv', 'r', encoding='utf-8') as f:
                 csv_reader = csv.reader(f)
                 next(csv_reader)  # 跳过标题行
                 bin_data = [(row[0],) for row in csv_reader]
                 print(f"从CSV读取到 {len(bin_data)} 个库位")
-                cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', bin_data)
+                if is_postgresql():
+                    cursor.executemany('INSERT INTO bins (bin_code) VALUES (%s)', bin_data)
+                else:
+                    cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', bin_data)
         '''
         #No need since no need to check item anymore
         if 'items' not in [row[0] for row in existing_tables]:
@@ -282,15 +385,16 @@ with app.app_context():
 def get_bins():
     search = request.args.get('search', '')
     db = get_db()
-    cursor = db.cursor()
+    cursor = get_cursor(db)
     search_pattern = f'%{search}%'
     start_pattern = f'{search}%'
-    cursor.execute('''
+    placeholder = get_placeholder()
+    cursor.execute(f'''
         SELECT * FROM bins 
-        WHERE bin_code LIKE ? 
+        WHERE bin_code LIKE {placeholder}
         ORDER BY 
             CASE 
-                WHEN bin_code LIKE ? THEN 1
+                WHEN bin_code LIKE {placeholder} THEN 1
                 ELSE 2
             END,
             bin_code
@@ -303,13 +407,14 @@ def get_bins():
 def get_items():
     search = request.args.get('search', '')
     db = get_db()
-    cursor = db.cursor()
-    cursor.execute('''
+    cursor = get_cursor(db)
+    placeholder = get_placeholder()
+    cursor.execute(f'''
         SELECT * FROM items 
-        WHERE item_code LIKE ? 
+        WHERE item_code LIKE {placeholder}
         ORDER BY 
             CASE 
-                WHEN item_code LIKE ? THEN 1
+                WHEN item_code LIKE {placeholder} THEN 1
                 ELSE 2
             END,
             item_code
@@ -322,23 +427,28 @@ def get_items():
 def add_inventory():
     data = request.json
     db = get_db()
-    cursor = db.cursor()
+    cursor = get_cursor(db)
+    placeholder = get_placeholder()
     
     try:
         # 先检查 bin_id 是否存在
-        cursor.execute('SELECT bin_id FROM bins WHERE bin_code = ?', (data['bin_code'],))
+        cursor.execute(f'SELECT bin_id FROM bins WHERE bin_code = {placeholder}', (data['bin_code'],))
         bin_result = cursor.fetchone()
         if not bin_result:
             return jsonify({'error': '库位不存在', 'error_en': 'Bin location does not exist'}), 400
         bin_id = bin_result['bin_id']
 
         # 检查商品是否存在，如果不存在则自动添加
-        cursor.execute('SELECT item_id FROM items WHERE item_code = ?', (data['item_code'],))
+        cursor.execute(f'SELECT item_id FROM items WHERE item_code = {placeholder}', (data['item_code'],))
         item_result = cursor.fetchone()
         if not item_result:
             # 商品不存在，自动添加到items表
-            cursor.execute('INSERT INTO items (item_code) VALUES (?)', (data['item_code'],))
-            item_id = cursor.lastrowid
+            cursor.execute(f'INSERT INTO items (item_code) VALUES ({placeholder})', (data['item_code'],))
+            if is_postgresql():
+                cursor.execute('SELECT lastval()')
+                item_id = cursor.fetchone()[0]
+            else:
+                item_id = cursor.lastrowid
         else:
             item_id = item_result['item_id']
 
@@ -352,15 +462,15 @@ def add_inventory():
         BT = data.get('BT', None)
         
         # 插入库存记录
-        cursor.execute('''
+        cursor.execute(f'''
             INSERT INTO inventory (bin_id, item_id, customer_po, BT, box_count, pieces_per_box, total_pieces)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
         ''', (bin_id, item_id, customer_po, BT, box_count, pieces_per_box, total_pieces))
         
         # 记录输入历史
-        cursor.execute('''
+        cursor.execute(f'''
             INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
         ''', (data['bin_code'], data['item_code'], customer_po, BT, box_count, pieces_per_box, total_pieces))
         
         db.commit()
@@ -368,6 +478,7 @@ def add_inventory():
         return jsonify({'success': True})
     except Exception as e:
         print(f"添加库存记录时出错: {str(e)}")
+        print(f"错误详情: {traceback.format_exc()}")
         db.rollback()
         return jsonify({'error': str(e)}), 500
 
