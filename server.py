@@ -26,6 +26,7 @@ def ensure_db_initialized():
     global _db_initialized
     if not _db_initialized:
         print("Initializing database for the first time...")
+        print(f"DATABASE_URL environment variable: {os.environ.get('DATABASE_URL', 'NOT SET')}")
         try:
             init_db()
             _db_initialized = True
