@@ -77,6 +77,65 @@ def inventory_js():
         print(f"Error serving inventory.js: {str(e)}")
         return str(e), 500
 
+# 调试端点：手动触发数据库初始化
+@app.route('/debug/init-db')
+def debug_init_db():
+    try:
+        print("=== 开始手动数据库初始化调试 ===")
+        print(f"DATABASE_URL存在: {bool(os.environ.get('DATABASE_URL'))}")
+        print(f"PSYCOPG2可用: {PSYCOPG2_AVAILABLE}")
+        print(f"使用PostgreSQL: {is_postgresql()}")
+        
+        # 重置初始化标志
+        global _db_initialized
+        _db_initialized = False
+        
+        # 强制初始化
+        ensure_db_initialized()
+        
+        # 检查表是否存在
+        db = get_db()
+        cursor = get_cursor(db)
+        
+        if is_postgresql():
+            cursor.execute("""
+                SELECT table_name FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                ORDER BY table_name
+            """)
+        else:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        
+        tables = [row[0] if not is_postgresql() else row['table_name'] for row in cursor.fetchall()]
+        
+        # 检查bins表数据
+        if 'bins' in tables:
+            cursor.execute("SELECT COUNT(*) FROM bins")
+            bin_count = cursor.fetchone()[0]
+        else:
+            bin_count = 0
+        
+        db.close()
+        
+        result = {
+            'database_type': 'PostgreSQL' if is_postgresql() else 'SQLite',
+            'tables_created': tables,
+            'bins_count': bin_count,
+            'initialization_successful': True
+        }
+        
+        print(f"调试结果: {result}")
+        return jsonify(result)
+        
+    except Exception as e:
+        error_msg = f"数据库初始化失败: {str(e)}"
+        print(error_msg)
+        print(traceback.format_exc())
+        return jsonify({
+            'error': error_msg,
+            'traceback': traceback.format_exc()
+        }), 500
+
 # 数据库连接
 def get_db():
     database_url = os.environ.get('DATABASE_URL')
@@ -272,15 +331,26 @@ def init_db():
         # 只有在相应的表不存在时才导入初始数据
         if 'bins' not in existing_table_names:
             print("导入库位数据...")
-            with open('BIN.csv', 'r', encoding='utf-8') as f:
-                csv_reader = csv.reader(f)
-                next(csv_reader)  # 跳过标题行
-                bin_data = [(row[0],) for row in csv_reader]
-                print(f"从CSV读取到 {len(bin_data)} 个库位")
-                if is_postgresql():
-                    cursor.executemany('INSERT INTO bins (bin_code) VALUES (%s)', bin_data)
+            try:
+                if not os.path.exists('BIN.csv'):
+                    print("警告: BIN.csv文件不存在，跳过库位数据导入")
                 else:
-                    cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', bin_data)
+                    with open('BIN.csv', 'r', encoding='utf-8') as f:
+                        csv_reader = csv.reader(f)
+                        next(csv_reader)  # 跳过标题行
+                        bin_data = [(row[0],) for row in csv_reader]
+                        print(f"从CSV读取到 {len(bin_data)} 个库位")
+                        if bin_data:  # 只有当有数据时才执行插入
+                            if is_postgresql():
+                                cursor.executemany('INSERT INTO bins (bin_code) VALUES (%s)', bin_data)
+                            else:
+                                cursor.executemany('INSERT INTO bins (bin_code) VALUES (?)', bin_data)
+                            print("库位数据导入成功")
+                        else:
+                            print("警告: BIN.csv文件为空")
+            except Exception as e:
+                print(f"导入库位数据时出错: {str(e)}")
+                print("继续初始化过程...")
         '''
         #No need since no need to check item anymore
         if 'items' not in [row[0] for row in existing_tables]:
