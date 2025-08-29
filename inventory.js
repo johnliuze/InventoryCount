@@ -216,6 +216,15 @@ function mergeClearAndAddLogs(logs) {
                 }
             }
             
+            // 使用最早的清空记录的时间戳，确保合并记录在时间排序中的正确位置
+            const earliestClearTime = clearRecords.reduce((earliest, record) => {
+                const currentTime = parseDateSafely(record.timestamp);
+                const earliestTime = parseDateSafely(earliest);
+                if (!currentTime) return earliest;
+                if (!earliestTime) return record.timestamp;
+                return currentTime < earliestTime ? record.timestamp : earliest;
+            }, clearRecords[0]?.timestamp);
+            
             result.push({
                 __merged: true,
                 __clearRecords: clearRecords, // 保存所有被清空的记录
@@ -226,7 +235,7 @@ function mergeClearAndAddLogs(logs) {
                 total_pieces: addRecord.total_pieces,
                 customer_po: addRecord.customer_po,
                 BT: addRecord.BT,
-                timestamp: addRecord.timestamp
+                timestamp: earliestClearTime || addRecord.timestamp // 使用最早的清空时间戳
             });
             usedIndexSet.add(i);
             continue;
@@ -327,20 +336,20 @@ function formatHistoryRecord(record, timestamp, lang) {
             }
         }).join('<br>&nbsp;&nbsp;&nbsp;');
         
-        mergedZh = `➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
-                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}<br>
-                    ${clearDetailsZh}`;
-        mergedEn = `➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
-                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}<br>
-                    ${clearDetailsEn}`;
+        mergedZh = `${clearDetailsZh}<br>
+                    ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
+        mergedEn = `${clearDetailsEn}<br>
+                    ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
     } else {
         // 简单清空记录的情况（兼容旧格式）
-        mergedZh = `➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
-                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}<br>
-                    🗑️ ${binCodeDisplay}`;
-        mergedEn = `➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
-                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}<br>
-                    🗑️ ${binCodeDisplay}`;
+        mergedZh = `🗑️ ${binCodeDisplay}<br>
+                    ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
+        mergedEn = `🗑️ ${binCodeDisplay}<br>
+                    ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
     }
     
     const clearZh = `🗑️ ${binCodeDisplay}`;

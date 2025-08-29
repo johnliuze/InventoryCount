@@ -1283,9 +1283,9 @@ def get_logs():
     if date_filter:
         # 如果有日期过滤，只返回指定日期的记录
         cursor.execute('''
-            SELECT 
-                bin_code,
-                item_code,
+        SELECT 
+            bin_code,
+            item_code,
                         customer_po,
                         BT,
                         box_count,
@@ -1672,9 +1672,9 @@ def clear_bin_inventory(bin_code):
         else:
             # 如果库位为空，仍然记录一条清空操作
             cursor.execute('''
-                INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces)
-                VALUES (?, '清空库位', 0, 0, 0)
-            ''', (bin_code,))
+            INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces)
+            VALUES (?, '清空库位', 0, 0, 0)
+        ''', (bin_code,))
         
         db.commit()
         return jsonify({'success': True, 'message': f'已清空库位 {bin_code} 的所有库存'})
