@@ -1619,14 +1619,62 @@ def clear_bin_inventory(bin_code):
         if not bin_result:
             return jsonify({'error': '库位不存在', 'error_en': 'Bin location does not exist'}), 404
         
+        # 获取要删除的所有库存信息用于历史记录（包含详细信息）
+        cursor.execute('''
+            SELECT inv.box_count, inv.pieces_per_box, inv.total_pieces, 
+                   inv.customer_po, inv.BT, i.item_code
+            FROM inventory inv 
+            JOIN items i ON inv.item_id = i.item_id
+            WHERE inv.bin_id = ?
+        ''', (bin_result['bin_id'],))
+        
+        inventory_records = cursor.fetchall()
+        
         # 删除该库位的所有库存记录
         cursor.execute('DELETE FROM inventory WHERE bin_id = ?', (bin_result['bin_id'],))
         
-        # 记录清除操作到历史记录
-        cursor.execute('''
-            INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces)
-            VALUES (?, '清空库位', 0, 0, 0)
-        ''', (bin_code,))
+        # 记录清除操作到历史记录（为每个商品的每个PO-BT组合创建详细的历史记录）
+        if inventory_records:
+            # 按商品和PO-BT组合分组
+            item_po_bt_groups = {}
+            for record in inventory_records:
+                item_key = record['item_code']
+                po_bt_key = f"{record['customer_po'] or 'None'}|{record['BT'] or 'None'}"
+                full_key = f"{item_key}|{po_bt_key}"
+                
+                if full_key not in item_po_bt_groups:
+                    item_po_bt_groups[full_key] = {
+                        'item_code': record['item_code'],
+                        'customer_po': record['customer_po'],
+                        'BT': record['BT'],
+                        'total_pieces': 0,
+                        'box_details': []
+                    }
+                item_po_bt_groups[full_key]['total_pieces'] += record['total_pieces']
+                item_po_bt_groups[full_key]['box_details'].append({
+                    'box_count': record['box_count'],
+                    'pieces_per_box': record['pieces_per_box']
+                })
+            
+            # 为每个商品的每个PO-BT组合创建历史记录
+            for group_data in item_po_bt_groups.values():
+                # 选择最大的箱规作为代表性信息显示
+                max_box_detail = max(group_data['box_details'], 
+                                   key=lambda x: x['box_count'] * x['pieces_per_box'])
+                
+                cursor.execute('''
+                    INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (bin_code, f'清空库位{group_data["item_code"]}', 
+                     group_data['customer_po'], group_data['BT'],
+                     max_box_detail['box_count'], max_box_detail['pieces_per_box'], 
+                     group_data['total_pieces']))
+        else:
+            # 如果库位为空，仍然记录一条清空操作
+            cursor.execute('''
+                INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces)
+                VALUES (?, '清空库位', 0, 0, 0)
+            ''', (bin_code,))
         
         db.commit()
         return jsonify({'success': True, 'message': f'已清空库位 {bin_code} 的所有库存'})

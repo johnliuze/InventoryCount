@@ -237,7 +237,19 @@ function formatHistoryRecord(record, timestamp, lang) {
     if (record.__merged) {
         lineHtml = isZh ? mergedZh : mergedEn;
     } else if (record.item_code === '清空库位' || record.item_code === 'Clear Bin') {
+        // 空库位的简单清空记录
         lineHtml = isZh ? clearZh : clearEn;
+    } else if (record.item_code && record.item_code.startsWith('清空库位')) {
+        // 处理清空库位中特定商品的操作 - 显示详细信息
+        const itemCode = record.item_code.replace('清空库位', '');
+        const itemCodeForDisplay = itemCode ? 
+            (isZh ? `商品 <span class="item-code">${itemCode}</span>` : `Item <span class="item-code">${itemCode}</span>`) : '';
+        
+        const clearBinItemZh = `🗑️ ${binCodeDisplay} ➖ ${itemCodeForDisplay} (${customerPODisplay}, ${BTDisplay}):<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
+        const clearBinItemEn = `🗑️ ${binCodeDisplay} ➖ ${itemCodeForDisplay} (${customerPODisplay}, ${BTDisplay}):<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
+        lineHtml = isZh ? clearBinItemZh : clearBinItemEn;
     } else if (record.item_code && record.item_code.startsWith('清空商品')) {
         // 处理清空商品操作 - 显示详细信息
         const itemCode = record.item_code.replace('清空商品', '');
