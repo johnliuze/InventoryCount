@@ -1653,9 +1653,9 @@ def clear_item_at_bin(bin_code, item_code):
         if not item_result:
             return jsonify({'error': '商品不存在', 'error_en': 'Item does not exist'}), 404
         
-        # 获取要删除的库存信息用于历史记录
+        # 获取要删除的库存信息用于历史记录（包含详细信息）
         cursor.execute('''
-            SELECT box_count, pieces_per_box, total_pieces 
+            SELECT box_count, pieces_per_box, total_pieces, customer_po, BT
             FROM inventory 
             WHERE bin_id = ? AND item_id = ?
         ''', (bin_result['bin_id'], item_result['item_id']))
@@ -1669,12 +1669,38 @@ def clear_item_at_bin(bin_code, item_code):
             WHERE bin_id = ? AND item_id = ?
         ''', (bin_result['bin_id'], item_result['item_id']))
         
-        # 记录清除操作到历史记录
-        if total_cleared > 0:
-            cursor.execute('''
-                INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces)
-                VALUES (?, ?, 0, 0, ?)
-            ''', (bin_code, f'清空商品{item_code}', total_cleared))
+        # 记录清除操作到历史记录（为每个不同的PO-BT组合创建单独的历史记录）
+        if inventory_records:
+            # 按PO-BT组合分组
+            po_bt_groups = {}
+            for record in inventory_records:
+                key = f"{record['customer_po'] or 'None'}|{record['BT'] or 'None'}"
+                if key not in po_bt_groups:
+                    po_bt_groups[key] = {
+                        'customer_po': record['customer_po'],
+                        'BT': record['BT'],
+                        'total_pieces': 0,
+                        'box_details': []
+                    }
+                po_bt_groups[key]['total_pieces'] += record['total_pieces']
+                po_bt_groups[key]['box_details'].append({
+                    'box_count': record['box_count'],
+                    'pieces_per_box': record['pieces_per_box']
+                })
+            
+            # 为每个PO-BT组合创建历史记录
+            for group_data in po_bt_groups.values():
+                # 选择最大的箱规作为代表性信息显示
+                max_box_detail = max(group_data['box_details'], 
+                                   key=lambda x: x['box_count'] * x['pieces_per_box'])
+                
+                cursor.execute('''
+                    INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (bin_code, f'清空商品{item_code}', 
+                     group_data['customer_po'], group_data['BT'],
+                     max_box_detail['box_count'], max_box_detail['pieces_per_box'], 
+                     group_data['total_pieces']))
         
         db.commit()
         return jsonify({

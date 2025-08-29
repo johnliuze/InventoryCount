@@ -239,10 +239,15 @@ function formatHistoryRecord(record, timestamp, lang) {
     } else if (record.item_code === '清空库位' || record.item_code === 'Clear Bin') {
         lineHtml = isZh ? clearZh : clearEn;
     } else if (record.item_code && record.item_code.startsWith('清空商品')) {
-        // 处理清空商品操作
+        // 处理清空商品操作 - 显示详细信息
         const itemCode = record.item_code.replace('清空商品', '');
-        const clearItemZh = `➖ 商品 <span class="item-code">${itemCode}</span> (${totalPiecesDisplay}) &rarr; ${binCodeDisplay}`;
-        const clearItemEn = `➖ Item <span class="item-code">${itemCode}</span> (${totalPiecesDisplay}) &rarr; ${binCodeDisplay}`;
+        const itemCodeForDisplay = itemCode ? 
+            (isZh ? `商品 <span class="item-code">${itemCode}</span>` : `Item <span class="item-code">${itemCode}</span>`) : '';
+        
+        const clearItemZh = `➖ ${itemCodeForDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
+        const clearItemEn = `➖ ${itemCodeForDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
         lineHtml = isZh ? clearItemZh : clearItemEn;
     } else {
         lineHtml = isZh ? normalZh : normalEn;
