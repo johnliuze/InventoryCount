@@ -119,6 +119,7 @@ function mergeClearAndAddLogs(logs) {
     const result = [];
     const usedIndexSet = new Set();
     const isClear = (code) => code === '清空库位' || code === 'Clear Bin';
+    const isClearBinItem = (code) => code && code.startsWith('清空库位') && !isClear(code);
     const isClearItem = (code) => code && (code.startsWith('清空商品') || code.startsWith('Clear Item'));
     const withinMs = 5000; // 允许合并的最大时间差（毫秒）
 
@@ -126,55 +127,89 @@ function mergeClearAndAddLogs(logs) {
         if (usedIndexSet.has(i)) continue;
         const current = logs[i];
 
-        // 优先尝试与下一条合并，避免重复扫描
-        const j = i + 1;
-        if (j < logs.length && !usedIndexSet.has(j)) {
-            const next = logs[j];
-            const sameBin = current.bin_code === next.bin_code;
-            // 使用安全的日期解析
-            const timeA = parseDateSafely(current.timestamp);
-            const timeB = parseDateSafely(next.timestamp);
-            const closeInTime = timeA && timeB && Math.abs(timeA.getTime() - timeB.getTime()) <= withinMs;
-
-            // 情况1：按时间倒序常见，先看到添加，后一条是清空库位（不是清空商品）
-            if (!isClear(current.item_code) && !isClearItem(current.item_code) && 
-                isClear(next.item_code) && !isClearItem(next.item_code) && 
-                sameBin && closeInTime) {
-                result.push({
-                    __merged: true,
-                    bin_code: current.bin_code,
-                    item_code: current.item_code,
-                    box_count: current.box_count,
-                    pieces_per_box: current.pieces_per_box,
-                    total_pieces: current.total_pieces,
-                    customer_po: current.customer_po,
-                    BT: current.BT,
-                    timestamp: current.timestamp
-                });
-                usedIndexSet.add(i);
-                usedIndexSet.add(j);
-                continue;
+        // 收集同一库位、同一时间段内的所有清空记录
+        const clearRecords = [];
+        let addRecord = null;
+        
+        // 检查当前记录是否是添加记录
+        if (!isClear(current.item_code) && !isClearBinItem(current.item_code) && !isClearItem(current.item_code)) {
+            addRecord = current;
+            
+            // 向后查找可能的清空记录
+            for (let k = i + 1; k < logs.length && k <= i + 10; k++) { // 限制搜索范围
+                if (usedIndexSet.has(k)) continue;
+                const candidate = logs[k];
+                
+                // 使用安全的日期解析
+                const timeA = parseDateSafely(current.timestamp);
+                const timeB = parseDateSafely(candidate.timestamp);
+                const closeInTime = timeA && timeB && Math.abs(timeA.getTime() - timeB.getTime()) <= withinMs;
+                const sameBin = current.bin_code === candidate.bin_code;
+                
+                if (sameBin && closeInTime && (isClear(candidate.item_code) || isClearBinItem(candidate.item_code))) {
+                    clearRecords.push(candidate);
+                    usedIndexSet.add(k);
+                }
             }
-
-            // 情况2：先看到清空库位（不是清空商品），后一条是添加（边界情况）
-            if (isClear(current.item_code) && !isClearItem(current.item_code) && 
-                !isClear(next.item_code) && !isClearItem(next.item_code) && 
-                sameBin && closeInTime) {
-                result.push({
-                    __merged: true,
-                    bin_code: next.bin_code,
-                    item_code: next.item_code,
-                    box_count: next.box_count,
-                    pieces_per_box: next.pieces_per_box,
-                    total_pieces: next.total_pieces,
-                    customer_po: next.customer_po,
-                    BT: next.BT,
-                    timestamp: timeA >= timeB ? current.timestamp : next.timestamp
-                });
-                usedIndexSet.add(i);
-                usedIndexSet.add(j);
-                continue;
+        }
+        
+        // 检查当前记录是否是清空记录
+        else if (isClear(current.item_code) || isClearBinItem(current.item_code)) {
+            clearRecords.push(current);
+            
+            // 向前查找可能的添加记录
+            for (let k = i - 10; k < i; k++) { // 限制搜索范围
+                if (k < 0 || usedIndexSet.has(k)) continue;
+                const candidate = logs[k];
+                
+                // 使用安全的日期解析
+                const timeA = parseDateSafely(current.timestamp);
+                const timeB = parseDateSafely(candidate.timestamp);
+                const closeInTime = timeA && timeB && Math.abs(timeA.getTime() - timeB.getTime()) <= withinMs;
+                const sameBin = current.bin_code === candidate.bin_code;
+                
+                if (sameBin && closeInTime && !isClear(candidate.item_code) && 
+                    !isClearBinItem(candidate.item_code) && !isClearItem(candidate.item_code)) {
+                    if (!addRecord) { // 只取第一个匹配的添加记录
+                        addRecord = candidate;
+                        usedIndexSet.add(k);
+                    }
+                }
             }
+            
+            // 继续收集同一时间段的其他清空记录
+            for (let k = i + 1; k < logs.length && k <= i + 10; k++) {
+                if (usedIndexSet.has(k)) continue;
+                const candidate = logs[k];
+                
+                const timeA = parseDateSafely(current.timestamp);
+                const timeB = parseDateSafely(candidate.timestamp);
+                const closeInTime = timeA && timeB && Math.abs(timeA.getTime() - timeB.getTime()) <= withinMs;
+                const sameBin = current.bin_code === candidate.bin_code;
+                
+                if (sameBin && closeInTime && (isClear(candidate.item_code) || isClearBinItem(candidate.item_code))) {
+                    clearRecords.push(candidate);
+                    usedIndexSet.add(k);
+                }
+            }
+        }
+
+        // 如果找到了清空+添加的组合，创建合并记录
+        if (clearRecords.length > 0 && addRecord) {
+            result.push({
+                __merged: true,
+                __clearRecords: clearRecords, // 保存所有被清空的记录
+                bin_code: addRecord.bin_code,
+                item_code: addRecord.item_code,
+                box_count: addRecord.box_count,
+                pieces_per_box: addRecord.pieces_per_box,
+                total_pieces: addRecord.total_pieces,
+                customer_po: addRecord.customer_po,
+                BT: addRecord.BT,
+                timestamp: addRecord.timestamp
+            });
+            usedIndexSet.add(i);
+            continue;
         }
 
         // 无法合并则原样放入
@@ -218,12 +253,75 @@ function formatHistoryRecord(record, timestamp, lang) {
         (isZh ? `BT号 <span class="BT-number">${record.BT}</span>` :
          `BT <span class="BT-number">${record.BT}</span>`) : '';
     
-    const mergedZh = `🗑️ ${binCodeDisplay}<br>
+    // 构建合并记录的显示（清空+添加）
+    let mergedZh, mergedEn;
+    if (record.__clearRecords && record.__clearRecords.length > 0) {
+        // 有详细清空记录的情况
+        const clearDetailsZh = record.__clearRecords.map(clearRec => {
+            const clearItemCode = clearRec.item_code.startsWith('清空库位') ? 
+                clearRec.item_code.replace('清空库位', '') : 
+                (clearRec.item_code === '清空库位' ? '所有商品' : clearRec.item_code);
+            
+            if (clearRec.item_code === '清空库位') {
+                return `🗑️ ${binCodeDisplay} (清空所有商品)`;
+            } else {
+                const clearItemCodeDisplay = clearItemCode ? 
+                    `商品 <span class="item-code">${clearItemCode}</span>` : '';
+                const clearCustomerPODisplay = clearRec.customer_po ? 
+                    `订单 <span class="customer-po">${clearRec.customer_po}</span>` : '';
+                const clearBTDisplay = clearRec.BT ? 
+                    `BT号 <span class="BT-number">${clearRec.BT}</span>` : '';
+                const clearBoxCountDisplay = clearRec.box_count ? 
+                    `<span class="quantity">${clearRec.box_count}</span> 箱` : '';
+                const clearPiecesPerBoxDisplay = clearRec.pieces_per_box ? 
+                    `<span class="quantity">${clearRec.pieces_per_box}</span> 件/箱` : '';
+                const clearTotalPiecesDisplay = clearRec.total_pieces ? 
+                    `<span class="quantity">${clearRec.total_pieces}</span> 件` : '';
+                
+                return `➖ ${clearItemCodeDisplay} (${clearCustomerPODisplay}, ${clearBTDisplay}): ${clearBoxCountDisplay} × ${clearPiecesPerBoxDisplay} = ${clearTotalPiecesDisplay}`;
+            }
+        }).join('<br>&nbsp;&nbsp;&nbsp;');
+        
+        const clearDetailsEn = record.__clearRecords.map(clearRec => {
+            const clearItemCode = clearRec.item_code.startsWith('清空库位') ? 
+                clearRec.item_code.replace('清空库位', '') : 
+                (clearRec.item_code === '清空库位' ? 'All Items' : clearRec.item_code);
+            
+            if (clearRec.item_code === '清空库位') {
+                return `🗑️ ${binCodeDisplay} (Clear All Items)`;
+            } else {
+                const clearItemCodeDisplay = clearItemCode ? 
+                    `Item <span class="item-code">${clearItemCode}</span>` : '';
+                const clearCustomerPODisplay = clearRec.customer_po ? 
+                    `PO <span class="customer-po">${clearRec.customer_po}</span>` : '';
+                const clearBTDisplay = clearRec.BT ? 
+                    `BT <span class="BT-number">${clearRec.BT}</span>` : '';
+                const clearBoxCountDisplay = clearRec.box_count ? 
+                    `<span class="quantity">${clearRec.box_count}</span> boxes` : '';
+                const clearPiecesPerBoxDisplay = clearRec.pieces_per_box ? 
+                    `<span class="quantity">${clearRec.pieces_per_box}</span> pcs/box` : '';
+                const clearTotalPiecesDisplay = clearRec.total_pieces ? 
+                    `<span class="quantity">${clearRec.total_pieces}</span> pcs` : '';
+                
+                return `➖ ${clearItemCodeDisplay} (${clearCustomerPODisplay}, ${clearBTDisplay}): ${clearBoxCountDisplay} × ${clearPiecesPerBoxDisplay} = ${clearTotalPiecesDisplay}`;
+            }
+        }).join('<br>&nbsp;&nbsp;&nbsp;');
+        
+        mergedZh = `${clearDetailsZh}<br>
                     ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
-    const mergedEn = `🗑️ ${binCodeDisplay}<br>
+        mergedEn = `${clearDetailsEn}<br>
                     ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
+    } else {
+        // 简单清空记录的情况（兼容旧格式）
+        mergedZh = `🗑️ ${binCodeDisplay}<br>
+                    ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
+        mergedEn = `🗑️ ${binCodeDisplay}<br>
+                    ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
+    }
     
     const clearZh = `🗑️ ${binCodeDisplay}`;
     const clearEn = `🗑️ ${binCodeDisplay}`;
@@ -245,9 +343,9 @@ function formatHistoryRecord(record, timestamp, lang) {
         const itemCodeForDisplay = itemCode ? 
             (isZh ? `商品 <span class="item-code">${itemCode}</span>` : `Item <span class="item-code">${itemCode}</span>`) : '';
         
-        const clearBinItemZh = `🗑️ ${binCodeDisplay} ➖ ${itemCodeForDisplay} (${customerPODisplay}, ${BTDisplay}):<br>&nbsp;&nbsp;&nbsp;
+        const clearBinItemZh = `➖ ${itemCodeForDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
-        const clearBinItemEn = `🗑️ ${binCodeDisplay} ➖ ${itemCodeForDisplay} (${customerPODisplay}, ${BTDisplay}):<br>&nbsp;&nbsp;&nbsp;
+        const clearBinItemEn = `➖ ${itemCodeForDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}<br>&nbsp;&nbsp;&nbsp;
                     ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
         lineHtml = isZh ? clearBinItemZh : clearBinItemEn;
     } else if (record.item_code && record.item_code.startsWith('清空商品')) {
