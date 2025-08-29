@@ -1665,10 +1665,10 @@ def clear_bin_inventory(bin_code):
                 cursor.execute('''
                     INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (bin_code, f'清空库位{group_data["item_code"]}', 
+                ''', (bin_code, f'{group_data["item_code"]}', 
                      group_data['customer_po'], group_data['BT'],
-                     max_box_detail['box_count'], max_box_detail['pieces_per_box'],  # 每箱件数保持正数
-                     -group_data['total_pieces']))  # 只有总件数为负数
+                     max_box_detail['box_count'], max_box_detail['pieces_per_box'], 
+                     group_data['total_pieces']))
         else:
             # 如果库位为空，仍然记录一条清空操作
             cursor.execute('''
@@ -1745,10 +1745,10 @@ def clear_item_at_bin(bin_code, item_code):
                 cursor.execute('''
                     INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (bin_code, f'清空商品{item_code}', 
+                ''', (bin_code, f'{item_code}', 
                      group_data['customer_po'], group_data['BT'],
-                     max_box_detail['box_count'], max_box_detail['pieces_per_box'],  # 每箱件数保持正数
-                     -group_data['total_pieces']))  # 只有总件数为负数
+                     max_box_detail['box_count'], max_box_detail['pieces_per_box'], 
+                     group_data['total_pieces']))
         
         db.commit()
         return jsonify({
@@ -1804,29 +1804,38 @@ def export_history():
     
     history_data = cursor.fetchall()
     
-    # 处理历史数据，清理商品名
+    # 处理历史数据，将清空操作的数字转换为负数
     processed_data = []
     for row in history_data:
-        # 处理商品名，去掉"清空库位"和"清空商品"前缀
-        item_code = row['item_code']
-        if item_code.startswith('清空库位'):
-            item_code = item_code.replace('清空库位', '')
-        elif item_code.startswith('清空商品'):
-            item_code = item_code.replace('清空商品', '')
+        row_dict = dict(row)
+        # 检查是否是清空操作
+        item_code = row_dict.get('item_code', '')
+        if (item_code and (item_code.startswith('清空库位') or item_code.startswith('清空商品') or 
+                          item_code.startswith('Clear Bin') or item_code.startswith('Clear Item'))):
+            # 将数字字段转换为负数（如果不是0的话）
+            if row_dict.get('box_count', 0) > 0:
+                row_dict['box_count'] = -row_dict['box_count']
+            if row_dict.get('pieces_per_box', 0) > 0:
+                row_dict['pieces_per_box'] = -row_dict['pieces_per_box']
+            if row_dict.get('total_pieces', 0) > 0:
+                row_dict['total_pieces'] = -row_dict['total_pieces']
         
-        processed_data.append({
-            'Time (UTC)': row['input_time'],
-            'Bin Location': row['bin_code'],
-            'Item (SKU)': item_code,
-            'Customer PO': row['customer_po'] or '',
-            'BT Number': row['BT'] or '',
-            'Box Count': row['box_count'],
-            'PCs/Box': row['pieces_per_box'],
-            'Total Pieces': row['total_pieces']
-        })
+        processed_data.append([
+            row_dict.get('input_time'),
+            row_dict.get('bin_code'),
+            row_dict.get('item_code'),
+            row_dict.get('customer_po'),
+            row_dict.get('BT'),
+            row_dict.get('box_count'),
+            row_dict.get('pieces_per_box'),
+            row_dict.get('total_pieces')
+        ])
     
     # 创建DataFrame
-    df = pd.DataFrame(processed_data)
+    df = pd.DataFrame(processed_data, columns=[
+        'Time (UTC)', 'Bin Location', 'Item (SKU)', 'Customer PO', 'BT Number', 
+        'Box Count', 'PCs/Box', 'Total Pieces'
+    ])
     
     # 创建Excel文件
     output = BytesIO()
