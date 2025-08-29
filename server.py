@@ -357,13 +357,11 @@ def add_inventory():
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (bin_id, item_id, customer_po, BT, box_count, pieces_per_box, total_pieces))
         
-        # 记录输入历史（使用高精度时间戳）
-        from datetime import datetime
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # 精确到毫秒
+        # 记录输入历史
         cursor.execute('''
-            INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces, input_time)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (data['bin_code'], data['item_code'], customer_po, BT, box_count, pieces_per_box, total_pieces, current_time))
+            INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (data['bin_code'], data['item_code'], customer_po, BT, box_count, pieces_per_box, total_pieces))
         
         db.commit()
         
@@ -1285,19 +1283,19 @@ def get_logs():
     if date_filter:
         # 如果有日期过滤，只返回指定日期的记录
         cursor.execute('''
-        SELECT 
-            bin_code,
-            item_code,
-                        customer_po,
-                        BT,
-                        box_count,
-                        pieces_per_box,
-                        total_pieces,
-                        input_time
-                    FROM input_history
-                    WHERE DATE(datetime(input_time, 'localtime')) = ?
-                    ORDER BY input_time DESC
-                ''', (date_filter,))
+            SELECT 
+                bin_code,
+                item_code,
+                            customer_po,
+                            BT,
+                            box_count,
+                            pieces_per_box,
+                            total_pieces,
+                            input_time
+                        FROM input_history
+                        WHERE DATE(datetime(input_time, 'localtime')) = ?
+                        ORDER BY input_time DESC
+                    ''', (date_filter,))
     else:
         # 否则返回所有记录
         cursor.execute('''
@@ -1377,14 +1375,12 @@ def input_inventory():
             ''', (bin_result['bin_id'], item_result['item_id'], 
                   data['box_count'], data['pieces_per_box'], total_pieces))
         
-        # 记录输入历史（使用高精度时间戳）
-        from datetime import datetime
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # 精确到毫秒
+        # 记录输入历史
         cursor.execute('''
-            INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces, input_time)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces)
+            VALUES (?, ?, ?, ?, ?)
         ''', (data['bin_code'], data['item_code'], 
-              data['box_count'], data['pieces_per_box'], total_pieces, current_time))
+              data['box_count'], data['pieces_per_box'], total_pieces))
         
         db.commit()
         return jsonify({'success': True})
@@ -1661,29 +1657,24 @@ def clear_bin_inventory(bin_code):
                 })
             
             # 为每个商品的每个PO-BT组合创建历史记录
-            from datetime import datetime
             for group_data in item_po_bt_groups.values():
                 # 选择最大的箱规作为代表性信息显示
                 max_box_detail = max(group_data['box_details'], 
                                    key=lambda x: x['box_count'] * x['pieces_per_box'])
                 
-                # 使用高精度时间戳
-                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # 精确到毫秒
                 cursor.execute('''
-                    INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces, input_time)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''', (bin_code, f'清空库位{group_data["item_code"]}', 
                      group_data['customer_po'], group_data['BT'],
-                     max_box_detail['box_count'], max_box_detail['pieces_per_box'], 
-                     group_data['total_pieces'], current_time))
+                     max_box_detail['box_count'], -max_box_detail['pieces_per_box'],  # 每箱件数为负数
+                     -group_data['total_pieces']))  # 总件数为负数
         else:
             # 如果库位为空，仍然记录一条清空操作
-            from datetime import datetime
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # 精确到毫秒
             cursor.execute('''
-            INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces, input_time)
-            VALUES (?, '清空库位', 0, 0, 0, ?)
-        ''', (bin_code, current_time))
+                INSERT INTO input_history (bin_code, item_code, box_count, pieces_per_box, total_pieces)
+                VALUES (?, '清空库位', 0, 0, 0)
+            ''', (bin_code,))
         
         db.commit()
         return jsonify({'success': True, 'message': f'已清空库位 {bin_code} 的所有库存'})
@@ -1746,21 +1737,18 @@ def clear_item_at_bin(bin_code, item_code):
                 })
             
             # 为每个PO-BT组合创建历史记录
-            from datetime import datetime
             for group_data in po_bt_groups.values():
                 # 选择最大的箱规作为代表性信息显示
                 max_box_detail = max(group_data['box_details'], 
                                    key=lambda x: x['box_count'] * x['pieces_per_box'])
                 
-                # 使用高精度时间戳
-                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # 精确到毫秒
                 cursor.execute('''
-                    INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces, input_time)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO input_history (bin_code, item_code, customer_po, BT, box_count, pieces_per_box, total_pieces)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''', (bin_code, f'清空商品{item_code}', 
                      group_data['customer_po'], group_data['BT'],
-                     max_box_detail['box_count'], max_box_detail['pieces_per_box'], 
-                     group_data['total_pieces'], current_time))
+                     max_box_detail['box_count'], -max_box_detail['pieces_per_box'],  # 每箱件数为负数
+                     -group_data['total_pieces']))  # 总件数为负数
         
         db.commit()
         return jsonify({

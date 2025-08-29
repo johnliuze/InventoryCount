@@ -226,7 +226,7 @@ function mergeClearAndAddLogs(logs) {
                 total_pieces: addRecord.total_pieces,
                 customer_po: addRecord.customer_po,
                 BT: addRecord.BT,
-                timestamp: addRecord.timestamp // 使用添加记录的时间戳（现在由于延迟确保是正确的）
+                timestamp: addRecord.timestamp
             });
             usedIndexSet.add(i);
             continue;
@@ -252,11 +252,11 @@ function formatHistoryRecord(record, timestamp, lang) {
     const boxCountDisplay = record.box_count ? 
         (isZh ? `<span class="quantity">${record.box_count}</span> 箱` : `<span class="quantity">${record.box_count}</span> boxes`) : '';
     
-    //pieces_per_box
+    //pieces_per_box (处理负数显示)
     const piecesPerBoxDisplay = record.pieces_per_box ? 
-        (isZh ? `<span class="quantity">${record.pieces_per_box}</span> 件/箱` : `<span class="quantity">${record.pieces_per_box}</span> pcs/box`) : '';
+        (isZh ? `<span class="quantity">${Math.abs(record.pieces_per_box)}</span> 件/箱` : `<span class="quantity">${Math.abs(record.pieces_per_box)}</span> pcs/box`) : '';
     
-    //total_pieces
+    //total_pieces (保持负数显示，用于区分增减)
     const totalPiecesDisplay = record.total_pieces ? 
         (isZh ? `<span class="quantity">${record.total_pieces}</span> 件` : `<span class="quantity">${record.total_pieces}</span> pcs`) : '';
 
@@ -294,7 +294,7 @@ function formatHistoryRecord(record, timestamp, lang) {
                 const clearBoxCountDisplay = clearRec.box_count ? 
                     `<span class="quantity">${clearRec.box_count}</span> 箱` : '';
                 const clearPiecesPerBoxDisplay = clearRec.pieces_per_box ? 
-                    `<span class="quantity">${clearRec.pieces_per_box}</span> 件/箱` : '';
+                    `<span class="quantity">${Math.abs(clearRec.pieces_per_box)}</span> 件/箱` : '';
                 const clearTotalPiecesDisplay = clearRec.total_pieces ? 
                     `<span class="quantity">${clearRec.total_pieces}</span> 件` : '';
                 
@@ -319,7 +319,7 @@ function formatHistoryRecord(record, timestamp, lang) {
                 const clearBoxCountDisplay = clearRec.box_count ? 
                     `<span class="quantity">${clearRec.box_count}</span> boxes` : '';
                 const clearPiecesPerBoxDisplay = clearRec.pieces_per_box ? 
-                    `<span class="quantity">${clearRec.pieces_per_box}</span> pcs/box` : '';
+                    `<span class="quantity">${Math.abs(clearRec.pieces_per_box)}</span> pcs/box` : '';
                 const clearTotalPiecesDisplay = clearRec.total_pieces ? 
                     `<span class="quantity">${clearRec.total_pieces}</span> pcs` : '';
                 
@@ -883,10 +883,8 @@ function clearBinAndAdd(binCode, itemCode, customerPO, BTNumber, boxCount, piece
         url: `${API_URL}/api/inventory/bin/${encodedBinCode}/clear`,
         type: 'DELETE',
         success: function(response) {
-            // 清空成功后等待10毫秒再添加新库存，确保时间戳顺序正确
-            setTimeout(function() {
-                addInventory(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox);
-            }, 10); // 10毫秒延迟
+            // 清空成功后添加新库存
+            addInventory(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox);
         },
         error: function(xhr, status, error) {
             alert(document.body.className.includes('lang-en')
