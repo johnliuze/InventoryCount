@@ -327,20 +327,20 @@ function formatHistoryRecord(record, timestamp, lang) {
             }
         }).join('<br>&nbsp;&nbsp;&nbsp;');
         
-        mergedZh = `${clearDetailsZh}<br>
-                    ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
-                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
-        mergedEn = `${clearDetailsEn}<br>
-                    ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
-                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
+        mergedZh = `➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}<br>
+                    ${clearDetailsZh}`;
+        mergedEn = `➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}<br>
+                    ${clearDetailsEn}`;
     } else {
         // 简单清空记录的情况（兼容旧格式）
-        mergedZh = `🗑️ ${binCodeDisplay}<br>
-                    ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
-                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
-        mergedEn = `🗑️ ${binCodeDisplay}<br>
-                    ➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
-                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}`;
+        mergedZh = `➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}<br>
+                    🗑️ ${binCodeDisplay}`;
+        mergedEn = `➕ ${itemCodeDisplay} (${customerPODisplay}, ${BTDisplay}) &rarr; ${binCodeDisplay}:<br>&nbsp;&nbsp;&nbsp;
+                    ${boxCountDisplay} × ${piecesPerBoxDisplay} = ${totalPiecesDisplay}<br>
+                    🗑️ ${binCodeDisplay}`;
     }
     
     const clearZh = `🗑️ ${binCodeDisplay}`;
