@@ -216,15 +216,6 @@ function mergeClearAndAddLogs(logs) {
                 }
             }
             
-            // 使用最早的清空记录的时间戳，确保合并记录在时间排序中的正确位置
-            const earliestClearTime = clearRecords.reduce((earliest, record) => {
-                const currentTime = parseDateSafely(record.timestamp);
-                const earliestTime = parseDateSafely(earliest);
-                if (!currentTime) return earliest;
-                if (!earliestTime) return record.timestamp;
-                return currentTime < earliestTime ? record.timestamp : earliest;
-            }, clearRecords[0]?.timestamp);
-            
             result.push({
                 __merged: true,
                 __clearRecords: clearRecords, // 保存所有被清空的记录
@@ -235,7 +226,7 @@ function mergeClearAndAddLogs(logs) {
                 total_pieces: addRecord.total_pieces,
                 customer_po: addRecord.customer_po,
                 BT: addRecord.BT,
-                timestamp: earliestClearTime || addRecord.timestamp // 使用最早的清空时间戳
+                timestamp: addRecord.timestamp // 使用添加记录的时间戳（现在由于延迟确保是正确的）
             });
             usedIndexSet.add(i);
             continue;
@@ -892,8 +883,10 @@ function clearBinAndAdd(binCode, itemCode, customerPO, BTNumber, boxCount, piece
         url: `${API_URL}/api/inventory/bin/${encodedBinCode}/clear`,
         type: 'DELETE',
         success: function(response) {
-            // 清空成功后添加新库存
-            addInventory(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox);
+            // 清空成功后等待10毫秒再添加新库存，确保时间戳顺序正确
+            setTimeout(function() {
+                addInventory(binCode, itemCode, customerPO, BTNumber, boxCount, piecesPerBox);
+            }, 10); // 10毫秒延迟
         },
         error: function(xhr, status, error) {
             alert(document.body.className.includes('lang-en')
